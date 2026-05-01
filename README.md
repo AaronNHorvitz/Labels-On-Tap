@@ -29,6 +29,31 @@ The core design principle is simple:
 
 ---
 
+## Why Local-First
+
+The take-home stakeholder notes make local-first architecture a product requirement, not just a technical preference. A prior vendor-style approach reportedly ran into federal network constraints and adoption problems because it depended on hosted AI endpoints and slow processing.
+
+Labels On Tap therefore keeps the review loop inside the app environment:
+
+```text
+label image + application fields
+  -> local OCR or deterministic fixture OCR
+  -> source-backed rules
+  -> Pass / Needs Review / Fail
+```
+
+For this prototype, "local-first" means:
+
+- no hosted OCR or hosted ML runtime,
+- no OpenAI, Anthropic, Google Vision, Azure Vision, AWS Textract, or hosted VLM calls,
+- no dependency on private COLAs Online data,
+- no hidden rejected-label corpus,
+- deterministic demos and tests that run from repository fixtures.
+
+The app can still run on a cloud VM. The important distinction is that the VM runs the OCR and validation code itself instead of forwarding label images to a third-party AI service.
+
+---
+
 ## What Is Implemented
 
 - FastAPI app with server-rendered Jinja2 templates and local HTMX.
@@ -83,6 +108,64 @@ It is a focused, auditable reviewer-support prototype.
 
 ---
 
+## Stakeholder-Driven Design
+
+The prototype is built around the four stakeholder voices in the prompt, plus the practical needs of an evaluator reviewing the take-home.
+
+| Stakeholder | What They Needed | Product Response |
+|---|---|---|
+| Sarah Chen, Deputy Director of Label Compliance | Reduce routine matching work and make high-volume review easier. | One-click demos, single-label upload, result tables, CSV export, and a fixture-backed batch triage demo. Manual multi-file batch upload remains a stretch item. |
+| Marcus Williams, IT / Infrastructure | Avoid blocked hosted ML endpoints and keep deployment straightforward. | FastAPI, Docker Compose, Caddy, local OCR adapter, fixture fallback, filesystem storage, and no hosted ML/OCR runtime. |
+| Dave Morrison, Senior Compliance Agent | Avoid false failures for harmless differences like case, punctuation, and OCR noise. | RapidFuzz-based brand matching, normalization for fuzzy fields, and Needs Review for ambiguous scores. |
+| Jenny Park, Junior Compliance Agent | Catch exact checklist failures, especially government warning wording and capitalization. | Strict canonical warning check, strict `GOVERNMENT WARNING:` heading check, and manual typography review fallback for boldness. |
+| Evaluator / hiring panel | See a working app quickly and understand the engineering trade-offs. | Five-minute demo path, generated fixtures, tests, architecture docs, trade-offs, and source-backed rule explanations. |
+
+The result is intentionally narrow: it demonstrates the highest-signal workflow first instead of spreading effort across a large unfinished compliance surface.
+
+---
+
+## Validation Philosophy
+
+Labels On Tap uses different standards for different kinds of checks.
+
+| Check Type | Examples | Verdict Policy |
+|---|---|---|
+| Strict deterministic checks | Government warning exact text, warning heading capitalization, prohibited `ABV` shorthand, malt `16 fl. oz.` net contents issue | Fail when the source-backed mismatch is clear and OCR confidence is adequate. |
+| Fuzzy application-field checks | Brand name, country of origin for imports | Pass on strong match, Needs Review on ambiguity, Fail only on clear mismatch or conflicting evidence. |
+| Manual-review checks | Low OCR confidence, raster typography/boldness, missing warning isolation | Needs Review instead of pretending the image evidence is stronger than it is. |
+
+Every rule check returns:
+
+```text
+rule_id
+name
+category
+verdict
+expected
+observed
+evidence_text
+source_refs
+message
+reviewer_action
+```
+
+This makes the app auditable: a reviewer can inspect not only the verdict, but also the evidence and the reason the rule fired.
+
+Implemented rule behavior in brief:
+
+| Rule ID | Behavior |
+|---|---|
+| `FORM_BRAND_MATCHES_LABEL` | Fuzzy matches the application brand against OCR text; casing differences should pass. |
+| `COUNTRY_OF_ORIGIN_MATCH` | Applies to imported products; passes on clear expected-country match, needs review when missing/low confidence, fails on conflicting country evidence. |
+| `GOV_WARNING_EXACT_TEXT` | Compares warning text to canonical wording with whitespace normalization only. |
+| `GOV_WARNING_HEADER_CAPS` | Requires the heading to be exactly `GOVERNMENT WARNING:`. |
+| `GOV_WARNING_HEADER_BOLD_REVIEW` | Routes font-weight verification to manual review instead of brittle raster hard-fail logic. |
+| `ALCOHOL_ABV_PROHIBITED` | Flags `ABV` / `A.B.V.` shorthand near an alcohol percentage. |
+| `MALT_NET_CONTENTS_16OZ_PINT` | For malt beverages, flags `16 fl. oz.` style wording when `1 Pint` is expected. |
+| `OCR_LOW_CONFIDENCE` | Routes low-confidence OCR output to Needs Review. |
+
+---
+
 ## Five-Minute Demo
 
 For the exact presentation path, use [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
@@ -96,6 +179,72 @@ Quick path:
 5. Run **Malt Net Contents Failure Demo** and inspect the `16 fl. oz.` issue.
 6. Run **Import Origin Demo** and inspect `COUNTRY_OF_ORIGIN_MATCH`.
 7. Run **Batch Demo**, open the Needs Review item, and export CSV.
+
+---
+
+## Using The Application
+
+### Demo Queue
+
+The fastest way to evaluate the app is the demo queue on the home page. Each button creates a new filesystem-backed job from deterministic fixture data and redirects to the result table.
+
+Available demo scenarios:
+
+```text
+/demo/clean
+/demo/warning
+/demo/abv
+/demo/net_contents
+/demo/country_origin
+/demo/batch
+```
+
+The demo route uses fixture OCR ground truth so the interview demo is deterministic even if first-run docTR model setup is slow.
+
+### Single Label Upload
+
+The single-label form accepts:
+
+```text
+brand_name
+product_type
+class_type
+alcohol_content
+net_contents
+imported
+country_of_origin
+label_image
+```
+
+Supported image extensions are:
+
+```text
+.jpg
+.jpeg
+.png
+```
+
+Current upload preflight rejects unsupported extensions, path components, double extensions, and files whose signature does not match JPG/PNG. Additional upload hardening before deployment is tracked in [TASKS.md](TASKS.md).
+
+### Result Review
+
+Each job page shows:
+
+- total processed items,
+- Pass / Needs Review / Fail counts,
+- per-label top reason,
+- OCR source,
+- processing time,
+- links to item detail pages,
+- CSV export.
+
+The item detail page shows application fields, OCR source, per-rule verdicts, expected/observed values, source refs, reviewer actions, and the full OCR text used for the decision.
+
+### Batch Review
+
+The current batch workflow is fixture-backed through **Run Batch Demo**. It demonstrates the intended reviewer experience: multiple labels in one job, mixed verdicts, item details, and CSV export.
+
+Manual multi-file batch upload is intentionally not presented as complete in this README. It is a stretch item after upload hardening and deployment.
 
 ---
 
@@ -356,6 +505,43 @@ See [docs/fixture-generation.md](docs/fixture-generation.md).
 
 ---
 
+## Batch Manifest Format
+
+The generated batch demo uses a CSV manifest and a JSON manifest. These files are part of the deterministic fixture pipeline and define the contract a future manual batch upload flow would follow.
+
+Current CSV columns:
+
+```csv
+filename,fixture_id,product_type,brand_name,class_type,alcohol_content,net_contents,country_of_origin,imported,expected_verdict
+clean_malt_pass.png,clean_malt_pass,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint,,false,pass
+imported_country_origin_pass.png,imported_country_origin_pass,wine,VALLEY RIDGE,Red Wine,13.5% ALC/VOL,750 mL,France,true,pass
+```
+
+Current JSON item shape:
+
+```json
+{
+  "fixture_id": "imported_country_origin_pass",
+  "filename": "imported_country_origin_pass.png",
+  "product_type": "wine",
+  "brand_name": "VALLEY RIDGE",
+  "class_type": "Red Wine",
+  "alcohol_content": "13.5% ALC/VOL",
+  "net_contents": "750 mL",
+  "country_of_origin": "France",
+  "imported": true,
+  "expected": {
+    "overall_verdict": "pass",
+    "checked_rule_ids": ["COUNTRY_OF_ORIGIN_MATCH"],
+    "triggered_rule_ids": []
+  }
+}
+```
+
+Manual manifest upload is not wired into the UI yet. The schema exists because the fixture generator, tests, and batch demo need stable data before the app is deployed.
+
+---
+
 ## API / Routes
 
 | Route | Method | Purpose |
@@ -406,6 +592,23 @@ Current test coverage includes:
 
 ---
 
+## Performance Expectations
+
+The evaluator demos are intentionally fast and deterministic because they use fixture OCR ground truth. Real uploads use the local docTR adapter, so first-run behavior can include model download or warmup depending on the host environment.
+
+Performance goals for the deployed prototype:
+
+| Area | Target |
+|---|---|
+| Home page / demo route | Immediate response after app startup |
+| Fixture-backed demo processing | Fast enough for live interview walkthrough |
+| Real OCR upload | Approximately 5 seconds per label after OCR warmup, dependent on VM CPU/RAM and image complexity |
+| Batch UX | Show a job/results page immediately and let reviewers inspect completed results |
+
+The repository does not claim measured production OCR latency yet. Final measured values should be recorded in [docs/performance.md](docs/performance.md) after local Docker and public VM smoke testing.
+
+---
+
 ## Security And Privacy
 
 Implemented or planned upload controls:
@@ -436,6 +639,77 @@ Runtime privacy:
 - Production use would require auth, audit logs, retention policy, formal security review, Section 508 review, and deeper legal validation.
 
 See [TRADEOFFS.md](TRADEOFFS.md) for the fuller rationale.
+
+---
+
+## Troubleshooting
+
+### Dependency install is slow
+
+`python-doctr[torch]` can pull large CPU OCR dependencies. This is expected. The fixture demos and tests do not require hosted OCR or live external data.
+
+### First real OCR upload is slow
+
+The first docTR run may need model initialization or cached weights. Run a demo first to confirm the web app is healthy, then test a real upload.
+
+### Docker health check fails on localhost
+
+The Compose stack uses the production Caddy hostnames. Use:
+
+```bash
+curl -H "Host: www.labelsontap.ai" http://localhost/health
+```
+
+Do not use `curl http://localhost:8000/health` with the default Compose file because the FastAPI app service is internal to the Docker network.
+
+### Public domain does not resolve
+
+Check:
+
+```bash
+dig labelsontap.ai
+dig www.labelsontap.ai
+curl -I http://labelsontap.ai
+curl -I https://www.labelsontap.ai
+docker compose ps
+docker compose logs caddy
+docker compose logs app
+```
+
+Confirm that both A records point to the VM Elastic IP and that ports `80` and `443` are open.
+
+### Demos work but real uploads fail
+
+Check:
+
+- uploaded file extension is `.jpg`, `.jpeg`, or `.png`,
+- file signature matches the extension family,
+- Docker container has enough RAM for docTR/PyTorch,
+- app logs do not show OCR model import or weight-cache failures,
+- result detail page says whether OCR source was `fixture ground truth` or local docTR.
+
+---
+
+## Future Production Hardening
+
+A production federal version would need additional work beyond the take-home prototype:
+
+- authentication and role-based access control,
+- audit logs and immutable review history,
+- formal records retention and cleanup policy,
+- Section 508 accessibility review,
+- vulnerability scanning and software bill of materials,
+- signed container images,
+- secrets management,
+- centralized logging and monitoring,
+- background worker queue for large batches,
+- PostgreSQL or an approved enterprise data store,
+- broader rule coverage across wine, spirits, malt beverages, formulas, appellations, claims, and prohibited statements,
+- formal legal review of rule interpretations,
+- performance benchmarking with representative image sets,
+- explicit integration plan for COLAs Online or internal workflows.
+
+For this sprint, those items stay outside the MVP so the deployed demo can remain focused, inspectable, and reliable.
 
 ---
 
