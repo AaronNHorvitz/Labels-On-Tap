@@ -1,0 +1,296 @@
+{
+  "generated_at": "2026-04-30",
+  "criteria": [
+    {
+      "rule_id": "GOV_WARNING_EXACT_TEXT",
+      "name": "Government warning exact text",
+      "beverage_types": [
+        "wine",
+        "distilled_spirits",
+        "malt_beverage"
+      ],
+      "category": "strict_compliance",
+      "confidence_tier": "tier_1_official",
+      "default_verdict": "fail",
+      "source_refs": [
+        "SRC_27_USC_215",
+        "SRC_27_CFR_PART_16"
+      ],
+      "requirement_summary": "The required government warning must match the canonical statutory wording.",
+      "detection_method": "OCR warning-block extraction, whitespace-only normalization, and canonical string comparison.",
+      "pass_condition": "Warning block equals canonical text after whitespace normalization.",
+      "fail_condition": "Warning missing, altered wording, altered punctuation, or altered required capitalization.",
+      "needs_review_condition": "OCR confidence is too low or warning block cannot be isolated.",
+      "implemented_status": "planned",
+      "app_module": "app/rules/strict_warning.py",
+      "fixtures": [
+        "warning_good.png",
+        "warning_missing_machinery_comma.png",
+        "warning_title_case_heading.png"
+      ],
+      "ui_message": "Government warning text does not match the required wording."
+    },
+    {
+      "rule_id": "GOV_WARNING_HEADER_CAPS",
+      "name": "Government warning heading capitalization",
+      "beverage_types": [
+        "wine",
+        "distilled_spirits",
+        "malt_beverage"
+      ],
+      "category": "strict_compliance",
+      "confidence_tier": "tier_1_official",
+      "default_verdict": "fail",
+      "source_refs": [
+        "SRC_27_CFR_PART_16"
+      ],
+      "requirement_summary": "The words GOVERNMENT WARNING must appear in capital letters.",
+      "detection_method": "Regex/prefix check on isolated warning heading.",
+      "pass_condition": "Heading begins with GOVERNMENT WARNING:",
+      "fail_condition": "Heading appears as title case, lowercase, or otherwise altered.",
+      "needs_review_condition": "OCR ambiguity prevents reliable heading extraction.",
+      "implemented_status": "planned",
+      "app_module": "app/rules/strict_warning.py",
+      "fixtures": [
+        "warning_title_case_heading.png"
+      ],
+      "ui_message": "Government warning heading is not in the required all-caps form."
+    },
+    {
+      "rule_id": "GOV_WARNING_HEADER_BOLD",
+      "name": "Government warning heading boldness",
+      "beverage_types": [
+        "wine",
+        "distilled_spirits",
+        "malt_beverage"
+      ],
+      "category": "cv_typography",
+      "confidence_tier": "tier_1_official",
+      "default_verdict": "needs_review",
+      "source_refs": [
+        "SRC_27_CFR_PART_16"
+      ],
+      "requirement_summary": "The GOVERNMENT WARNING heading must appear in bold type.",
+      "detection_method": "OpenCV stroke-width and ink-density heuristic using OCR bounding boxes.",
+      "pass_condition": "Heading stroke/ink metrics clearly exceed body text metrics.",
+      "fail_condition": "Heading is clearly not bold and image quality is sufficient.",
+      "needs_review_condition": "Image quality or OCR boxes are insufficient for reliable font-weight estimation.",
+      "implemented_status": "planned",
+      "app_module": "app/rules/strict_warning.py",
+      "fixtures": [
+        "warning_not_bold.png",
+        "warning_low_contrast.png"
+      ],
+      "ui_message": "Government warning boldness could not be confirmed or appears incorrect."
+    },
+    {
+      "rule_id": "ALCOHOL_ABV_PROHIBITED",
+      "name": "Prohibited ABV abbreviation detected",
+      "beverage_types": [
+        "malt_beverage",
+        "distilled_spirits"
+      ],
+      "category": "strict_compliance",
+      "confidence_tier": "tier_1_official",
+      "default_verdict": "fail",
+      "source_refs": [
+        "SRC_27_CFR_PART_5",
+        "SRC_27_CFR_PART_7"
+      ],
+      "requirement_summary": "Alcohol content statements should use acceptable alcohol-by-volume wording/abbreviations, not ABV shorthand where prohibited.",
+      "detection_method": "Regex scan for ABV or A.B.V. near alcohol percentage statements.",
+      "pass_condition": "Acceptable wording such as ALC/VOL or Alcohol by Volume is present and ABV shorthand is absent.",
+      "fail_condition": "ABV or A.B.V. appears in the label alcohol statement.",
+      "needs_review_condition": "OCR confidence around the alcohol statement is low.",
+      "implemented_status": "planned",
+      "app_module": "app/rules/alcohol_terms.py",
+      "fixtures": [
+        "beer_5_percent_abv.png",
+        "spirits_45_percent_abv.png"
+      ],
+      "ui_message": "Prohibited alcohol-content abbreviation detected."
+    },
+    {
+      "rule_id": "MALT_NET_CONTENTS_16OZ_PINT",
+      "name": "Malt beverage 16 fl. oz. should be 1 Pint",
+      "beverage_types": [
+        "malt_beverage"
+      ],
+      "category": "strict_compliance",
+      "confidence_tier": "tier_1_official",
+      "default_verdict": "fail",
+      "source_refs": [
+        "SRC_27_CFR_PART_7"
+      ],
+      "requirement_summary": "Malt beverage net contents should use the required U.S. standard measure form for intermediate volumes.",
+      "detection_method": "Regex and volume parser for 16 fl. oz. without 1 Pint.",
+      "pass_condition": "Label states 1 Pint where required.",
+      "fail_condition": "Label states only 16 fl. oz. or equivalent incorrect form.",
+      "needs_review_condition": "OCR detects conflicting or low-confidence net-contents candidates.",
+      "implemented_status": "planned",
+      "app_module": "app/rules/net_contents.py",
+      "fixtures": [
+        "beer_16_fl_oz_only.png",
+        "beer_1_pint_good.png"
+      ],
+      "ui_message": "Malt beverage net contents may need to be expressed as 1 Pint."
+    },
+    {
+      "rule_id": "FORM_BRAND_MATCHES_LABEL",
+      "name": "Application brand name matches label artwork",
+      "beverage_types": [
+        "wine",
+        "distilled_spirits",
+        "malt_beverage"
+      ],
+      "category": "fuzzy_match",
+      "confidence_tier": "stakeholder_requirement",
+      "default_verdict": "needs_review",
+      "source_refs": [
+        "SRC_TTB_FORM_5100_31",
+        "SRC_STAKEHOLDER_DISCOVERY"
+      ],
+      "requirement_summary": "The brand name entered in the application should match the brand name on the label artwork.",
+      "detection_method": "Normalize application and OCR text, then compute fuzzy similarity against OCR text windows.",
+      "pass_condition": "Similarity score is above pass threshold.",
+      "fail_condition": "Similarity score is below fail threshold with high OCR confidence.",
+      "needs_review_condition": "Similarity score is ambiguous or OCR confidence is low.",
+      "implemented_status": "planned",
+      "app_module": "app/rules/field_matching.py",
+      "fixtures": [
+        "brand_match_good.png",
+        "brand_case_difference.png",
+        "brand_mismatch.png"
+      ],
+      "ui_message": "Brand name on label does not clearly match application field."
+    },
+    {
+      "rule_id": "IMAGE_FORMAT_ALLOWED_TYPES",
+      "name": "Allowed label image file types",
+      "beverage_types": [
+        "wine",
+        "distilled_spirits",
+        "malt_beverage"
+      ],
+      "category": "upload_preflight",
+      "confidence_tier": "tier_1_official_or_guidance",
+      "default_verdict": "fail",
+      "source_refs": [
+        "SRC_REPORT_14_HARDENING"
+      ],
+      "requirement_summary": "The public demo should accept only supported label artwork formats and reject unsafe/unsupported files.",
+      "detection_method": "Extension allowlist plus magic-byte validation.",
+      "pass_condition": "File is .jpg, .jpeg, or .png and signature matches.",
+      "fail_condition": "File is PDF, executable, double-extension, unsupported image type, or signature mismatch.",
+      "needs_review_condition": "File metadata is suspicious but not conclusively unsafe.",
+      "implemented_status": "planned",
+      "app_module": "app/services/security/upload_policy.py",
+      "fixtures": [
+        "bad_pdf_upload.pdf",
+        "bad_double_extension.png.php"
+      ],
+      "ui_message": "Unsupported or unsafe label-image upload."
+    },
+    {
+      "rule_id": "HEALTH_CLAIM_EXPLICIT",
+      "name": "Potential explicit health claim",
+      "beverage_types": [
+        "wine",
+        "distilled_spirits",
+        "malt_beverage"
+      ],
+      "category": "risk_review",
+      "confidence_tier": "tier_2_case_or_precedent",
+      "default_verdict": "needs_review",
+      "source_refs": [
+        "SRC_27_USC_205"
+      ],
+      "requirement_summary": "Health-benefit or reduced-harm claims can create misleading consumer impressions and require human review.",
+      "detection_method": "Keyword/window scan for terms such as liver, DNA, safer, less toxic, protective, detox, or reduces harm.",
+      "pass_condition": "No health-risk terms detected near alcohol/product/ingredient identity text.",
+      "fail_condition": "",
+      "needs_review_condition": "Health-risk terms appear near product identity, ingredients, or alcohol-related language.",
+      "implemented_status": "planned",
+      "app_module": "app/rules/health_claims.py",
+      "fixtures": [
+        "bellion_style_health_claim.png"
+      ],
+      "ui_message": "Potential health-related claim detected. Human review required."
+    },
+    {
+      "rule_id": "WINE_SEMI_GENERIC_NAME_DETECTED",
+      "name": "Semi-generic wine name detected",
+      "beverage_types": [
+        "wine"
+      ],
+      "category": "risk_review",
+      "confidence_tier": "tier_1_official",
+      "default_verdict": "needs_review",
+      "source_refs": [
+        "SRC_TTB_IC_2006_01"
+      ],
+      "requirement_summary": "Semi-generic wine names and Retsina require special support/context.",
+      "detection_method": "Scan OCR text for semi-generic names such as Champagne, Chablis, Port, Sherry, Burgundy, and Retsina.",
+      "pass_condition": "No semi-generic term detected, or support fields explain allowed use.",
+      "fail_condition": "",
+      "needs_review_condition": "Semi-generic term detected without sufficient support context.",
+      "implemented_status": "planned",
+      "app_module": "app/rules/wine/semi_generic_names.py",
+      "fixtures": [
+        "wine_california_champagne_new_use.png",
+        "wine_angelica_exception.png"
+      ],
+      "ui_message": "Semi-generic wine term detected. Verify support context."
+    },
+    {
+      "rule_id": "ABSINTHE_TERM_DETECTED",
+      "name": "Absinthe / thujone support context",
+      "beverage_types": [
+        "distilled_spirits"
+      ],
+      "category": "risk_review",
+      "confidence_tier": "tier_1_official",
+      "default_verdict": "needs_review",
+      "source_refs": [
+        "SRC_TTB_IC_2007_05"
+      ],
+      "requirement_summary": "Absinthe-related terms require thujone-free/supporting context and should not imply hallucinogenic effects.",
+      "detection_method": "Scan OCR text for absinthe, absinth, wormwood, thujone, green fairy, or mind-altering terms.",
+      "pass_condition": "No absinthe risk terms detected, or manifest support fields are present.",
+      "fail_condition": "",
+      "needs_review_condition": "Absinthe-related terms detected without support context.",
+      "implemented_status": "planned",
+      "app_module": "app/rules/spirits/absinthe_thujone.py",
+      "fixtures": [
+        "spirits_absinthe_standalone.png",
+        "spirits_absinthe_green_fairy_claim.png"
+      ],
+      "ui_message": "Absinthe/thujone-related term detected. Verify supporting context."
+    },
+    {
+      "rule_id": "SYNTHETIC_NEGATIVE_REQUIRED",
+      "name": "Synthetic negative fixture strategy",
+      "beverage_types": [
+        "wine",
+        "distilled_spirits",
+        "malt_beverage"
+      ],
+      "category": "data_strategy",
+      "confidence_tier": "tier_3_research_synthesis",
+      "default_verdict": "info",
+      "source_refs": [
+        "SRC_REPORT_09_SYNTHETIC_FIXTURES",
+        "SRC_TTB_PUBLIC_COLA_REGISTRY"
+      ],
+      "requirement_summary": "Because rejected/Needs Correction applications are not generally public, controlled synthetic negative fixtures are required.",
+      "detection_method": "Documentation and fixture-provenance validation.",
+      "pass_condition": "Every synthetic fixture maps to rule IDs, source refs, and expected verdict.",
+      "fail_condition": "",
+      "needs_review_condition": "",
+      "implemented_status": "planned",
+      "app_module": "scripts/generate_synthetic_fixtures.py",
+      "fixtures": [],
+      "ui_message": "Data strategy note only."
+    }
+  ]
+}

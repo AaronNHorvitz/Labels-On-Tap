@@ -1,0 +1,212 @@
+{
+  "generated_at": "2026-04-30",
+  "sources": [
+    {
+      "source_id": "SRC_27_USC_205",
+      "title": "27 U.S.C. § 205 — Federal Alcohol Administration Act labeling authority",
+      "source_type": "federal_statute",
+      "confidence_tier": "tier_1_official",
+      "publisher": "U.S. Code",
+      "url": "https://uscode.house.gov/",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "LABELING_AUTHORITY_CONTEXT",
+        "MISLEADING_LABEL_RISK"
+      ],
+      "notes": "FAA Act authority for labeling and misleading-statement regulation."
+    },
+    {
+      "source_id": "SRC_27_USC_215",
+      "title": "27 U.S.C. § 215 — Alcoholic beverage health warning statement",
+      "source_type": "federal_statute",
+      "confidence_tier": "tier_1_official",
+      "publisher": "U.S. Code",
+      "url": "https://uscode.house.gov/",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "GOV_WARNING_PRESENT",
+        "GOV_WARNING_EXACT_TEXT"
+      ],
+      "notes": "Statutory basis for the mandatory government warning."
+    },
+    {
+      "source_id": "SRC_27_CFR_PART_4",
+      "title": "27 CFR Part 4 — Labeling and Advertising of Wine",
+      "source_type": "regulation",
+      "confidence_tier": "tier_1_official_current_reference",
+      "publisher": "eCFR",
+      "url": "https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-4",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "WINE_RULES",
+        "WINE_APPELLATION_RISK",
+        "WINE_ALCOHOL_TOLERANCE"
+      ],
+      "notes": "Core wine labeling regulation."
+    },
+    {
+      "source_id": "SRC_27_CFR_PART_5",
+      "title": "27 CFR Part 5 — Labeling and Advertising of Distilled Spirits",
+      "source_type": "regulation",
+      "confidence_tier": "tier_1_official_current_reference",
+      "publisher": "eCFR",
+      "url": "https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-5",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "SPIRITS_RULES",
+        "SPIRITS_CLASS_TYPE",
+        "SPIRITS_ALCOHOL_CONTENT"
+      ],
+      "notes": "Core distilled spirits labeling regulation."
+    },
+    {
+      "source_id": "SRC_27_CFR_PART_7",
+      "title": "27 CFR Part 7 — Labeling and Advertising of Malt Beverages",
+      "source_type": "regulation",
+      "confidence_tier": "tier_1_official_current_reference",
+      "publisher": "eCFR",
+      "url": "https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-7",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "MALT_RULES",
+        "MALT_NET_CONTENTS",
+        "MALT_ALCOHOL_CONTENT"
+      ],
+      "notes": "Core malt beverage labeling regulation."
+    },
+    {
+      "source_id": "SRC_27_CFR_PART_13",
+      "title": "27 CFR Part 13 — Labeling Proceedings",
+      "source_type": "regulation",
+      "confidence_tier": "tier_1_official_current_reference",
+      "publisher": "eCFR",
+      "url": "https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-13",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "PUBLIC_DATA_BOUNDARIES",
+        "COLA_PROCEDURE",
+        "CERTIFICATE_EXEMPTION_CONTEXT"
+      ],
+      "notes": "COLA procedures and public/confidential data boundary context."
+    },
+    {
+      "source_id": "SRC_27_CFR_PART_16",
+      "title": "27 CFR Part 16 — Alcoholic Beverage Health Warning Statement",
+      "source_type": "regulation",
+      "confidence_tier": "tier_1_official_current_reference",
+      "publisher": "eCFR",
+      "url": "https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-16",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "GOV_WARNING_EXACT_TEXT",
+        "GOV_WARNING_HEADER_CAPS",
+        "GOV_WARNING_HEADER_BOLD",
+        "GOV_WARNING_BODY_NOT_BOLD",
+        "GOV_WARNING_LEGIBILITY"
+      ],
+      "notes": "Primary implementation source for government warning text and formatting."
+    },
+    {
+      "source_id": "SRC_TTB_FORM_5100_31",
+      "title": "TTB Form 5100.31 — Application for and Certification/Exemption of Label/Bottle Approval",
+      "source_type": "ttb_form",
+      "confidence_tier": "tier_1_official",
+      "publisher": "TTB",
+      "url": "https://www.ttb.gov/system/files/images/pdfs/forms/f510031.pdf",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "FORM_FIELD_MAPPING",
+        "APPLICATION_SCHEMA",
+        "FORM_BRAND_MATCHES_LABEL"
+      ],
+      "notes": "Primary form schema reference for expected application fields."
+    },
+    {
+      "source_id": "SRC_TTB_PUBLIC_COLA_REGISTRY",
+      "title": "TTB Public COLA Registry",
+      "source_type": "ttb_public_registry",
+      "confidence_tier": "tier_1_official",
+      "publisher": "TTB",
+      "url": "https://www.ttb.gov/regulated-commodities/labeling/cola-public-registry",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "PUBLIC_APPROVED_FIXTURES",
+        "PUBLIC_POSTMARKET_FIXTURES"
+      ],
+      "notes": "Public source for approved, expired, surrendered, and revoked COLA records."
+    },
+    {
+      "source_id": "SRC_TTB_IC_2006_01",
+      "title": "TTB Industry Circular 2006-01 — Semi-generic wine names and Retsina",
+      "source_type": "ttb_industry_circular",
+      "confidence_tier": "tier_1_official",
+      "publisher": "TTB",
+      "url": "https://www.ttb.gov/public-information/industry-circulars/archives/2006/06-01",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "WINE_SEMI_GENERIC_NAME_DETECTED",
+        "WINE_SEMI_GENERIC_SUPPORT_REQUIRED"
+      ],
+      "notes": "Source for semi-generic wine name and Retsina handling."
+    },
+    {
+      "source_id": "SRC_TTB_IC_2007_05",
+      "title": "TTB Industry Circular 2007-05 — Absinthe and thujone policy",
+      "source_type": "ttb_industry_circular",
+      "confidence_tier": "tier_1_official",
+      "publisher": "TTB",
+      "url": "https://www.ttb.gov/public-information/industry-circulars/archives/2007/07-05",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "ABSINTHE_TERM_DETECTED",
+        "ABSINTHE_THUJONE_FREE_SUPPORT_REQUIRED"
+      ],
+      "notes": "Source for absinthe/thujone support and risk checks."
+    },
+    {
+      "source_id": "SRC_STAKEHOLDER_DISCOVERY",
+      "title": "Stakeholder discovery notes and take-home project brief",
+      "source_type": "stakeholder_requirement",
+      "confidence_tier": "stakeholder_requirement",
+      "publisher": "Take-home brief",
+      "url": "local_uploaded_project_brief",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "BATCH_PROGRESS_REQUIRED",
+        "NO_CLOUD_ML_ENDPOINTS",
+        "LATENCY_SLA",
+        "UX_SIMPLICITY"
+      ],
+      "notes": "Source for workflow, UX, latency, batch, and infrastructure constraints."
+    },
+    {
+      "source_id": "SRC_REPORT_09_SYNTHETIC_FIXTURES",
+      "title": "Data Acquisition and Synthetic Fixture Generation Pipeline",
+      "source_type": "internal_research_report",
+      "confidence_tier": "tier_3_research_synthesis",
+      "publisher": "Project research corpus",
+      "url": "research/legal-corpus/reports/09-data-acquisition-synthetic-fixtures.md",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "SYNTHETIC_NEGATIVE_REQUIRED",
+        "FIXTURE_MUTATION_TRACEABILITY"
+      ],
+      "notes": "Supports lawful synthetic negative fixture strategy."
+    },
+    {
+      "source_id": "SRC_REPORT_14_HARDENING",
+      "title": "Federal Prototype Hardening, Accessibility, and Evaluator Journey",
+      "source_type": "internal_research_report",
+      "confidence_tier": "tier_3_research_synthesis",
+      "publisher": "Project research corpus",
+      "url": "research/legal-corpus/reports/14-federal-hardening-accessibility.md",
+      "retrieved_at": "2026-04-30",
+      "used_for": [
+        "UPLOAD_EXTENSION_ALLOWLIST",
+        "UPLOAD_MAGIC_BYTE_VALIDATION",
+        "ACCESSIBILITY_BASELINE"
+      ],
+      "notes": "Supports upload security and federal-style UX hardening."
+    }
+  ]
+}

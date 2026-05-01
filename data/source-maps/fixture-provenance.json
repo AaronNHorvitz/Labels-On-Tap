@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-04-30",
+  "fixtures": [
+    {
+      "fixture_id": "warning_missing_machinery_comma",
+      "file_path": "data/fixtures/synthetic/warning_missing_machinery_comma.png",
+      "source_type": "synthetic_mutation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "GOV_WARNING_EXACT_TEXT"
+      ],
+      "source_refs": [
+        "SRC_27_USC_215",
+        "SRC_27_CFR_PART_16"
+      ],
+      "expected_verdict": "fail",
+      "mutation_summary": "Removed required comma after 'machinery' in the government warning."
+    },
+    {
+      "fixture_id": "beer_16_fl_oz_only",
+      "file_path": "data/fixtures/synthetic/beer_16_fl_oz_only.png",
+      "source_type": "synthetic_mutation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "MALT_NET_CONTENTS_16OZ_PINT"
+      ],
+      "source_refs": [
+        "SRC_27_CFR_PART_7"
+      ],
+      "expected_verdict": "fail",
+      "mutation_summary": "Used 16 fl. oz. instead of 1 Pint for a malt beverage fixture."
+    },
+    {
+      "fixture_id": "beer_5_percent_abv",
+      "file_path": "data/fixtures/synthetic/beer_5_percent_abv.png",
+      "source_type": "synthetic_mutation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "ALCOHOL_ABV_PROHIBITED"
+      ],
+      "source_refs": [
+        "SRC_27_CFR_PART_7"
+      ],
+      "expected_verdict": "fail",
+      "mutation_summary": "Used ABV shorthand in alcohol-content statement."
+    },
+    {
+      "fixture_id": "bellion_style_health_claim",
+      "file_path": "data/fixtures/synthetic/bellion_style_health_claim.png",
+      "source_type": "synthetic_mutation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "HEALTH_CLAIM_EXPLICIT"
+      ],
+      "source_refs": [
+        "SRC_27_USC_205"
+      ],
+      "expected_verdict": "needs_review",
+      "mutation_summary": "Injected health-benefit/risk-reduction language near product identity text."
+    }
+  ]
+}
