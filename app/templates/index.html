@@ -4,7 +4,7 @@
 <section class="workspace">
   <div class="intro">
     <h1>Alcohol Label Verification</h1>
-    <p>Run source-backed checks against demo labels or upload one label image for local preflight review.</p>
+    <p>Run source-backed checks against demo labels, one label image, or a manifest-backed image batch.</p>
   </div>
 
   <section class="panel">
@@ -62,6 +62,21 @@
         <input name="label_image" type="file" accept=".jpg,.jpeg,.png" required>
       </label>
       <button class="button primary" type="submit">Verify Label</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Batch Upload</h2>
+    <form action="/jobs/batch" method="post" enctype="multipart/form-data" class="upload-form">
+      <label class="full">
+        Manifest
+        <input name="manifest_file" type="file" accept=".csv,.json" required>
+      </label>
+      <label class="full">
+        Label images
+        <input name="label_images" type="file" accept=".jpg,.jpeg,.png" multiple required>
+      </label>
+      <button class="button primary" type="submit">Verify Batch</button>
     </form>
   </section>
 </section>

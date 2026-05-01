@@ -24,6 +24,7 @@ Deployment first: after upload hardening and root docs are done, stop adding pro
 - [x] FastAPI app scaffold is implemented.
 - [x] Home page, health route, demo routes, job pages, detail pages, and CSV export routes exist.
 - [x] Single-label upload route exists.
+- [x] Manual manifest-backed batch upload route exists.
 - [x] `country_of_origin` and `imported` are first-class application fields.
 - [x] Country-of-origin fields are included in the single-label route.
 - [x] Core validation rules are implemented for brand match, warning text, warning caps, warning typography review, ABV shorthand, malt net contents, OCR confidence, and country of origin.
@@ -116,8 +117,8 @@ public https://www.labelsontap.ai smoke tests pass
 
 Priority order:
 
-- [ ] Manual multi-file batch upload using `manifest.csv` / `manifest.json` plus multiple `.jpg/.jpeg/.png` files.
-- [ ] Manifest parser tests for missing image, unknown filename, malformed CSV, and happy path.
+- [x] Manual multi-file batch upload using `manifest.csv` / `manifest.json` plus multiple `.jpg/.jpeg/.png` files.
+- [x] Manifest parser tests for missing image, unknown filename, malformed CSV, and happy path.
 - [x] CSV export coverage for batch jobs.
 - [x] Item detail page coverage for expected, observed, source refs, reviewer action, and per-rule evidence text.
 - [ ] Add `brand_mismatch_fail.*` fixture.
@@ -221,7 +222,7 @@ curl -I https://labelsontap.ai
 
 - Demo OCR uses fixture ground truth for deterministic evaluator behavior.
 - Real uploads use the local docTR adapter and route OCR failures or low confidence to Needs Review.
-- Fixture-backed batch demo is implemented; manual multi-file batch upload is a stretch item.
+- Fixture-backed batch demo and manual manifest-backed batch upload are implemented; batch processing is synchronous in the web process for the sprint prototype.
 - Typography boldness routes to Needs Review instead of brittle raster font-weight failure.
 - The app is a reviewer-support prototype, not a final legal approval/rejection system.
 - The project does not use hosted OCR or hosted ML APIs at runtime.
@@ -253,9 +254,10 @@ curl -I https://labelsontap.ai
 - [ ] Malt net contents demo returns Fail.
 - [ ] Country-of-origin demo returns Pass.
 - [ ] Batch demo returns multiple results.
-- [ ] CSV export works.
-- [ ] Result detail page shows expected, observed, evidence, source refs, and reviewer action.
-- [ ] Single upload form exists.
+- [x] CSV export works.
+- [x] Result detail page shows expected, observed, evidence, source refs, and reviewer action.
+- [x] Single upload form exists.
+- [x] Manual manifest-backed batch upload form exists.
 - [ ] Fixture-backed batch demo is clearly available.
 - [ ] `pytest -q` passes.
 - [ ] `docker compose build` passes.

@@ -40,3 +40,10 @@ def copy_upload_with_size_limit(source: BinaryIO, dest: Path, max_bytes: int) ->
                 raise ValueError(f"Upload exceeds maximum size of {max_bytes} bytes.")
             target.write(chunk)
     return bytes_written
+
+
+def read_upload_with_size_limit(source: BinaryIO, max_bytes: int) -> bytes:
+    content = source.read(max_bytes + 1)
+    if len(content) > max_bytes:
+        raise ValueError(f"Upload exceeds maximum size of {max_bytes} bytes.")
+    return content

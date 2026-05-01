@@ -463,12 +463,12 @@ Use one-click demos and explain:
 The deployed evaluator flow is demonstrated through generated source-backed fixtures. Manual upload is part of the same route structure and is documented in the task plan.
 ```
 
-### If batch upload is not complete
+### If manual batch upload needs explanation
 
 Use one-click batch demo and explain:
 
 ```text
-The batch demo uses pre-generated fixtures to show triage behavior. Full manual multi-file batch upload is the next implementation step.
+The batch demo uses pre-generated fixtures to show triage behavior. Manual manifest-backed batch upload is also available on the home page for CSV/JSON manifests plus multiple JPG/PNG label images; in the sprint prototype it runs synchronously in the web process.
 ```
 
 ### If TLS is still propagating

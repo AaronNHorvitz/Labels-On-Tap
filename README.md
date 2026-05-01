@@ -59,6 +59,7 @@ The app can still run on a cloud VM. The important distinction is that the VM ru
 - FastAPI app with server-rendered Jinja2 templates and local HTMX.
 - Local CSS with high-contrast Pass / Needs Review / Fail states.
 - Single-label upload form with product/application fields.
+- Manifest-backed batch upload for multiple label images.
 - Fixture-backed one-click demos for evaluator review.
 - Filesystem job/result store under `data/jobs/`.
 - CSV export for job results.
@@ -114,7 +115,7 @@ The prototype is built around the four stakeholder voices in the prompt, plus th
 
 | Stakeholder | What They Needed | Product Response |
 |---|---|---|
-| Sarah Chen, Deputy Director of Label Compliance | Reduce routine matching work and make high-volume review easier. | One-click demos, single-label upload, result tables, CSV export, and a fixture-backed batch triage demo. Manual multi-file batch upload remains a stretch item. |
+| Sarah Chen, Deputy Director of Label Compliance | Reduce routine matching work and make high-volume review easier. | One-click demos, single-label upload, manifest-backed batch upload, result tables, CSV export, and a fixture-backed batch triage demo. |
 | Marcus Williams, IT / Infrastructure | Avoid blocked hosted ML endpoints and keep deployment straightforward. | FastAPI, Docker Compose, Caddy, local OCR adapter, fixture fallback, filesystem storage, and no hosted ML/OCR runtime. |
 | Dave Morrison, Senior Compliance Agent | Avoid false failures for harmless differences like case, punctuation, and OCR noise. | RapidFuzz-based brand matching, normalization for fuzzy fields, and Needs Review for ambiguous scores. |
 | Jenny Park, Junior Compliance Agent | Catch exact checklist failures, especially government warning wording and capitalization. | Strict canonical warning check, strict `GOVERNMENT WARNING:` heading check, and manual typography review fallback for boldness. |
@@ -224,7 +225,7 @@ Supported image extensions are:
 .png
 ```
 
-Current upload preflight rejects unsupported extensions, path components, double extensions, and files whose signature does not match JPG/PNG. Additional upload hardening before deployment is tracked in [TASKS.md](TASKS.md).
+Current upload preflight rejects unsupported extensions, path components, double extensions, oversize files, files whose signature does not match JPG/PNG, and corrupt images that Pillow cannot decode. Accepted uploads are stored under randomized server-side filenames while preserving the original filename as metadata.
 
 ### Result Review
 
@@ -242,9 +243,9 @@ The item detail page shows application fields, OCR source, per-rule verdicts, ex
 
 ### Batch Review
 
-The current batch workflow is fixture-backed through **Run Batch Demo**. It demonstrates the intended reviewer experience: multiple labels in one job, mixed verdicts, item details, and CSV export.
+The home page includes a batch upload form that accepts a `manifest.csv` or `manifest.json` file plus multiple `.jpg/.jpeg/.png` label images. The manifest filenames must match the uploaded image filenames. The server validates the manifest, rejects missing or unreferenced images, stores accepted images under randomized filenames, then runs the same OCR and rule engine used by single-label review.
 
-Manual multi-file batch upload is intentionally not presented as complete in this README. It is a stretch item after upload hardening and deployment.
+The **Run Batch Demo** button uses the same generated fixture set to demonstrate mixed verdicts, item details, and CSV export without requiring the evaluator to assemble files manually.
 
 ---
 
@@ -507,7 +508,7 @@ See [docs/fixture-generation.md](docs/fixture-generation.md).
 
 ## Batch Manifest Format
 
-The generated batch demo uses a CSV manifest and a JSON manifest. These files are part of the deterministic fixture pipeline and define the contract a future manual batch upload flow would follow.
+The generated batch demo uses a CSV manifest and a JSON manifest. These files are part of the deterministic fixture pipeline and use the same contract as the manual batch upload form.
 
 Current CSV columns:
 
@@ -538,7 +539,7 @@ Current JSON item shape:
 }
 ```
 
-Manual manifest upload is not wired into the UI yet. The schema exists because the fixture generator, tests, and batch demo need stable data before the app is deployed.
+Manual manifest upload is wired into the home page batch form. The fixture generator, tests, and batch demo use the same schema so the data contract stays stable.
 
 ---
 
@@ -549,6 +550,7 @@ Manual manifest upload is not wired into the UI yet. The schema exists because t
 | `/` | GET | Home page, demo buttons, single upload form |
 | `/health` | GET | Health check |
 | `/jobs` | POST | Create a single-label job |
+| `/jobs/batch` | POST | Create a manifest-backed batch job |
 | `/jobs/{job_id}` | GET | Job result table |
 | `/jobs/{job_id}/status` | GET | HTMX status partial |
 | `/jobs/{job_id}/items/{item_id}` | GET | Result detail |
@@ -611,15 +613,16 @@ The repository does not claim measured production OCR latency yet. Final measure
 
 ## Security And Privacy
 
-Implemented or planned upload controls:
+Implemented upload controls:
 
 - extension allowlist for `.jpg`, `.jpeg`, `.png`,
 - double-extension rejection,
 - path component rejection,
 - image signature validation,
-- max upload size enforcement planned before deployment,
-- randomized server-side filenames planned before deployment,
-- Pillow decode validation planned before deployment.
+- max upload size enforcement,
+- randomized server-side filenames,
+- original filename preserved as metadata only,
+- Pillow decode validation after signature check.
 
 Runtime privacy:
 
@@ -632,7 +635,7 @@ Runtime privacy:
 
 ## Known Limitations
 
-- Manual multi-file batch upload is a stretch item; the current batch workflow is fixture-backed for deterministic evaluation.
+- Batch upload runs synchronously in the web process for the sprint prototype; a production version should use a worker queue.
 - Government warning boldness routes to Needs Review instead of hard-failing from raster font-weight guesses.
 - docTR local OCR may require model download/warmup.
 - The active rule set is intentionally narrow.

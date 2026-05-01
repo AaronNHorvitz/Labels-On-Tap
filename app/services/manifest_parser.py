@@ -1,0 +1,115 @@
+from __future__ import annotations
+
+import csv
+import io
+import json
+from pathlib import Path
+from typing import Any
+
+from pydantic import ValidationError
+
+from app.schemas.manifest import ManifestItem
+
+
+class ManifestParseError(ValueError):
+    """Raised when a user-supplied batch manifest cannot be parsed safely."""
+
+
+REQUIRED_FIELDS = {"filename", "product_type", "brand_name"}
+
+
+def parse_manifest(filename: str, content: bytes) -> list[ManifestItem]:
+    suffix = Path(filename).suffix.lower()
+    if suffix == ".csv":
+        return _parse_csv_manifest(content)
+    if suffix == ".json":
+        return _parse_json_manifest(content)
+    raise ManifestParseError("Manifest must be a CSV or JSON file.")
+
+
+def _parse_csv_manifest(content: bytes) -> list[ManifestItem]:
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ManifestParseError("Manifest CSV must be UTF-8 encoded.") from exc
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise ManifestParseError("Manifest CSV is missing a header row.")
+    missing = REQUIRED_FIELDS - set(reader.fieldnames)
+    if missing:
+        raise ManifestParseError(f"Manifest CSV is missing required columns: {', '.join(sorted(missing))}.")
+
+    items = []
+    for row_number, row in enumerate(reader, start=2):
+        payload = {key: (value or "").strip() for key, value in row.items() if key}
+        items.append(_manifest_item_from_payload(payload, row_number=row_number))
+    return _validate_manifest_items(items)
+
+
+def _parse_json_manifest(content: bytes) -> list[ManifestItem]:
+    try:
+        payload = json.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ManifestParseError("Manifest JSON is not valid UTF-8 JSON.") from exc
+
+    raw_items: Any
+    if isinstance(payload, list):
+        raw_items = payload
+    elif isinstance(payload, dict) and isinstance(payload.get("items"), list):
+        raw_items = payload["items"]
+    else:
+        raise ManifestParseError("Manifest JSON must be a list or an object with an items list.")
+
+    items = []
+    for row_number, item in enumerate(raw_items, start=1):
+        if not isinstance(item, dict):
+            raise ManifestParseError(f"Manifest JSON item {row_number} must be an object.")
+        items.append(_manifest_item_from_payload(item, row_number=row_number))
+    return _validate_manifest_items(items)
+
+
+def _manifest_item_from_payload(payload: dict[str, Any], row_number: int) -> ManifestItem:
+    for field in REQUIRED_FIELDS:
+        if not str(payload.get(field, "")).strip():
+            raise ManifestParseError(f"Manifest row {row_number} is missing required field: {field}.")
+
+    normalized = dict(payload)
+    normalized["imported"] = _parse_bool(normalized.get("imported", False), row_number)
+    if not normalized.get("country_of_origin"):
+        normalized["country_of_origin"] = None
+
+    try:
+        return ManifestItem(**normalized)
+    except ValidationError as exc:
+        raise ManifestParseError(f"Manifest row {row_number} is invalid: {exc}") from exc
+
+
+def _parse_bool(value: Any, row_number: int) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    normalized = str(value).strip().lower()
+    if normalized in {"", "0", "false", "no", "n"}:
+        return False
+    if normalized in {"1", "true", "yes", "y"}:
+        return True
+    raise ManifestParseError(f"Manifest row {row_number} has invalid imported value: {value}.")
+
+
+def _validate_manifest_items(items: list[ManifestItem]) -> list[ManifestItem]:
+    if not items:
+        raise ManifestParseError("Manifest must contain at least one item.")
+
+    filenames = [item.filename for item in items]
+    duplicate_filenames = sorted({name for name in filenames if filenames.count(name) > 1})
+    if duplicate_filenames:
+        raise ManifestParseError(f"Manifest has duplicate filenames: {', '.join(duplicate_filenames)}.")
+
+    fixture_ids = [item.fixture_id for item in items if item.fixture_id]
+    duplicate_fixture_ids = sorted({fixture_id for fixture_id in fixture_ids if fixture_ids.count(fixture_id) > 1})
+    if duplicate_fixture_ids:
+        raise ManifestParseError(f"Manifest has duplicate fixture IDs: {', '.join(duplicate_fixture_ids)}.")
+
+    return items
