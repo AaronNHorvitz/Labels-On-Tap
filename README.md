@@ -273,7 +273,7 @@ Runtime choices:
 | Image handling | Pillow; OpenCV-headless dependency reserved for image preflight work |
 | Storage | Filesystem JSON job store |
 | Deployment | Docker Compose + Caddy |
-| Host target | AWS EC2 Ubuntu VM |
+| Host target | AWS Lightsail Ubuntu VM; portable to EC2 |
 
 The app does not send label images to OpenAI, Anthropic, Google Vision, Azure Vision, AWS Textract, or hosted VLM/OCR services.
 
@@ -416,14 +416,46 @@ Notes:
 
 ## Deployment
 
-Target stack:
+### Live Deployment
+
+The public demo at `https://www.labelsontap.ai` is currently deployed on AWS using a simple VM-first stack:
 
 ```text
-AWS EC2 On-Demand
-Ubuntu 24.04 LTS
-m7i.xlarge preferred; t3a.large/t3.large fallback
-40-60 GB gp3 EBS
-Elastic IP
+AWS Lightsail
+Ubuntu VM
+Static IPv4
+Docker Compose
+Caddy
+Public DNS
+```
+
+The live request path is:
+
+```text
+Browser
+  -> public DNS
+  -> AWS Lightsail static IP
+  -> Caddy on ports 80/443
+  -> FastAPI app container on port 8000
+```
+
+This deployment shape was chosen deliberately for the take-home:
+
+- it mirrors a practical Treasury/AWS hosting posture without adding managed-service sprawl,
+- it keeps the runtime local-first because OCR and rule evaluation happen on the VM,
+- it keeps the app inspectable and easy to reproduce from the repository,
+- it gives automatic HTTPS and apex-to-`www` redirect behavior through Caddy.
+
+The same container stack is portable to EC2 if a later environment needs more control over instance families, storage, or network layout.
+
+### Reference Host Shape
+
+For a VM deployment, the app is designed to run comfortably on:
+
+```text
+AWS Lightsail or EC2
+Ubuntu Linux
+Static IP / Elastic IP
 Docker Compose
 Caddy
 ```
@@ -431,8 +463,8 @@ Caddy
 DNS:
 
 ```text
-www.labelsontap.ai  A  <Elastic IP>
-labelsontap.ai      A  <Elastic IP>
+www.labelsontap.ai  A  <public VM IP>
+labelsontap.ai      A  <public VM IP>
 ```
 
 Caddy behavior:
