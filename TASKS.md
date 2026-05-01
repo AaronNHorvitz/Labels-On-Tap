@@ -83,6 +83,7 @@ Current app risk: the prototype has strong compliance-rule demos, but it must mo
 - [ ] Expand result detail pages so each application field clearly shows expected value, observed OCR evidence, verdict, and reviewer action.
 - [ ] Expand CSV export into a reviewer-ready mismatch report with application ID, filename, field/rule, expected, observed, verdict, evidence, reviewer action, and OCR source.
 - [ ] Add fixture cases for clean application-data match, alcohol-content mismatch, class/type mismatch, net-contents mismatch, bottler/address missing, and mixed batch triage.
+- [ ] Add test data coverage for every Phase 1 rejection / Needs Correction reason in `PHASE1_REJECTION.md`.
 - [ ] Add a distilled spirits sample fixture modeled after the prompt's `OLD TOM DISTILLERY` example.
 - [ ] Add wine, malt beverage, and distilled spirits coverage so product-type differences are visible.
 - [ ] Add a 200-300 row synthetic batch generator or fixture-backed batch proof to address Sarah's peak-season importer scenario.
@@ -144,11 +145,12 @@ Build in this order so every change reinforces the agency workflow:
 
 1. Expand `ColaApplication` and `ManifestItem` into a COLA-style application record.
 2. Regenerate fixtures/manifests with application IDs and bottler/producer fields.
-3. Add field-by-field rules for alcohol content, class/type, net contents, bottler/producer, and fanciful name.
-4. Update result detail pages and CSV export into field-level mismatch reports.
-5. Add 200-300 row synthetic batch proof and tests.
-6. Update README, PRD, ARCHITECTURE, DEMO_SCRIPT, performance docs, security docs, and Azure deployment docs.
-7. Redeploy and rerun public smoke/demo checks.
+3. Create a Phase 1 fixture coverage matrix where every item in `PHASE1_REJECTION.md` has application data, image data, expected results, and provenance.
+4. Add field-by-field rules for alcohol content, class/type, net contents, bottler/producer, and fanciful name.
+5. Update result detail pages and CSV export into field-level mismatch reports.
+6. Add 200-300 row synthetic batch proof and tests.
+7. Update README, PRD, ARCHITECTURE, DEMO_SCRIPT, performance docs, security docs, and Azure deployment docs.
+8. Redeploy and rerun public smoke/demo checks.
 
 ---
 
