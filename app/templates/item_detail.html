@@ -35,6 +35,12 @@
         <p>{{ check.message }}</p>
         {% if check.expected %}<p><b>Expected:</b> {{ check.expected }}</p>{% endif %}
         {% if check.observed %}<p><b>Observed:</b> {{ check.observed }}</p>{% endif %}
+        {% if check.evidence_text %}
+        <details>
+          <summary>Evidence text</summary>
+          <pre>{{ check.evidence_text }}</pre>
+        </details>
+        {% endif %}
         {% if check.reviewer_action %}<p><b>Reviewer action:</b> {{ check.reviewer_action }}</p>{% endif %}
         <p><b>Sources:</b> {{ check.source_refs|join(", ") }}</p>
       </article>

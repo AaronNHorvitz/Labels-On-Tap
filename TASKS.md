@@ -56,12 +56,12 @@ Deployment first: after upload hardening and root docs are done, stop adding pro
 - [x] Commit root `TRADEOFFS.md`.
 - [x] Add root `DEMO_SCRIPT.md`.
 - [x] Add `docs/deployment.md` if missing.
-- [ ] Add upload max-size enforcement.
-- [ ] Randomize saved upload filenames.
-- [ ] Preserve original upload filename as metadata only.
-- [ ] Validate uploaded images with Pillow after signature check.
-- [ ] Add upload preflight tests.
-- [ ] Run `pytest -q` after the upload hardening changes.
+- [x] Add upload max-size enforcement.
+- [x] Randomize saved upload filenames.
+- [x] Preserve original upload filename as metadata only.
+- [x] Validate uploaded images with Pillow after signature check.
+- [x] Add upload preflight tests.
+- [x] Run `pytest -q` after the upload hardening changes.
 - [ ] Run `docker compose build`.
 - [ ] Run local health smoke test.
 
@@ -84,10 +84,10 @@ Note: Docker is required for the Docker checks. If Docker is unavailable locally
 
 ## Should Fix Before Submission
 
-- [ ] CSV export test.
-- [ ] Item detail page test.
-- [ ] Show per-rule evidence text on the item detail page when `evidence_text` is available.
-- [ ] `docs/accessibility.md`.
+- [x] CSV export test.
+- [x] Item detail page test.
+- [x] Show per-rule evidence text on the item detail page when `evidence_text` is available.
+- [x] `docs/accessibility.md`.
 - [ ] Update `docs/performance.md` with measured values from local Docker and public deployment.
 - [x] `docs/tradeoffs.md` exists.
 - [ ] Add `imported_missing_country_review.*` fixture if time allows.
@@ -118,8 +118,8 @@ Priority order:
 
 - [ ] Manual multi-file batch upload using `manifest.csv` / `manifest.json` plus multiple `.jpg/.jpeg/.png` files.
 - [ ] Manifest parser tests for missing image, unknown filename, malformed CSV, and happy path.
-- [ ] CSV export coverage for batch jobs.
-- [ ] Item detail page coverage for expected, observed, source refs, reviewer action, and per-rule evidence text.
+- [x] CSV export coverage for batch jobs.
+- [x] Item detail page coverage for expected, observed, source refs, reviewer action, and per-rule evidence text.
 - [ ] Add `brand_mismatch_fail.*` fixture.
 - [ ] Add `conflicting_country_origin_fail.*` fixture.
 - [ ] Add `warning_missing_block_review.*` fixture.

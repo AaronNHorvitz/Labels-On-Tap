@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import shutil
+from tempfile import TemporaryDirectory
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from app.config import ROOT
+from app.config import JOBS_DIR, MAX_UPLOAD_BYTES, ROOT
 from app.schemas.application import ColaApplication
 from app.services.csv_export import results_to_csv
 from app.services.job_store import (
@@ -20,8 +20,15 @@ from app.services.job_store import (
     write_result,
 )
 from app.services.ocr.fixture_engine import FixtureOCREngine
-from app.services.preflight.file_signature import has_allowed_image_signature
-from app.services.preflight.upload_policy import validate_upload_name
+from app.services.preflight.file_signature import (
+    has_allowed_image_signature,
+    is_pillow_decodable_image,
+)
+from app.services.preflight.upload_policy import (
+    copy_upload_with_size_limit,
+    random_upload_filename,
+    validate_upload_name,
+)
 from app.services.rules.registry import verify_label
 
 
@@ -43,23 +50,34 @@ def create_single_job(
 ) -> RedirectResponse:
     if not label_image.filename:
         raise HTTPException(status_code=400, detail="Missing upload filename")
+    original_filename = label_image.filename
     try:
-        validate_upload_name(label_image.filename)
+        validate_upload_name(original_filename)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    job_id = create_job(label="single upload")
-    uploads_dir = job_dir(job_id) / "uploads"
-    uploads_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = Path(label_image.filename).name
-    dest = uploads_dir / safe_name
-    with dest.open("wb") as f:
-        shutil.copyfileobj(label_image.file, f)
-    if not has_allowed_image_signature(dest):
-        raise HTTPException(status_code=400, detail="Upload does not match JPG/PNG signature")
+    stored_filename = random_upload_filename(original_filename)
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="_upload-", dir=JOBS_DIR) as temp_dir:
+        temp_path = Path(temp_dir) / stored_filename
+        try:
+            upload_size = copy_upload_with_size_limit(label_image.file, temp_path, MAX_UPLOAD_BYTES)
+        except ValueError as exc:
+            raise HTTPException(status_code=413, detail=str(exc)) from exc
+
+        if not has_allowed_image_signature(temp_path):
+            raise HTTPException(status_code=400, detail="Upload does not match JPG/PNG signature")
+        if not is_pillow_decodable_image(temp_path):
+            raise HTTPException(status_code=400, detail="Upload is not a readable JPG/PNG image")
+
+        job_id = create_job(label="single upload")
+        uploads_dir = job_dir(job_id) / "uploads"
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+        dest = uploads_dir / stored_filename
+        temp_path.replace(dest)
 
     application = ColaApplication(
-        filename=safe_name,
+        filename=original_filename,
         product_type=product_type,
         brand_name=brand_name,
         class_type=class_type,
@@ -69,10 +87,20 @@ def create_single_job(
         country_of_origin=country_of_origin,
     )
     item_id = dest.stem
-    ocr = ocr_engine.run(dest, fixture_id=item_id)
+    fixture_id = Path(original_filename).stem
+    ocr = ocr_engine.run(dest, fixture_id=fixture_id)
     result = verify_label(job_id, item_id, application, ocr)
     write_result(result)
-    add_manifest_item(job_id, {"item_id": item_id, "filename": safe_name})
+    add_manifest_item(
+        job_id,
+        {
+            "item_id": item_id,
+            "filename": original_filename,
+            "original_filename": original_filename,
+            "stored_filename": stored_filename,
+            "upload_size": upload_size,
+        },
+    )
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
 
 
