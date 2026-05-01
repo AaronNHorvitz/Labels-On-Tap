@@ -2,13 +2,13 @@
 
 **Local-first, source-backed alcohol label verification for TTB-style COLA review.**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-www.labelsontap.com-blue?style=for-the-badge)](https://www.labelsontap.com)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-labelsontap.ai-blue?style=for-the-badge)](https://labelsontap.ai)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-local%20API-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-containerized-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Local OCR](https://img.shields.io/badge/OCR-local--first-orange?style=flat-square)](#why-local-first)
 
-> **Deployment target:** `https://www.labelsontap.com`  
+> **Deployment target:** `https://labelsontap.ai`  
 > **Repository:** `https://github.com/AaronNHorvitz/Labels-On-Tap`  
 > **Prototype status:** six-day take-home build; production-informed, not production-authorized.
 
@@ -31,7 +31,7 @@
 13. [Repository Structure](#repository-structure)
 14. [Quick Start: Local Development](#quick-start-local-development)
 15. [Docker Quick Start](#docker-quick-start)
-16. [Deployment to `www.labelsontap.com`](#deployment-to-wwwlabelsontapcom)
+16. [Deployment to `labelsontap.ai`](#deployment-to-labelsontapai)
 17. [Using the Application](#using-the-application)
 18. [Batch Manifest Format](#batch-manifest-format)
 19. [API Overview](#api-overview)
@@ -294,7 +294,7 @@ A reviewer should be able to evaluate the product quickly.
 
 ### Demo 1 — Clean Label Pass
 
-1. Open `https://www.labelsontap.com`.
+1. Open `https://labelsontap.ai`.
 2. Click **Run Clean Label Demo**.
 3. Confirm the app returns **Pass**.
 4. Open details and inspect the matched brand, alcohol content, net contents, and warning evidence.
@@ -406,7 +406,7 @@ This keeps the app easy to debug, avoids multi-writer SQLite issues, and is suff
 | Validation | Python regex + numeric parsers | Deterministic source-backed checks. |
 | Job store | Filesystem JSON | Sprint-safe, observable, avoids database lock risk. |
 | Deployment | Docker + Caddy | Containerized app with straightforward HTTPS reverse proxy. |
-| Domain | `www.labelsontap.com` | Public evaluator URL. |
+| Domain | `labelsontap.ai` | Public evaluator URL. |
 
 ---
 
@@ -818,7 +818,7 @@ volumes:
 
 ---
 
-## Deployment to `www.labelsontap.com`
+## Deployment to `labelsontap.ai`
 
 The intended deployment is a small x86_64 Linux VM running Docker and Caddy.
 
@@ -838,20 +838,13 @@ Ports:        80 and 443 open to public internet
 At the domain registrar or DNS provider:
 
 ```text
-A record:     labelsontap.com      → VM public IPv4
-A record:     www.labelsontap.com  → VM public IPv4
-```
-
-Optional:
-
-```text
-CNAME:        www → labelsontap.com
+A record:     labelsontap.ai      → VM public IPv4
 ```
 
 ### Caddyfile
 
 ```text
-labelsontap.com, www.labelsontap.com {
+labelsontap.ai {
     reverse_proxy web:8000
 }
 ```
@@ -880,8 +873,8 @@ docker compose logs -f
 After deployment:
 
 ```bash
-curl -I https://www.labelsontap.com
-curl https://www.labelsontap.com/health
+curl -I https://labelsontap.ai
+curl https://labelsontap.ai/health
 ```
 
 Then open the site and run:
@@ -1179,9 +1172,9 @@ Common causes:
 Check:
 
 ```bash
-dig www.labelsontap.com
-curl -I http://www.labelsontap.com
-curl -I https://www.labelsontap.com
+dig labelsontap.ai
+curl -I http://labelsontap.ai
+curl -I https://labelsontap.ai
 sudo docker compose ps
 sudo docker compose logs caddy
 ```
@@ -1303,4 +1296,3 @@ Labels On Tap is intended to demonstrate:
 - secure upload handling,
 - accessible reviewer UX,
 - deployable prototype engineering.
-
