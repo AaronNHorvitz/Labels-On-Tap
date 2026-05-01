@@ -279,9 +279,10 @@ The evaluator should not need to find sample labels, build a manifest, or unders
 The app should include demo buttons such as:
 
 - **Run Clean Label Demo**
-- **Run Government Warning Failure Demo**
+- **Run Warning Failure Demo**
 - **Run ABV Failure Demo**
 - **Run Malt Net Contents Failure Demo**
+- **Run Import Origin Demo**
 - **Run Batch Demo**
 
 These demos should load pre-baked fixtures, run the verification engine, and show evidence-backed results.
@@ -291,6 +292,8 @@ These demos should load pre-baked fixtures, run the verification engine, and sho
 ## Five-Minute Evaluator Demo
 
 A reviewer should be able to evaluate the product quickly.
+
+For the exact presentation path, use [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
 
 ### Demo 1 — Clean Label Pass
 
@@ -1193,7 +1196,7 @@ OCR frameworks and CPU PyTorch wheels are large. Use a slim base image and avoid
 Check:
 
 ```bash
-docker compose logs web
+docker compose logs app
 ```
 
 Common causes:
