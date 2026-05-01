@@ -35,6 +35,10 @@ data/fixtures/demo/
   malt_16_fl_oz_fail.png
   brand_case_difference_pass.png
   low_confidence_blur_review.png
+  brand_mismatch_fail.png
+  imported_missing_country_review.png
+  conflicting_country_origin_fail.png
+  warning_missing_block_review.png
   imported_country_origin_pass.png
   batch_manifest.csv
   batch_manifest.json

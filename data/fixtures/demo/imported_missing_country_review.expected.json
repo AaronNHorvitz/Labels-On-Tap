@@ -1,0 +1,17 @@
+{
+  "fixture_id": "imported_missing_country_review",
+  "filename": "imported_missing_country_review.png",
+  "overall_verdict": "needs_review",
+  "checked_rule_ids": [
+    "GOV_WARNING_HEADER_CAPS",
+    "GOV_WARNING_EXACT_TEXT",
+    "ALCOHOL_ABV_PROHIBITED",
+    "MALT_NET_CONTENTS_16OZ_PINT",
+    "FORM_BRAND_MATCHES_LABEL",
+    "COUNTRY_OF_ORIGIN_MATCH"
+  ],
+  "triggered_rule_ids": [
+    "COUNTRY_OF_ORIGIN_MATCH"
+  ],
+  "top_reason": "Imported product is missing a country-of-origin application field."
+}

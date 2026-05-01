@@ -214,6 +214,128 @@
       }
     },
     {
+      "fixture_id": "brand_mismatch_fail",
+      "filename": "brand_mismatch_fail.png",
+      "product_type": "malt_beverage",
+      "brand_name": "PHANTOM CELLARS",
+      "fanciful_name": "",
+      "class_type": "Ale",
+      "alcohol_content": "5% ALC/VOL",
+      "net_contents": "1 Pint",
+      "country_of_origin": "",
+      "imported": false,
+      "formula_id": "",
+      "statement_of_composition": "",
+      "expected": {
+        "fixture_id": "brand_mismatch_fail",
+        "filename": "brand_mismatch_fail.png",
+        "overall_verdict": "fail",
+        "checked_rule_ids": [
+          "GOV_WARNING_HEADER_CAPS",
+          "GOV_WARNING_EXACT_TEXT",
+          "ALCOHOL_ABV_PROHIBITED",
+          "MALT_NET_CONTENTS_16OZ_PINT",
+          "FORM_BRAND_MATCHES_LABEL",
+          "COUNTRY_OF_ORIGIN_MATCH"
+        ],
+        "triggered_rule_ids": [
+          "FORM_BRAND_MATCHES_LABEL"
+        ],
+        "top_reason": "Brand name on label does not clearly match application field."
+      }
+    },
+    {
+      "fixture_id": "imported_missing_country_review",
+      "filename": "imported_missing_country_review.png",
+      "product_type": "wine",
+      "brand_name": "VALLEY RIDGE",
+      "fanciful_name": "",
+      "class_type": "Red Wine",
+      "alcohol_content": "13.5% ALC/VOL",
+      "net_contents": "750 mL",
+      "country_of_origin": "",
+      "imported": true,
+      "formula_id": "",
+      "statement_of_composition": "",
+      "expected": {
+        "fixture_id": "imported_missing_country_review",
+        "filename": "imported_missing_country_review.png",
+        "overall_verdict": "needs_review",
+        "checked_rule_ids": [
+          "GOV_WARNING_HEADER_CAPS",
+          "GOV_WARNING_EXACT_TEXT",
+          "ALCOHOL_ABV_PROHIBITED",
+          "MALT_NET_CONTENTS_16OZ_PINT",
+          "FORM_BRAND_MATCHES_LABEL",
+          "COUNTRY_OF_ORIGIN_MATCH"
+        ],
+        "triggered_rule_ids": [
+          "COUNTRY_OF_ORIGIN_MATCH"
+        ],
+        "top_reason": "Imported product is missing a country-of-origin application field."
+      }
+    },
+    {
+      "fixture_id": "conflicting_country_origin_fail",
+      "filename": "conflicting_country_origin_fail.png",
+      "product_type": "wine",
+      "brand_name": "VALLEY RIDGE",
+      "fanciful_name": "",
+      "class_type": "Red Wine",
+      "alcohol_content": "13.5% ALC/VOL",
+      "net_contents": "750 mL",
+      "country_of_origin": "France",
+      "imported": true,
+      "formula_id": "",
+      "statement_of_composition": "",
+      "expected": {
+        "fixture_id": "conflicting_country_origin_fail",
+        "filename": "conflicting_country_origin_fail.png",
+        "overall_verdict": "fail",
+        "checked_rule_ids": [
+          "GOV_WARNING_HEADER_CAPS",
+          "GOV_WARNING_EXACT_TEXT",
+          "ALCOHOL_ABV_PROHIBITED",
+          "MALT_NET_CONTENTS_16OZ_PINT",
+          "FORM_BRAND_MATCHES_LABEL",
+          "COUNTRY_OF_ORIGIN_MATCH"
+        ],
+        "triggered_rule_ids": [
+          "COUNTRY_OF_ORIGIN_MATCH"
+        ],
+        "top_reason": "A conflicting country-of-origin statement appears on the label."
+      }
+    },
+    {
+      "fixture_id": "warning_missing_block_review",
+      "filename": "warning_missing_block_review.png",
+      "product_type": "malt_beverage",
+      "brand_name": "OLD RIVER BREWING",
+      "fanciful_name": "",
+      "class_type": "Ale",
+      "alcohol_content": "5% ALC/VOL",
+      "net_contents": "1 Pint",
+      "country_of_origin": "",
+      "imported": false,
+      "formula_id": "",
+      "statement_of_composition": "",
+      "expected": {
+        "fixture_id": "warning_missing_block_review",
+        "filename": "warning_missing_block_review.png",
+        "overall_verdict": "needs_review",
+        "checked_rule_ids": [
+          "OCR_LOW_CONFIDENCE",
+          "GOV_WARNING_HEADER_BOLD_REVIEW",
+          "COUNTRY_OF_ORIGIN_MATCH"
+        ],
+        "triggered_rule_ids": [
+          "OCR_LOW_CONFIDENCE",
+          "GOV_WARNING_HEADER_BOLD_REVIEW"
+        ],
+        "top_reason": "Warning block cannot be machine-verified from low-confidence OCR."
+      }
+    },
+    {
       "fixture_id": "imported_country_origin_pass",
       "filename": "imported_country_origin_pass.png",
       "product_type": "wine",

@@ -64,7 +64,7 @@ Deployment first: after upload hardening and root docs are done, stop adding pro
 - [x] Add upload preflight tests.
 - [x] Run `pytest -q` after the upload hardening changes.
 - [ ] Run `docker compose build`.
-- [ ] Run local health smoke test.
+- [x] Run local health smoke test.
 
 Acceptance commands:
 
@@ -79,7 +79,7 @@ curl -H "Host: www.labelsontap.ai" http://localhost/health
 docker compose down
 ```
 
-Note: Docker is required for the Docker checks. If Docker is unavailable locally, run these on the EC2 host before public smoke testing.
+Note: Docker is required for the Docker checks. Docker is not available in the current local Codex workspace, so run `docker compose build` and the Caddy Host-header smoke test on the EC2 host before public smoke testing.
 
 ---
 
@@ -91,7 +91,7 @@ Note: Docker is required for the Docker checks. If Docker is unavailable locally
 - [x] `docs/accessibility.md`.
 - [ ] Update `docs/performance.md` with measured values from local Docker and public deployment.
 - [x] `docs/tradeoffs.md` exists.
-- [ ] Add `imported_missing_country_review.*` fixture if time allows.
+- [x] Add `imported_missing_country_review.*` fixture if time allows.
 - [ ] Public smoke test: `https://www.labelsontap.ai/health`.
 - [ ] Public smoke test: clean demo returns Pass.
 - [ ] Public smoke test: warning demo returns Fail.
@@ -121,12 +121,12 @@ Priority order:
 - [x] Manifest parser tests for missing image, unknown filename, malformed CSV, and happy path.
 - [x] CSV export coverage for batch jobs.
 - [x] Item detail page coverage for expected, observed, source refs, reviewer action, and per-rule evidence text.
-- [ ] Add `brand_mismatch_fail.*` fixture.
-- [ ] Add `conflicting_country_origin_fail.*` fixture.
-- [ ] Add `warning_missing_block_review.*` fixture.
-- [ ] Add a small upload-error page or friendly error template for rejected files.
-- [ ] Add old-job cleanup command/script with conservative retention defaults.
-- [ ] Add OCR warmup note or prewarm command for deployment.
+- [x] Add `brand_mismatch_fail.*` fixture.
+- [x] Add `conflicting_country_origin_fail.*` fixture.
+- [x] Add `warning_missing_block_review.*` fixture.
+- [x] Add a small upload-error page or friendly error template for rejected files.
+- [x] Add old-job cleanup command/script with conservative retention defaults.
+- [x] Add OCR warmup note or prewarm command for deployment.
 
 These are useful, but none should delay the public deployed demo.
 

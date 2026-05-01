@@ -76,7 +76,7 @@ Implemented demo scenarios:
 | **Run ABV Failure Demo** | Fail |
 | **Run Malt Net Contents Failure Demo** | Fail |
 | **Run Import Origin Demo** | Pass |
-| **Run Batch Demo** | 8-row triage table: 3 Pass, 1 Needs Review, 4 Fail |
+| **Run Batch Demo** | 12-row triage table: 3 Pass, 3 Needs Review, 6 Fail |
 
 Implemented rule IDs:
 
@@ -490,6 +490,10 @@ abv_prohibited_fail
 malt_16_fl_oz_fail
 brand_case_difference_pass
 low_confidence_blur_review
+brand_mismatch_fail
+imported_missing_country_review
+conflicting_country_origin_fail
+warning_missing_block_review
 imported_country_origin_pass
 ```
 

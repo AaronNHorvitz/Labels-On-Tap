@@ -32,3 +32,16 @@ labelsontap.ai      A  <elastic-ip>
 ## Runtime Notes
 
 The app does not call hosted OCR or hosted ML APIs. Demo routes use fixture OCR ground truth for deterministic evaluator behavior. Real uploads use the local docTR adapter when available and route OCR failures or low confidence to Needs Review.
+
+Optional OCR warmup on the deployment host:
+
+```bash
+docker compose exec app python scripts/warm_ocr.py
+```
+
+Conservative prototype cleanup:
+
+```bash
+docker compose exec app python scripts/cleanup_jobs.py --days 7 --dry-run
+docker compose exec app python scripts/cleanup_jobs.py --days 7
+```

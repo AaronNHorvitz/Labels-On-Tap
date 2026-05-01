@@ -1,0 +1,15 @@
+{
+  "fixture_id": "warning_missing_block_review",
+  "filename": "warning_missing_block_review.png",
+  "overall_verdict": "needs_review",
+  "checked_rule_ids": [
+    "OCR_LOW_CONFIDENCE",
+    "GOV_WARNING_HEADER_BOLD_REVIEW",
+    "COUNTRY_OF_ORIGIN_MATCH"
+  ],
+  "triggered_rule_ids": [
+    "OCR_LOW_CONFIDENCE",
+    "GOV_WARNING_HEADER_BOLD_REVIEW"
+  ],
+  "top_reason": "Warning block cannot be machine-verified from low-confidence OCR."
+}

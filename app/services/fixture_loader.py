@@ -23,6 +23,10 @@ DEMO_SCENARIOS = {
         "malt_16_fl_oz_fail",
         "brand_case_difference_pass",
         "low_confidence_blur_review",
+        "brand_mismatch_fail",
+        "imported_missing_country_review",
+        "conflicting_country_origin_fail",
+        "warning_missing_block_review",
         "imported_country_origin_pass",
     ],
 }

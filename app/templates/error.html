@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Upload Problem{% endblock %}
+{% block content %}
+<section class="workspace">
+  <div class="page-title">
+    <div>
+      <h1>Upload Problem</h1>
+      <p>Status {{ status_code }}</p>
+    </div>
+    <a class="button secondary" href="/">Back to review</a>
+  </div>
+
+  <section class="panel">
+    <h2>What Happened</h2>
+    <p>{{ detail }}</p>
+  </section>
+</section>
+{% endblock %}

@@ -40,7 +40,7 @@ def test_batch_demo_route_renders_counts_and_csv():
     client = TestClient(app)
     response = client.get("/demo/batch", follow_redirects=True)
     assert response.status_code == 200
-    assert "8 / 8" in response.text
+    assert "12 / 12" in response.text
     assert "Needs Review" in response.text
 
     job_id = str(response.url).rstrip("/").split("/")[-1]
@@ -49,6 +49,7 @@ def test_batch_demo_route_renders_counts_and_csv():
     assert "filename,overall_verdict" in csv_response.text
     assert "clean_malt_pass.png,pass" in csv_response.text
     assert "low_confidence_blur_review.png,needs_review" in csv_response.text
+    assert "brand_mismatch_fail.png,fail" in csv_response.text
 
 
 def test_item_detail_page_shows_rule_evidence_and_actions():
@@ -104,6 +105,20 @@ def test_single_upload_rejects_bad_signature():
     )
 
     assert response.status_code == 400
+    assert "signature" in response.text
+
+
+def test_upload_error_renders_html_for_browser_accept_header():
+    client = TestClient(app)
+    response = client.post(
+        "/jobs",
+        data=single_upload_form(),
+        files={"label_image": ("label.png", b"not a png", "image/png")},
+        headers={"accept": "text/html"},
+    )
+
+    assert response.status_code == 400
+    assert "Upload Problem" in response.text
     assert "signature" in response.text
 
 

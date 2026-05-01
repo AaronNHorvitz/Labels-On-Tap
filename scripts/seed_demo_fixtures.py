@@ -67,6 +67,7 @@ class FixtureSpec:
     mutation_summary: str
     top_reason: str
     blur: bool = False
+    ocr_confidence: float | None = None
     country_of_origin: str = ""
     imported: bool = False
     label_country_of_origin: str = ""
@@ -256,6 +257,109 @@ FIXTURES: list[FixtureSpec] = [
         blur=True,
     ),
     FixtureSpec(
+        fixture_id="brand_mismatch_fail",
+        filename="brand_mismatch_fail.png",
+        product_type="malt_beverage",
+        brand_name="PHANTOM CELLARS",
+        label_brand_name="OLD RIVER BREWING",
+        class_type="Ale",
+        alcohol_content="5% ALC/VOL",
+        label_alcohol_content="5% ALC/VOL",
+        net_contents="1 Pint",
+        label_net_contents="1 Pint",
+        warning_text=CANONICAL_WARNING,
+        expected_verdict="fail",
+        checked_rule_ids=[
+            "GOV_WARNING_HEADER_CAPS",
+            "GOV_WARNING_EXACT_TEXT",
+            "ALCOHOL_ABV_PROHIBITED",
+            "MALT_NET_CONTENTS_16OZ_PINT",
+            "FORM_BRAND_MATCHES_LABEL",
+            "COUNTRY_OF_ORIGIN_MATCH",
+        ],
+        triggered_rule_ids=["FORM_BRAND_MATCHES_LABEL"],
+        source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+        mutation_summary="Application brand intentionally does not appear in the label OCR text.",
+        top_reason="Brand name on label does not clearly match application field.",
+    ),
+    FixtureSpec(
+        fixture_id="imported_missing_country_review",
+        filename="imported_missing_country_review.png",
+        product_type="wine",
+        brand_name="VALLEY RIDGE",
+        label_brand_name="VALLEY RIDGE",
+        class_type="Red Wine",
+        alcohol_content="13.5% ALC/VOL",
+        label_alcohol_content="13.5% ALC/VOL",
+        net_contents="750 mL",
+        label_net_contents="750 mL",
+        warning_text=CANONICAL_WARNING,
+        expected_verdict="needs_review",
+        checked_rule_ids=[
+            "GOV_WARNING_HEADER_CAPS",
+            "GOV_WARNING_EXACT_TEXT",
+            "ALCOHOL_ABV_PROHIBITED",
+            "MALT_NET_CONTENTS_16OZ_PINT",
+            "FORM_BRAND_MATCHES_LABEL",
+            "COUNTRY_OF_ORIGIN_MATCH",
+        ],
+        triggered_rule_ids=["COUNTRY_OF_ORIGIN_MATCH"],
+        source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+        mutation_summary="Imported application omits the expected country-of-origin field.",
+        top_reason="Imported product is missing a country-of-origin application field.",
+        imported=True,
+        label_country_of_origin="France",
+    ),
+    FixtureSpec(
+        fixture_id="conflicting_country_origin_fail",
+        filename="conflicting_country_origin_fail.png",
+        product_type="wine",
+        brand_name="VALLEY RIDGE",
+        label_brand_name="VALLEY RIDGE",
+        class_type="Red Wine",
+        alcohol_content="13.5% ALC/VOL",
+        label_alcohol_content="13.5% ALC/VOL",
+        net_contents="750 mL",
+        label_net_contents="750 mL",
+        warning_text=CANONICAL_WARNING,
+        expected_verdict="fail",
+        checked_rule_ids=[
+            "GOV_WARNING_HEADER_CAPS",
+            "GOV_WARNING_EXACT_TEXT",
+            "ALCOHOL_ABV_PROHIBITED",
+            "MALT_NET_CONTENTS_16OZ_PINT",
+            "FORM_BRAND_MATCHES_LABEL",
+            "COUNTRY_OF_ORIGIN_MATCH",
+        ],
+        triggered_rule_ids=["COUNTRY_OF_ORIGIN_MATCH"],
+        source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+        mutation_summary="Application expects France, but label OCR contains a conflicting Italy origin statement.",
+        top_reason="A conflicting country-of-origin statement appears on the label.",
+        country_of_origin="France",
+        imported=True,
+        label_country_of_origin="Italy",
+    ),
+    FixtureSpec(
+        fixture_id="warning_missing_block_review",
+        filename="warning_missing_block_review.png",
+        product_type="malt_beverage",
+        brand_name="OLD RIVER BREWING",
+        label_brand_name="OLD RIVER BREWING",
+        class_type="Ale",
+        alcohol_content="5% ALC/VOL",
+        label_alcohol_content="5% ALC/VOL",
+        net_contents="1 Pint",
+        label_net_contents="1 Pint",
+        warning_text="",
+        expected_verdict="needs_review",
+        checked_rule_ids=["OCR_LOW_CONFIDENCE", "GOV_WARNING_HEADER_BOLD_REVIEW", "COUNTRY_OF_ORIGIN_MATCH"],
+        triggered_rule_ids=["OCR_LOW_CONFIDENCE", "GOV_WARNING_HEADER_BOLD_REVIEW"],
+        source_refs=["SRC_27_CFR_PART_16", "SRC_REPORT_14_HARDENING"],
+        mutation_summary="Warning block omitted and fixture OCR confidence lowered to force human review.",
+        top_reason="Warning block cannot be machine-verified from low-confidence OCR.",
+        ocr_confidence=0.66,
+    ),
+    FixtureSpec(
         fixture_id="imported_country_origin_pass",
         filename="imported_country_origin_pass.png",
         product_type="wine",
@@ -346,7 +450,8 @@ def label_text(spec: FixtureSpec) -> str:
     ]
     if spec.imported and spec.label_country_of_origin:
         lines.append(f"PRODUCT OF {spec.label_country_of_origin.upper()}")
-    lines.append(spec.warning_text)
+    if spec.warning_text:
+        lines.append(spec.warning_text)
     return "\n".join(lines)
 
 
@@ -395,12 +500,15 @@ def render_label(spec: FixtureSpec, path: Path) -> None:
     draw.text((150, y), "ST. LOUIS, MISSOURI", font=font(30), fill=ink)
 
     warning_y = 1280
-    draw.rectangle((116, warning_y - 34, 1084, 1625), outline=ink, width=3)
-
-    heading, body = spec.warning_text.split(":", 1)
-    heading_text = f"{heading}:"
-    draw.text((150, warning_y), heading_text, font=font(30, bold=True), fill=ink)
-    draw_wrapped(draw, body.strip(), 150, warning_y + 48, 78, font(27), ink)
+    if spec.warning_text:
+        draw.rectangle((116, warning_y - 34, 1084, 1625), outline=ink, width=3)
+        heading, body = spec.warning_text.split(":", 1)
+        heading_text = f"{heading}:"
+        draw.text((150, warning_y), heading_text, font=font(30, bold=True), fill=ink)
+        draw_wrapped(draw, body.strip(), 150, warning_y + 48, 78, font(27), ink)
+    else:
+        draw.rectangle((116, warning_y - 34, 1084, 1495), outline="#c9b99d", width=2)
+        draw.text((150, warning_y), "LABEL AREA RESERVED FOR REQUIRED STATEMENTS", font=font(30), fill=muted)
 
     if spec.blur:
         image = image.filter(ImageFilter.GaussianBlur(radius=3.0))
@@ -438,7 +546,7 @@ def expected_payload(spec: FixtureSpec) -> dict[str, object]:
 
 
 def ocr_text_payload(spec: FixtureSpec) -> dict[str, object]:
-    confidence = 0.42 if spec.blur else 0.98
+    confidence = spec.ocr_confidence if spec.ocr_confidence is not None else 0.42 if spec.blur else 0.98
     return {
         "fixture_id": spec.fixture_id,
         "filename": spec.filename,

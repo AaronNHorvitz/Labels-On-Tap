@@ -10,10 +10,10 @@ Measured on the development machine on 2026-05-01 with FastAPI `TestClient` and 
 
 | Check | Result |
 |---|---:|
-| `/health` | 27.6 ms |
-| `/demo/clean` with redirect | 10.7 ms |
-| `/demo/batch` with redirect | 9.7 ms |
-| `pytest -q` | 30 tests in 0.50 s |
+| `/health` | 30.2 ms |
+| `/demo/clean` with redirect | 12.4 ms |
+| `/demo/batch` with redirect | 11.6 ms |
+| `pytest -q` | 45 tests in 0.53 s |
 
 These numbers are useful only as local smoke checks. They do not represent real docTR OCR latency, Docker image startup, or public EC2 network latency.
 

@@ -1,0 +1,28 @@
+{
+  "fixture_id": "warning_missing_block_review",
+  "filename": "warning_missing_block_review.png",
+  "full_text": "OLD RIVER BREWING\nALE\n5% ALC/VOL\nNET CONTENTS 1 Pint",
+  "avg_confidence": 0.66,
+  "blocks": [
+    {
+      "text": "OLD RIVER BREWING",
+      "confidence": 0.66,
+      "bbox": null
+    },
+    {
+      "text": "ALE",
+      "confidence": 0.66,
+      "bbox": null
+    },
+    {
+      "text": "5% ALC/VOL",
+      "confidence": 0.66,
+      "bbox": null
+    },
+    {
+      "text": "NET CONTENTS 1 Pint",
+      "confidence": 0.66,
+      "bbox": null
+    }
+  ]
+}

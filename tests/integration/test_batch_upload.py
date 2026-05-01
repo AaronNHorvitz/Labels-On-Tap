@@ -38,11 +38,11 @@ def test_batch_upload_accepts_csv_manifest_and_multiple_images():
     job_id = response.headers["location"].rstrip("/").split("/")[-1]
     page = client.get(f"/jobs/{job_id}")
     assert page.status_code == 200
-    assert "8 / 8" in page.text
+    assert "12 / 12" in page.text
     assert "Needs Review" in page.text
 
     manifest = load_manifest(job_id)
-    assert len(manifest["items"]) == 8
+    assert len(manifest["items"]) == 12
     first = manifest["items"][0]
     assert first["filename"] == "clean_malt_pass.png"
     assert first["stored_filename"] != "clean_malt_pass.png"
@@ -58,7 +58,7 @@ def test_batch_upload_accepts_json_manifest():
 
     response = client.post("/jobs/batch", files=files, follow_redirects=True)
     assert response.status_code == 200
-    assert "8 / 8" in response.text
+    assert "12 / 12" in response.text
     assert "warning_missing_comma_fail.png" in response.text
 
 

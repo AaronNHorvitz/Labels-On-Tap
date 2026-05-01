@@ -115,6 +115,72 @@
       ],
       "top_reason": "Image quality should route the warning typography check to human review."
     },
+    "brand_mismatch_fail": {
+      "fixture_id": "brand_mismatch_fail",
+      "filename": "brand_mismatch_fail.png",
+      "overall_verdict": "fail",
+      "checked_rule_ids": [
+        "GOV_WARNING_HEADER_CAPS",
+        "GOV_WARNING_EXACT_TEXT",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
+      ],
+      "triggered_rule_ids": [
+        "FORM_BRAND_MATCHES_LABEL"
+      ],
+      "top_reason": "Brand name on label does not clearly match application field."
+    },
+    "imported_missing_country_review": {
+      "fixture_id": "imported_missing_country_review",
+      "filename": "imported_missing_country_review.png",
+      "overall_verdict": "needs_review",
+      "checked_rule_ids": [
+        "GOV_WARNING_HEADER_CAPS",
+        "GOV_WARNING_EXACT_TEXT",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
+      ],
+      "triggered_rule_ids": [
+        "COUNTRY_OF_ORIGIN_MATCH"
+      ],
+      "top_reason": "Imported product is missing a country-of-origin application field."
+    },
+    "conflicting_country_origin_fail": {
+      "fixture_id": "conflicting_country_origin_fail",
+      "filename": "conflicting_country_origin_fail.png",
+      "overall_verdict": "fail",
+      "checked_rule_ids": [
+        "GOV_WARNING_HEADER_CAPS",
+        "GOV_WARNING_EXACT_TEXT",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
+      ],
+      "triggered_rule_ids": [
+        "COUNTRY_OF_ORIGIN_MATCH"
+      ],
+      "top_reason": "A conflicting country-of-origin statement appears on the label."
+    },
+    "warning_missing_block_review": {
+      "fixture_id": "warning_missing_block_review",
+      "filename": "warning_missing_block_review.png",
+      "overall_verdict": "needs_review",
+      "checked_rule_ids": [
+        "OCR_LOW_CONFIDENCE",
+        "GOV_WARNING_HEADER_BOLD_REVIEW",
+        "COUNTRY_OF_ORIGIN_MATCH"
+      ],
+      "triggered_rule_ids": [
+        "OCR_LOW_CONFIDENCE",
+        "GOV_WARNING_HEADER_BOLD_REVIEW"
+      ],
+      "top_reason": "Warning block cannot be machine-verified from low-confidence OCR."
+    },
     "imported_country_origin_pass": {
       "fixture_id": "imported_country_origin_pass",
       "filename": "imported_country_origin_pass.png",

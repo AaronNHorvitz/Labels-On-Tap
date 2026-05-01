@@ -307,7 +307,7 @@ Run Batch Demo
 **Expected result:**
 
 ```text
-Batch-style results table appears with 8 rows.
+Batch-style results table appears with 12 rows.
 ```
 
 **Expected table rows:**
@@ -320,16 +320,20 @@ abv_prohibited_fail            Fail
 malt_16_fl_oz_fail             Fail
 brand_case_difference_pass     Pass
 low_confidence_blur_review     Needs Review
+brand_mismatch_fail            Fail
+imported_missing_country_review Needs Review
+conflicting_country_origin_fail Fail
+warning_missing_block_review   Needs Review
 imported_country_origin_pass   Pass
 ```
 
 Expected summary:
 
 ```text
-Processed: 8 / 8
+Processed: 12 / 12
 Pass: 3
-Needs Review: 1
-Fail: 4
+Needs Review: 3
+Fail: 6
 ```
 
 **What to point out:**
