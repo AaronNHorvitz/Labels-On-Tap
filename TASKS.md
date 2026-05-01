@@ -247,34 +247,34 @@ curl -I https://labelsontap.ai
 
 - [ ] `https://www.labelsontap.ai` loads over HTTPS.
 - [ ] `https://labelsontap.ai` redirects to `https://www.labelsontap.ai`.
-- [ ] Home page has one-click demo buttons.
-- [ ] Clean demo returns Pass.
-- [ ] Government warning demo returns Fail.
-- [ ] ABV demo returns Fail.
-- [ ] Malt net contents demo returns Fail.
-- [ ] Country-of-origin demo returns Pass.
-- [ ] Batch demo returns multiple results.
+- [x] Home page has one-click demo buttons.
+- [x] Clean demo returns Pass.
+- [x] Government warning demo returns Fail.
+- [x] ABV demo returns Fail.
+- [x] Malt net contents demo returns Fail.
+- [x] Country-of-origin demo returns Pass.
+- [x] Batch demo returns multiple results.
 - [x] CSV export works.
 - [x] Result detail page shows expected, observed, evidence, source refs, and reviewer action.
 - [x] Single upload form exists.
 - [x] Manual manifest-backed batch upload form exists.
-- [ ] Fixture-backed batch demo is clearly available.
-- [ ] `pytest -q` passes.
+- [x] Fixture-backed batch demo is clearly available.
+- [x] `pytest -q` passes.
 - [ ] `docker compose build` passes.
 - [ ] `docker compose up -d` runs locally or on the EC2 host.
 - [ ] AWS EC2 deployment is running.
-- [ ] README has quick start and live demo instructions.
-- [ ] PRD exists.
-- [ ] ARCHITECTURE exists.
-- [ ] TASKS exists and is committed.
-- [ ] TRADEOFFS exists.
-- [ ] DEMO_SCRIPT exists.
-- [ ] Legal corpus exists.
-- [ ] Source-backed criteria matrix exists.
-- [ ] Fixture provenance exists.
-- [ ] No secrets committed.
-- [ ] No private/confidential rejected COLA data committed.
-- [ ] No hosted OCR/ML API call exists in runtime code.
+- [x] README has quick start and live demo instructions.
+- [x] PRD exists.
+- [x] ARCHITECTURE exists.
+- [x] TASKS exists and is committed.
+- [x] TRADEOFFS exists.
+- [x] DEMO_SCRIPT exists.
+- [x] Legal corpus exists.
+- [x] Source-backed criteria matrix exists.
+- [x] Fixture provenance exists.
+- [x] No secrets committed.
+- [x] No private/confidential rejected COLA data committed.
+- [x] No hosted OCR/ML API call exists in runtime code.
 - [ ] Final submission email sent.
 
 ---
