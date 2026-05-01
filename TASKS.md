@@ -5,10 +5,11 @@
 **Canonical deployment URL:** `https://www.labelsontap.ai`
 **Deadline:** Monday afternoon, May 4, 2026
 **Sprint target:** Deployable, smoke-tested app by Sunday night.
+**Status as of May 1:** Local app, docs, fixtures, tests, and upload/batch flows are ahead of schedule. Remaining work is primarily EC2/DNS/Docker/public smoke testing and submission packaging.
 
 The highest priority is a working deployed demo that an evaluator can open, click through, understand, and trust.
 
-Deployment first: after upload hardening and root docs are done, stop adding product features and deploy. Public URL reliability beats local polish.
+Deployment first from here. Do not add more product features until `https://www.labelsontap.ai` is live and smoke-tested. Public URL reliability beats local polish.
 
 ---
 
@@ -31,10 +32,11 @@ Deployment first: after upload hardening and root docs are done, stop adding pro
 - [x] Demo fixtures/data scaffold exists.
 - [x] `imported_country_origin_pass.*` fixture set exists.
 - [x] Batch fixture manifest exists.
+- [x] Expanded 12-row demo fixture set exists.
 - [x] `scripts/bootstrap_project.py` exists.
 - [x] `scripts/seed_demo_fixtures.py` exists.
 - [x] Tests scaffold exists.
-- [x] Last known local test run: `pytest -q` passed with 16 tests.
+- [x] Last known local test run: `pytest -q` passed with 45 tests.
 - [x] `requirements.txt` exists.
 - [x] `Dockerfile` exists.
 - [x] `docker-compose.yml` exists.
@@ -47,6 +49,30 @@ Deployment first: after upload hardening and root docs are done, stop adding pro
 - [x] Root `TRADEOFFS.md` is committed.
 - [x] Root `DEMO_SCRIPT.md` exists.
 - [x] Root `DEMO_SCRIPT.md` is committed.
+
+---
+
+## Tomorrow Morning Deployment Checklist
+
+Do these first, in order:
+
+- [ ] Launch or confirm AWS EC2 Ubuntu 24.04 LTS instance.
+- [ ] Attach or confirm Elastic IP.
+- [ ] Confirm security group allows `80` and `443` publicly and `22` from Aaron's IP only.
+- [ ] Point DNS A records:
+  - [ ] `www.labelsontap.ai` -> Elastic IP.
+  - [ ] `labelsontap.ai` -> Elastic IP.
+- [ ] SSH to server.
+- [ ] Install Docker and Git.
+- [ ] Clone `https://github.com/AaronNHorvitz/Labels-On-Tap`.
+- [ ] Run `cp .env.example .env`.
+- [ ] Run `docker compose build`.
+- [ ] Run `docker compose up -d`.
+- [ ] Run local Caddy smoke: `curl -H "Host: www.labelsontap.ai" http://localhost/health`.
+- [ ] Run public smoke: `curl https://www.labelsontap.ai/health`.
+- [ ] Confirm apex redirect: `curl -I https://labelsontap.ai`.
+- [ ] Open browser and run demo script.
+- [ ] Update `docs/performance.md` with Docker/public measurements.
 
 ---
 
@@ -79,7 +105,7 @@ curl -H "Host: www.labelsontap.ai" http://localhost/health
 docker compose down
 ```
 
-Note: Docker is required for the Docker checks. Docker is not available in the current local Codex workspace, so run `docker compose build` and the Caddy Host-header smoke test on the EC2 host before public smoke testing.
+Note: Docker is required for the Docker checks. Docker is not available in the current local Codex workspace, so run `docker compose build` and the Caddy Host-header smoke test on the EC2 host tomorrow before public smoke testing.
 
 ---
 
@@ -235,7 +261,7 @@ curl -I https://labelsontap.ai
 - [ ] Screenshot clean Pass result.
 - [ ] Screenshot government warning Fail result.
 - [ ] Screenshot batch result table.
-- [ ] Save final commit SHA.
+- [ ] Save final commit SHA. Current pushed SHA before deployment is `745b582`.
 - [ ] Draft submission email.
 - [ ] Include GitHub URL.
 - [ ] Include deployed URL.
