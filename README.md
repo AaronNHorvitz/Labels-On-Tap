@@ -733,6 +733,8 @@ Labels-On-Tap/
 
 ## Quick Start: Local Development
 
+This path creates an isolated Python environment for local development without Docker.
+
 ### 1. Clone
 
 ```bash
@@ -744,6 +746,14 @@ cd Labels-On-Tap
 
 ```bash
 python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+```
+
+If your system uses `python3` for Python 3.11+, use:
+
+```bash
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip setuptools wheel
 ```
@@ -772,18 +782,26 @@ pytest
 
 For CPU-only PyTorch environments, follow the CPU wheel guidance used in the Dockerfile or PyTorch install instructions. Avoid unintentionally installing CUDA/GPU wheels on a small VM.
 
-### 4. Bootstrap project data
+### 4. Configure local environment
 
 ```bash
-python scripts/bootstrap_project.py
+cp .env.example .env
+```
+
+The default `.env.example` values are safe for local development. Runtime job files are written under `data/jobs/`, which is intentionally gitignored.
+
+### 5. Bootstrap project data
+
+```bash
+python scripts/bootstrap_project.py --if-missing
 ```
 
 This creates or validates the legal corpus and generates deterministic demo/test fixtures under `data/fixtures/demo/`.
 
-### 5. Run the app
+### 6. Run the app
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Open:
@@ -792,10 +810,10 @@ Open:
 http://localhost:8000
 ```
 
-### 6. Run tests
+### 7. Run tests
 
 ```bash
-python scripts/bootstrap_project.py
+python scripts/bootstrap_project.py --if-missing
 pytest -q
 ```
 
@@ -810,7 +828,7 @@ docker compose up --build
 Open:
 
 ```text
-http://localhost:8000
+http://localhost
 ```
 
 ### First OCR Run
@@ -821,19 +839,19 @@ The first OCR call may take longer because model weights may need to download or
 
 ```yaml
 services:
-  web:
+  app:
     build: .
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    ports:
-      - "8000:8000"
     volumes:
       - ./data:/app/data
     environment:
       - APP_ENV=production
-      - JOB_ROOT=/app/data/jobs
+      - DATA_DIR=/app/data
 
   caddy:
     image: caddy:2
+    depends_on:
+      - app
     ports:
       - "80:80"
       - "443:443"
