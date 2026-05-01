@@ -13,8 +13,10 @@ python scripts/bootstrap_project.py --if-missing
 ```bash
 docker compose build
 docker compose up -d
-curl http://localhost:8000/health
+curl -H "Host: www.labelsontap.ai" http://localhost/health
 ```
+
+The Compose stack routes through the production Caddy hostnames. For a local Docker smoke test, send the `www.labelsontap.ai` Host header. On the public VM, DNS should point the real hostname to the instance before Caddy requests certificates.
 
 The recommended target is AWS EC2 On-Demand on Ubuntu 24.04 LTS. Use `m7i.xlarge` for the deadline window if available; `t3a.large` or `t3.large` is the minimum fallback for a modest demo.
 

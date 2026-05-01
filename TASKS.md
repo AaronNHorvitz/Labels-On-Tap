@@ -74,7 +74,7 @@ python scripts/validate_legal_corpus.py
 pytest -q
 docker compose build
 docker compose up -d
-curl http://localhost/health
+curl -H "Host: www.labelsontap.ai" http://localhost/health
 docker compose down
 ```
 
