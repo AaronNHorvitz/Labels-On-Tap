@@ -86,6 +86,7 @@ Note: Docker is required for the Docker checks. If Docker is unavailable locally
 
 - [ ] CSV export test.
 - [ ] Item detail page test.
+- [ ] Show per-rule evidence text on the item detail page when `evidence_text` is available.
 - [ ] `docs/accessibility.md`.
 - [ ] Update `docs/performance.md` with measured values from local Docker and public deployment.
 - [x] `docs/tradeoffs.md` exists.
@@ -102,14 +103,43 @@ Note: Docker is required for the Docker checks. If Docker is unavailable locally
 
 ---
 
-## Nice But Not Required
+## If Time Allows After Public Demo Is Stable
 
-- [ ] Manual multi-file batch upload.
-- [ ] ZIP upload.
-- [ ] Thumbnails/evidence/export folders if not used by the UI.
+Only start these after:
+
+```text
+upload hardening complete
+pytest passes
+Docker build passes
+public https://www.labelsontap.ai smoke tests pass
+```
+
+Priority order:
+
+- [ ] Manual multi-file batch upload using `manifest.csv` / `manifest.json` plus multiple `.jpg/.jpeg/.png` files.
+- [ ] Manifest parser tests for missing image, unknown filename, malformed CSV, and happy path.
+- [ ] CSV export coverage for batch jobs.
+- [ ] Item detail page coverage for expected, observed, source refs, reviewer action, and per-rule evidence text.
+- [ ] Add `brand_mismatch_fail.*` fixture.
+- [ ] Add `conflicting_country_origin_fail.*` fixture.
+- [ ] Add `warning_missing_block_review.*` fixture.
+- [ ] Add a small upload-error page or friendly error template for rejected files.
+- [ ] Add old-job cleanup command/script with conservative retention defaults.
+- [ ] Add OCR warmup note or prewarm command for deployment.
+
+These are useful, but none should delay the public deployed demo.
+
+---
+
+## Post-Submission / Not Needed For Take-Home
+
+- [ ] ZIP upload with safe archive limits and ZIP-bomb protection.
 - [ ] Public COLA fixture curation.
-- [ ] OCR benchmark harness.
-- [ ] Extra risk-rule demos.
+- [ ] OCR benchmark harness across real public labels.
+- [ ] Extra risk-rule demos beyond the current source-backed core.
+- [ ] Thumbnails/evidence/export folders if they are not used by the UI.
+- [ ] Database-backed job store.
+- [ ] Authentication and audit logging.
 
 ---
 
