@@ -1,0 +1,9 @@
+{
+  "fixture_id": "low_confidence_blur_review",
+  "filename": "low_confidence_blur_review.png",
+  "overall_verdict": "needs_review",
+  "triggered_rule_ids": [
+    "GOV_WARNING_HEADER_BOLD"
+  ],
+  "top_reason": "Image quality should route the warning typography check to human review."
+}

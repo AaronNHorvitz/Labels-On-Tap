@@ -1,0 +1,9 @@
+{
+  "fixture_id": "malt_16_fl_oz_fail",
+  "filename": "malt_16_fl_oz_fail.png",
+  "overall_verdict": "fail",
+  "triggered_rule_ids": [
+    "MALT_NET_CONTENTS_16OZ_PINT"
+  ],
+  "top_reason": "Malt beverage net contents should use the required standard-measure form."
+}

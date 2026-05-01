@@ -1,0 +1,72 @@
+{
+  "generated_at": "2026-04-30",
+  "fixtures": {
+    "clean_malt_pass": {
+      "fixture_id": "clean_malt_pass",
+      "filename": "clean_malt_pass.png",
+      "overall_verdict": "pass",
+      "triggered_rule_ids": [
+        "GOV_WARNING_EXACT_TEXT",
+        "GOV_WARNING_HEADER_CAPS",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL"
+      ],
+      "top_reason": "All implemented source-backed checks should pass."
+    },
+    "warning_missing_comma_fail": {
+      "fixture_id": "warning_missing_comma_fail",
+      "filename": "warning_missing_comma_fail.png",
+      "overall_verdict": "fail",
+      "triggered_rule_ids": [
+        "GOV_WARNING_EXACT_TEXT"
+      ],
+      "top_reason": "Government warning text does not match the canonical wording."
+    },
+    "warning_title_case_fail": {
+      "fixture_id": "warning_title_case_fail",
+      "filename": "warning_title_case_fail.png",
+      "overall_verdict": "fail",
+      "triggered_rule_ids": [
+        "GOV_WARNING_HEADER_CAPS"
+      ],
+      "top_reason": "Government warning heading is not in the required all-caps form."
+    },
+    "abv_prohibited_fail": {
+      "fixture_id": "abv_prohibited_fail",
+      "filename": "abv_prohibited_fail.png",
+      "overall_verdict": "fail",
+      "triggered_rule_ids": [
+        "ALCOHOL_ABV_PROHIBITED"
+      ],
+      "top_reason": "Prohibited alcohol-content abbreviation detected."
+    },
+    "malt_16_fl_oz_fail": {
+      "fixture_id": "malt_16_fl_oz_fail",
+      "filename": "malt_16_fl_oz_fail.png",
+      "overall_verdict": "fail",
+      "triggered_rule_ids": [
+        "MALT_NET_CONTENTS_16OZ_PINT"
+      ],
+      "top_reason": "Malt beverage net contents should use the required standard-measure form."
+    },
+    "brand_case_difference_pass": {
+      "fixture_id": "brand_case_difference_pass",
+      "filename": "brand_case_difference_pass.png",
+      "overall_verdict": "pass",
+      "triggered_rule_ids": [
+        "FORM_BRAND_MATCHES_LABEL"
+      ],
+      "top_reason": "Brand casing differs but should still be treated as the same brand."
+    },
+    "low_confidence_blur_review": {
+      "fixture_id": "low_confidence_blur_review",
+      "filename": "low_confidence_blur_review.png",
+      "overall_verdict": "needs_review",
+      "triggered_rule_ids": [
+        "GOV_WARNING_HEADER_BOLD"
+      ],
+      "top_reason": "Image quality should route the warning typography check to human review."
+    }
+  }
+}

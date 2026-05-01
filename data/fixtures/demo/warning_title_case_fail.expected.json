@@ -1,0 +1,9 @@
+{
+  "fixture_id": "warning_title_case_fail",
+  "filename": "warning_title_case_fail.png",
+  "overall_verdict": "fail",
+  "triggered_rule_ids": [
+    "GOV_WARNING_HEADER_CAPS"
+  ],
+  "top_reason": "Government warning heading is not in the required all-caps form."
+}

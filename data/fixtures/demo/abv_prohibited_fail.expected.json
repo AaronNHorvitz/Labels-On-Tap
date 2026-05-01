@@ -1,0 +1,9 @@
+{
+  "fixture_id": "abv_prohibited_fail",
+  "filename": "abv_prohibited_fail.png",
+  "overall_verdict": "fail",
+  "triggered_rule_ids": [
+    "ALCOHOL_ABV_PROHIBITED"
+  ],
+  "top_reason": "Prohibited alcohol-content abbreviation detected."
+}

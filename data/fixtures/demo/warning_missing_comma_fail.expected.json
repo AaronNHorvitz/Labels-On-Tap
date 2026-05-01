@@ -1,0 +1,9 @@
+{
+  "fixture_id": "warning_missing_comma_fail",
+  "filename": "warning_missing_comma_fail.png",
+  "overall_verdict": "fail",
+  "triggered_rule_ids": [
+    "GOV_WARNING_EXACT_TEXT"
+  ],
+  "top_reason": "Government warning text does not match the canonical wording."
+}

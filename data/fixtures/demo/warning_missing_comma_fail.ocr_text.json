@@ -1,0 +1,33 @@
+{
+  "fixture_id": "warning_missing_comma_fail",
+  "filename": "warning_missing_comma_fail.png",
+  "full_text": "OLD RIVER BREWING\nALE\n5% ALC/VOL\nNET CONTENTS 1 Pint\nGOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery and may cause health problems.",
+  "avg_confidence": 0.98,
+  "blocks": [
+    {
+      "text": "OLD RIVER BREWING",
+      "confidence": 0.98,
+      "bbox": null
+    },
+    {
+      "text": "ALE",
+      "confidence": 0.98,
+      "bbox": null
+    },
+    {
+      "text": "5% ALC/VOL",
+      "confidence": 0.98,
+      "bbox": null
+    },
+    {
+      "text": "NET CONTENTS 1 Pint",
+      "confidence": 0.98,
+      "bbox": null
+    },
+    {
+      "text": "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery and may cause health problems.",
+      "confidence": 0.98,
+      "bbox": null
+    }
+  ]
+}

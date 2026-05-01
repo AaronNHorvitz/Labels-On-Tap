@@ -57,6 +57,114 @@
       ],
       "expected_verdict": "needs_review",
       "mutation_summary": "Injected health-benefit/risk-reduction language near product identity text."
+    },
+    {
+      "fixture_id": "clean_malt_pass",
+      "file_path": "data/fixtures/demo/clean_malt_pass.png",
+      "source_type": "synthetic_generation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "GOV_WARNING_EXACT_TEXT",
+        "GOV_WARNING_HEADER_CAPS",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL"
+      ],
+      "source_refs": [
+        "SRC_27_USC_215",
+        "SRC_27_CFR_PART_16",
+        "SRC_27_CFR_PART_7",
+        "SRC_TTB_FORM_5100_31",
+        "SRC_STAKEHOLDER_DISCOVERY"
+      ],
+      "expected_verdict": "pass",
+      "mutation_summary": "Control fixture with matching application fields and canonical warning text."
+    },
+    {
+      "fixture_id": "warning_missing_comma_fail",
+      "file_path": "data/fixtures/demo/warning_missing_comma_fail.png",
+      "source_type": "synthetic_generation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "GOV_WARNING_EXACT_TEXT"
+      ],
+      "source_refs": [
+        "SRC_27_USC_215",
+        "SRC_27_CFR_PART_16"
+      ],
+      "expected_verdict": "fail",
+      "mutation_summary": "Removed the required comma after 'machinery' in the government warning."
+    },
+    {
+      "fixture_id": "warning_title_case_fail",
+      "file_path": "data/fixtures/demo/warning_title_case_fail.png",
+      "source_type": "synthetic_generation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "GOV_WARNING_HEADER_CAPS"
+      ],
+      "source_refs": [
+        "SRC_27_CFR_PART_16"
+      ],
+      "expected_verdict": "fail",
+      "mutation_summary": "Changed the warning heading from all caps to title case."
+    },
+    {
+      "fixture_id": "abv_prohibited_fail",
+      "file_path": "data/fixtures/demo/abv_prohibited_fail.png",
+      "source_type": "synthetic_generation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "ALCOHOL_ABV_PROHIBITED"
+      ],
+      "source_refs": [
+        "SRC_27_CFR_PART_7"
+      ],
+      "expected_verdict": "fail",
+      "mutation_summary": "Used ABV shorthand in a malt beverage alcohol-content statement."
+    },
+    {
+      "fixture_id": "malt_16_fl_oz_fail",
+      "file_path": "data/fixtures/demo/malt_16_fl_oz_fail.png",
+      "source_type": "synthetic_generation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "MALT_NET_CONTENTS_16OZ_PINT"
+      ],
+      "source_refs": [
+        "SRC_27_CFR_PART_7"
+      ],
+      "expected_verdict": "fail",
+      "mutation_summary": "Used 16 fl. oz. where the demo application expects 1 Pint."
+    },
+    {
+      "fixture_id": "brand_case_difference_pass",
+      "file_path": "data/fixtures/demo/brand_case_difference_pass.png",
+      "source_type": "synthetic_generation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "FORM_BRAND_MATCHES_LABEL"
+      ],
+      "source_refs": [
+        "SRC_TTB_FORM_5100_31",
+        "SRC_STAKEHOLDER_DISCOVERY"
+      ],
+      "expected_verdict": "pass",
+      "mutation_summary": "Changed brand casing to validate fuzzy matching tolerance."
+    },
+    {
+      "fixture_id": "low_confidence_blur_review",
+      "file_path": "data/fixtures/demo/low_confidence_blur_review.png",
+      "source_type": "synthetic_generation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "GOV_WARNING_HEADER_BOLD"
+      ],
+      "source_refs": [
+        "SRC_27_CFR_PART_16"
+      ],
+      "expected_verdict": "needs_review",
+      "mutation_summary": "Applied blur to create an OCR/typography confidence review fixture."
     }
   ]
 }
