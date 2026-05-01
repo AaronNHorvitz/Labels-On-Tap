@@ -4,24 +4,27 @@
 **Repository:** `https://github.com/AaronNHorvitz/Labels-On-Tap`
 **Canonical deployment URL:** `https://www.labelsontap.ai`
 **Deadline:** Monday afternoon, May 4, 2026
-**Sprint target:** Deployable, smoke-tested app by Sunday night.
-**Status as of May 1:** Local app, docs, fixtures, tests, and upload/batch flows are ahead of schedule. Remaining work is primarily EC2/DNS/Docker/public smoke testing and submission packaging.
+**Sprint target:** Stakeholder-complete prototype that automates the COLA-style application-data-to-label-artwork comparison workflow described in the interviews.
+**Status as of May 1:** A working repo and deployed public app exist. The remaining risk is product completeness against Sarah Chen and Marcus Williams's interview requirements, not basic deployment.
 
-The highest priority is a working deployed demo that an evaluator can open, click through, understand, and trust.
+The highest priority is now a working deployed demo that visibly matches the agency workflow: upload COLA-style application data, upload label artwork, compare application fields against OCR text, triage mismatches, and export reviewer-ready results.
 
-Deployment first from here. Do not add more product features until `https://www.labelsontap.ai` is live and smoke-tested. Public URL reliability beats local polish.
+Do not use the deadline or existing deployment as a reason to waive interview-derived requirements. Direct COLA integration remains out of scope, but a COLA-shaped standalone proof of concept is in scope.
 
 ---
 
 ## Current Truth
 
 - [x] Canonical URL is `https://www.labelsontap.ai`.
-- [ ] Public deployed app is live at `https://www.labelsontap.ai`.
-- [ ] `https://labelsontap.ai` redirects to `https://www.labelsontap.ai`.
+- [x] Public deployed app is live at `https://www.labelsontap.ai`.
+- [x] `https://labelsontap.ai` redirects to `https://www.labelsontap.ai`.
 - [x] Runtime architecture is FastAPI + Jinja2/HTMX + local CSS.
 - [x] OCR architecture is local docTR adapter with fixture OCR fallback.
 - [x] Storage architecture is filesystem JSON job/result store.
 - [x] Deployment architecture is Docker Compose + Caddy on an x86_64 cloud VM.
+- [x] Current public deployment is AWS Lightsail Ubuntu VM with static IP, Docker Compose, and Caddy.
+- [x] Public health smoke passed at `https://www.labelsontap.ai/health`.
+- [x] Apex redirect smoke passed for `https://labelsontap.ai`.
 - [x] FastAPI app scaffold is implemented.
 - [x] Home page, health route, demo routes, job pages, detail pages, and CSV export routes exist.
 - [x] Single-label upload route exists.
@@ -52,31 +55,127 @@ Deployment first from here. Do not add more product features until `https://www.
 
 ---
 
-## Tomorrow Morning Deployment Checklist
+## Interview-Derived Product Gap List
 
-Do these first, in order:
+This section is the authoritative requirements gap list. It is derived from Sarah Chen's and Marcus Williams's interview notes, not from what is currently convenient to build.
 
-- [ ] Launch or confirm AWS EC2 Ubuntu 24.04 LTS instance.
-- [ ] Attach or confirm Elastic IP.
-- [ ] Confirm security group allows `80` and `443` publicly and `22` from Aaron's IP only.
-- [ ] Point DNS A records:
-  - [ ] `www.labelsontap.ai` -> Elastic IP.
-  - [ ] `labelsontap.ai` -> Elastic IP.
-- [ ] SSH to server.
-- [ ] Install Docker and Git.
-- [ ] Clone `https://github.com/AaronNHorvitz/Labels-On-Tap`.
-- [ ] Run `cp .env.example .env`.
-- [ ] Run `docker compose build`.
-- [ ] Run `docker compose up -d`.
-- [ ] Run local Caddy smoke: `curl -H "Host: www.labelsontap.ai" http://localhost/health`.
-- [ ] Run public smoke: `curl https://www.labelsontap.ai/health`.
-- [ ] Confirm apex redirect: `curl -I https://labelsontap.ai`.
+### P0 Sarah Chen Workflow Gaps
+
+Sarah's core process is:
+
+```text
+agent opens COLA application data
+  + agent reviews submitted label artwork
+  -> agent verifies that the label matches the application
+```
+
+Current app risk: the prototype has strong compliance-rule demos, but it must more visibly automate the routine application-record-to-label-artwork matching Sarah described.
+
+- [ ] Reframe the batch input as a **COLA-style application data file** plus label artwork, not a generic manifest.
+- [ ] Add first-class `application_id` / `cola_id` traceability to schema, fixtures, batch input, job manifest, item detail, and CSV export.
+- [ ] Add applicant, permittee, bottler, producer, or name/address fields needed to represent common COLA-style application data.
+- [ ] Add `FORM_ALCOHOL_CONTENT_MATCHES_LABEL`.
+- [ ] Add `FORM_CLASS_TYPE_MATCHES_LABEL`.
+- [ ] Add `FORM_NET_CONTENTS_MATCHES_LABEL`.
+- [ ] Add `FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL`.
+- [ ] Add `FORM_FANCIFUL_NAME_MATCHES_LABEL` if `fanciful_name` remains in the application schema.
+- [ ] Keep `FORM_BRAND_MATCHES_LABEL`, but present it as one field in a broader field-by-field comparison report.
+- [ ] Expand result detail pages so each application field clearly shows expected value, observed OCR evidence, verdict, and reviewer action.
+- [ ] Expand CSV export into a reviewer-ready mismatch report with application ID, filename, field/rule, expected, observed, verdict, evidence, reviewer action, and OCR source.
+- [ ] Add fixture cases for clean application-data match, alcohol-content mismatch, class/type mismatch, net-contents mismatch, bottler/address missing, and mixed batch triage.
+- [ ] Add a distilled spirits sample fixture modeled after the prompt's `OLD TOM DISTILLERY` example.
+- [ ] Add wine, malt beverage, and distilled spirits coverage so product-type differences are visible.
+- [ ] Add a 200-300 row synthetic batch generator or fixture-backed batch proof to address Sarah's peak-season importer scenario.
+- [ ] Add automated test coverage for the large synthetic batch path.
+- [ ] Improve batch progress/status behavior so the UI feels responsive for large jobs, even when full completion takes longer.
+- [ ] Measure and document per-label timing on the deployed VM, with special attention to Sarah's approximately 5-second adoption threshold.
+- [ ] Improve UI copy so older/nontechnical agents see simple workflow language such as "Application data file" and "Label artwork files" instead of unexplained technical terms.
+
+### P0 Marcus Williams Architecture Gaps
+
+Marcus's core constraints are:
+
+```text
+standalone proof of concept
+no direct COLA integration
+government network constraints
+no hosted ML/OCR dependency
+PII and retention awareness
+future procurement signal
+Azure infrastructure context
+```
+
+Current app risk: AWS deployment proves public availability, but Marcus explicitly hints that Azure compatibility, restricted-network behavior, and production-security posture matter.
+
+- [ ] Add Azure deployment documentation/path because Marcus says current infrastructure is on Azure.
+- [ ] Document that the current AWS deployment is for evaluation convenience and that the container stack is cloud-portable to Azure VM or Azure Container Apps.
+- [ ] Ensure runtime architecture is not AWS-specific.
+- [ ] Add restricted-network runtime posture: no hosted ML/OCR calls, no external model endpoints, local static assets, and no outbound AI dependency during label verification.
+- [ ] Distinguish build-time dependency downloads from runtime network behavior.
+- [ ] Strengthen PII/document-retention docs: prototype storage is local filesystem job storage, cleanup is available, and production needs records policy.
+- [ ] Add or improve cleanup/retention workflow docs for uploaded label artifacts.
+- [ ] Add future .NET/COLA integration path without implementing direct COLA integration.
+- [ ] Add procurement-oriented architecture summary explaining feasibility, limitations, operations, deployment options, and trade-offs.
+- [ ] Avoid any FedRAMP overclaim; explicitly state production deployment would require authorization, identity, logging, retention, and security review.
+
+### P1 Jenny Park / Dave Morrison Supporting Gaps
+
+Jenny and Dave fill in practical reviewer behavior: exact warning checks, non-perfect images, and tolerance for harmless formatting differences.
+
+- [ ] Improve missing-warning handling so the app distinguishes missing, unreadable, wrong text, wrong capitalization, and typography review.
+- [ ] Add explicit image-quality diagnostics for blur, low resolution, glare/contrast, or hard-to-read photos where feasible.
+- [ ] Keep warning boldness conservative, but improve the reviewer-facing typography explanation and evidence.
+- [ ] Extend Dave-style fuzzy matching philosophy to alcohol-content, class/type, net contents, country origin, and bottler/address formatting differences.
+- [ ] Add tests for harmless formatting variants such as `45% Alc./Vol.`, `45% alcohol by volume`, and `90 Proof`.
+
+### P2 Documentation And Submission Gaps
+
+- [ ] Update README narrative so the product thesis is application-data-to-label-artwork verification.
+- [ ] Update `DEMO_SCRIPT.md` around a COLA-style application data file plus label artwork workflow.
+- [ ] Update `ARCHITECTURE.md` with COLA-shaped standalone input and Azure portability.
+- [ ] Update `PRD.md` so Sarah and Marcus's hidden requirements are explicitly tracked.
+- [ ] Update `docs/performance.md` with measured public VM timings.
+- [ ] Add or update `docs/security.md` / privacy language around restricted networks, uploads, retention, and non-production limits.
+- [ ] Add test data documentation explaining synthetic COLA-style application data, fixture OCR, and why confidential rejected applications are not used.
+
+### Implementation Order
+
+Build in this order so every change reinforces the agency workflow:
+
+1. Expand `ColaApplication` and `ManifestItem` into a COLA-style application record.
+2. Regenerate fixtures/manifests with application IDs and bottler/producer fields.
+3. Add field-by-field rules for alcohol content, class/type, net contents, bottler/producer, and fanciful name.
+4. Update result detail pages and CSV export into field-level mismatch reports.
+5. Add 200-300 row synthetic batch proof and tests.
+6. Update README, PRD, ARCHITECTURE, DEMO_SCRIPT, performance docs, security docs, and Azure deployment docs.
+7. Redeploy and rerun public smoke/demo checks.
+
+---
+
+## Deployment Checklist
+
+The first public deployment was completed on AWS Lightsail. Keep this checklist for redeploys or host rebuilds.
+
+- [x] Launch or confirm AWS Lightsail/EC2 Ubuntu instance.
+- [x] Attach or confirm static public IP.
+- [x] Confirm firewall allows `80` and `443` publicly and `22` for SSH.
+- [x] Point DNS A records:
+  - [x] `www.labelsontap.ai` -> static public IP.
+  - [x] `labelsontap.ai` -> static public IP.
+- [x] SSH to server.
+- [x] Install Docker and Git.
+- [x] Clone `https://github.com/AaronNHorvitz/Labels-On-Tap`.
+- [x] Run `cp .env.example .env`.
+- [x] Run `docker compose build`.
+- [x] Run `docker compose up -d`.
+- [x] Run public smoke: `curl https://www.labelsontap.ai/health`.
+- [x] Confirm apex redirect: `curl -I https://labelsontap.ai`.
 - [ ] Open browser and run demo script.
 - [ ] Update `docs/performance.md` with Docker/public measurements.
 
 ---
 
-## Must Fix Before Deployment
+## Completed Deployment Hardening
 
 - [x] Commit `TASKS.md`.
 - [x] Fix README stale command: `docker compose logs web` → `docker compose logs app`.
@@ -89,7 +188,7 @@ Do these first, in order:
 - [x] Validate uploaded images with Pillow after signature check.
 - [x] Add upload preflight tests.
 - [x] Run `pytest -q` after the upload hardening changes.
-- [ ] Run `docker compose build`.
+- [x] Run `docker compose build` on the deployed AWS host.
 - [x] Run local health smoke test.
 
 Acceptance commands:
@@ -105,7 +204,7 @@ curl -H "Host: www.labelsontap.ai" http://localhost/health
 docker compose down
 ```
 
-Note: Docker is required for the Docker checks. Docker is not available in the current local Codex workspace, so run `docker compose build` and the Caddy Host-header smoke test on the EC2 host tomorrow before public smoke testing.
+Note: Docker is required for Docker checks. Docker is not available in the current local Codex workspace, so Docker verification runs on the AWS host.
 
 ---
 
@@ -118,7 +217,7 @@ Note: Docker is required for the Docker checks. Docker is not available in the c
 - [ ] Update `docs/performance.md` with measured values from local Docker and public deployment.
 - [x] `docs/tradeoffs.md` exists.
 - [x] Add `imported_missing_country_review.*` fixture if time allows.
-- [ ] Public smoke test: `https://www.labelsontap.ai/health`.
+- [x] Public smoke test: `https://www.labelsontap.ai/health`.
 - [ ] Public smoke test: clean demo returns Pass.
 - [ ] Public smoke test: warning demo returns Fail.
 - [ ] Public smoke test: ABV demo returns Fail.
@@ -126,22 +225,13 @@ Note: Docker is required for the Docker checks. Docker is not available in the c
 - [ ] Public smoke test: country-of-origin demo returns Pass.
 - [ ] Public smoke test: batch demo returns multiple results.
 - [ ] Public smoke test: CSV export downloads.
-- [ ] Public smoke test: apex redirects to `www`.
+- [x] Public smoke test: apex redirects to `www`.
 
 ---
 
-## If Time Allows After Public Demo Is Stable
+## Completed Stretch Features
 
-Only start these after:
-
-```text
-upload hardening complete
-pytest passes
-Docker build passes
-public https://www.labelsontap.ai smoke tests pass
-```
-
-Priority order:
+These were previously time-permitting items and are now implemented.
 
 - [x] Manual multi-file batch upload using `manifest.csv` / `manifest.json` plus multiple `.jpg/.jpeg/.png` files.
 - [x] Manifest parser tests for missing image, unknown filename, malformed CSV, and happy path.
@@ -154,11 +244,9 @@ Priority order:
 - [x] Add old-job cleanup command/script with conservative retention defaults.
 - [x] Add OCR warmup note or prewarm command for deployment.
 
-These are useful, but none should delay the public deployed demo.
-
 ---
 
-## Post-Submission / Not Needed For Take-Home
+## Deferred Unless Interview Requirements Are Complete
 
 - [ ] ZIP upload with safe archive limits and ZIP-bomb protection.
 - [ ] Public COLA fixture curation.
@@ -188,36 +276,40 @@ Keep this architecture stable:
 
 ---
 
-## Do Not Do Before Deadline
+## Do Not Do Until Interview Requirements Are Covered
 
 - [ ] Do not add ZIP upload.
 - [ ] Do not add React/Vue/Angular.
-- [ ] Do not scrape public COLA data.
+- [ ] Do not scrape private or authenticated COLA data.
 - [ ] Do not add a database.
 - [ ] Do not add authentication.
-- [ ] Do not chase extra rules until the public deployment is live and smoke-tested.
+- [ ] Do not chase speculative rules before the Sarah/Marcus application-data workflow is complete.
 - [ ] Do not replace the fixture-backed demo path with live OCR-only behavior.
 
 ---
 
 ## Deployment Runbook
 
-Use AWS EC2 On-Demand:
+Current public host is AWS Lightsail:
 
 ```text
-OS: Ubuntu 24.04 LTS
-Preferred instance: m7i.xlarge or comparable 4 vCPU / 16 GiB x86_64 instance
-Fallback instance: t3a.large or t3.large
-Disk: 40-60 GB gp3
-Network: Elastic IP
-Security group:
-  22 from Aaron's IP only
+OS: Ubuntu Linux
+Instance: 8 GB RAM / 2 vCPU Lightsail general purpose
+Network: static public IPv4
+Firewall:
+  22 for SSH
   80 from 0.0.0.0/0
   443 from 0.0.0.0/0
 DNS:
-  www.labelsontap.ai A record -> Elastic IP
-  labelsontap.ai A record -> Elastic IP
+  www.labelsontap.ai A/CNAME path -> static public IP
+  labelsontap.ai A record -> static public IP
+Runtime:
+  Docker Compose
+  Caddy
+  FastAPI app container
 ```
+
+The stack must remain portable to Azure VM or Azure Container Apps because Marcus stated current agency infrastructure is on Azure. Do not introduce AWS-only runtime dependencies.
 
 Server commands:
 
@@ -261,7 +353,7 @@ curl -I https://labelsontap.ai
 - [ ] Screenshot clean Pass result.
 - [ ] Screenshot government warning Fail result.
 - [ ] Screenshot batch result table.
-- [ ] Save final commit SHA. Current pushed SHA before deployment is `745b582`.
+- [ ] Save final commit SHA. Current pushed SHA before requirements-gap update is `23e303d`.
 - [ ] Draft submission email.
 - [ ] Include GitHub URL.
 - [ ] Include deployed URL.
@@ -271,8 +363,8 @@ curl -I https://labelsontap.ai
 
 ## Definition Of Done
 
-- [ ] `https://www.labelsontap.ai` loads over HTTPS.
-- [ ] `https://labelsontap.ai` redirects to `https://www.labelsontap.ai`.
+- [x] `https://www.labelsontap.ai` loads over HTTPS.
+- [x] `https://labelsontap.ai` redirects to `https://www.labelsontap.ai`.
 - [x] Home page has one-click demo buttons.
 - [x] Clean demo returns Pass.
 - [x] Government warning demo returns Fail.
@@ -286,9 +378,16 @@ curl -I https://labelsontap.ai
 - [x] Manual manifest-backed batch upload form exists.
 - [x] Fixture-backed batch demo is clearly available.
 - [x] `pytest -q` passes.
-- [ ] `docker compose build` passes.
-- [ ] `docker compose up -d` runs locally or on the EC2 host.
-- [ ] AWS EC2 deployment is running.
+- [x] `docker compose build` passes on the AWS host.
+- [x] `docker compose up -d` runs on the AWS host.
+- [x] AWS Lightsail deployment is running.
+- [ ] COLA-style application data import is the central workflow.
+- [ ] Field-by-field application-to-label matching covers brand, alcohol content, class/type, net contents, country of origin, and bottler/producer.
+- [ ] CSV export is reviewer-ready and includes application IDs, expected values, observed values, verdicts, and reviewer actions.
+- [ ] Large synthetic batch proof covers Sarah's 200-300 application scenario.
+- [ ] Azure deployment path is documented.
+- [ ] Restricted-network runtime posture is documented.
+- [ ] PII/document-retention prototype limits are documented.
 - [x] README has quick start and live demo instructions.
 - [x] PRD exists.
 - [x] ARCHITECTURE exists.
