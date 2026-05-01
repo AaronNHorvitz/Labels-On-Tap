@@ -9,3 +9,4 @@ __all__ = [
     "RuleCheck",
     "VerificationResult",
 ]
+"""Pydantic schemas shared across routes, services, and templates."""

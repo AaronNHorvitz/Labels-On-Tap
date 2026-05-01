@@ -1,3 +1,11 @@
+"""Upload filename and size policy helpers.
+
+Notes
+-----
+These helpers avoid trusting user-provided filenames and enforce bounded upload
+reads before any OCR or image processing happens.
+"""
+
 from __future__ import annotations
 
 import secrets
@@ -10,6 +18,19 @@ UPLOAD_CHUNK_BYTES = 1024 * 1024
 
 
 def validate_upload_name(filename: str) -> None:
+    """Validate an uploaded image filename.
+
+    Parameters
+    ----------
+    filename:
+        Original filename from the upload request.
+
+    Raises
+    ------
+    ValueError
+        Raised for unsupported suffixes, path components, or double extensions.
+    """
+
     path = Path(filename)
     if "/" in filename or "\\" in filename:
         raise ValueError("Upload filename must not include path components.")
@@ -23,11 +44,35 @@ def validate_upload_name(filename: str) -> None:
 
 
 def random_upload_filename(original_filename: str) -> str:
+    """Generate a random server-side filename preserving only the suffix."""
+
     suffix = Path(original_filename).suffix.lower()
     return f"{secrets.token_hex(16)}{suffix}"
 
 
 def copy_upload_with_size_limit(source: BinaryIO, dest: Path, max_bytes: int) -> int:
+    """Copy a binary upload stream while enforcing a byte limit.
+
+    Parameters
+    ----------
+    source:
+        Upload stream.
+    dest:
+        Destination path.
+    max_bytes:
+        Maximum accepted upload size.
+
+    Returns
+    -------
+    int
+        Number of bytes written.
+
+    Raises
+    ------
+    ValueError
+        Raised when the stream exceeds ``max_bytes``.
+    """
+
     bytes_written = 0
     dest.parent.mkdir(parents=True, exist_ok=True)
     with dest.open("wb") as target:
@@ -43,6 +88,13 @@ def copy_upload_with_size_limit(source: BinaryIO, dest: Path, max_bytes: int) ->
 
 
 def read_upload_with_size_limit(source: BinaryIO, max_bytes: int) -> bytes:
+    """Read an upload stream into memory with a strict size limit.
+
+    Notes
+    -----
+    This is used for small manifest files, not label images.
+    """
+
     content = source.read(max_bytes + 1)
     if len(content) > max_bytes:
         raise ValueError(f"Upload exceeds maximum size of {max_bytes} bytes.")

@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Delete old prototype job directories from data/jobs."""
+"""Delete old prototype job directories from ``data/jobs``.
+
+Notes
+-----
+This is a conservative operational helper for the public prototype. It ignores
+temporary upload directories and defaults to a dry-run friendly retention model.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +18,21 @@ from app.config import JOBS_DIR
 
 
 def cleanup_jobs(days: int, dry_run: bool) -> list[Path]:
+    """Remove job directories older than a retention window.
+
+    Parameters
+    ----------
+    days:
+        Minimum job age in days before deletion.
+    dry_run:
+        When true, report matching paths without deleting them.
+
+    Returns
+    -------
+    list[pathlib.Path]
+        Job directories that were, or would be, removed.
+    """
+
     cutoff = time.time() - (days * 24 * 60 * 60)
     removed: list[Path] = []
     if not JOBS_DIR.exists():
@@ -29,6 +50,8 @@ def cleanup_jobs(days: int, dry_run: bool) -> list[Path]:
 
 
 def main() -> None:
+    """Parse CLI arguments and run cleanup."""
+
     parser = argparse.ArgumentParser(description="Clean old Labels On Tap prototype jobs.")
     parser.add_argument("--days", type=int, default=7, help="Delete jobs older than this many days.")
     parser.add_argument("--dry-run", action="store_true", help="Print matching job directories without deleting.")

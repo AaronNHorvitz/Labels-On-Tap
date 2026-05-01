@@ -1,3 +1,12 @@
+"""Source-backed rule registry and verdict aggregation.
+
+Notes
+-----
+The registry keeps implemented checks deterministic and auditable. Each helper
+returns a ``RuleCheck`` with source references, evidence, expected/observed
+values, and reviewer action text that can be shown directly in the UI.
+"""
+
 from __future__ import annotations
 
 from time import perf_counter
@@ -32,6 +41,23 @@ def check(
     score: float | None = None,
     confidence: float | None = None,
 ) -> RuleCheck:
+    """Build a normalized rule-check object.
+
+    Parameters
+    ----------
+    rule_id, name, category:
+        Stable rule metadata used by UI, tests, and source maps.
+    verdict:
+        ``pass``, ``needs_review``, or ``fail``.
+    message:
+        Reviewer-facing explanation.
+
+    Returns
+    -------
+    RuleCheck
+        Structured rule result.
+    """
+
     return RuleCheck(
         rule_id=rule_id,
         name=name,
@@ -54,6 +80,32 @@ def verify_label(
     application: ColaApplication,
     ocr: OCRResult,
 ) -> VerificationResult:
+    """Run all implemented checks for one label.
+
+    Parameters
+    ----------
+    job_id:
+        Filesystem job identifier.
+    item_id:
+        Per-job item identifier.
+    application:
+        Structured application fields.
+    ocr:
+        Normalized OCR output from fixture OCR or local docTR.
+
+    Returns
+    -------
+    VerificationResult
+        Aggregated label verdict, checked/triggered rule IDs, rule checks, OCR
+        payload, and timing.
+
+    Notes
+    -----
+    Low OCR confidence suppresses deterministic text-failure checks and routes
+    the item to Needs Review. This avoids unsupported false failures from poor
+    image evidence.
+    """
+
     started = perf_counter()
     checks: list[RuleCheck] = []
     text = ocr.full_text or ""
@@ -126,6 +178,14 @@ def verify_label(
 
 
 def check_warning_exact(warning: str | None) -> RuleCheck:
+    """Check government warning text against the canonical wording.
+
+    Notes
+    -----
+    Only whitespace is normalized. Punctuation and capitalization remain
+    material for this strict check.
+    """
+
     if not warning:
         return check(
             "GOV_WARNING_EXACT_TEXT",
@@ -158,6 +218,8 @@ def check_warning_exact(warning: str | None) -> RuleCheck:
 
 
 def check_warning_caps(text: str) -> RuleCheck:
+    """Check that the warning heading is exactly ``GOVERNMENT WARNING:``."""
+
     heading = warning_heading(text)
     verdict = "pass" if heading == "GOVERNMENT WARNING:" else "fail"
     return check(
@@ -177,6 +239,8 @@ def check_warning_caps(text: str) -> RuleCheck:
 
 
 def check_abv(text: str) -> RuleCheck:
+    """Fail when prohibited ABV shorthand appears near an alcohol percentage."""
+
     observed = contains_abv_shorthand(text)
     verdict = "fail" if observed else "pass"
     return check(
@@ -196,6 +260,8 @@ def check_abv(text: str) -> RuleCheck:
 
 
 def check_malt_net_contents(application: ColaApplication, text: str) -> RuleCheck:
+    """Apply the malt beverage 16-ounce net-contents check."""
+
     applies = application.product_type == "malt_beverage"
     bad_statement = has_bad_malt_16oz_statement(text) if applies else False
     verdict = "fail" if bad_statement else "pass"
@@ -216,6 +282,14 @@ def check_malt_net_contents(application: ColaApplication, text: str) -> RuleChec
 
 
 def check_brand(application: ColaApplication, text: str, confidence: float) -> RuleCheck:
+    """Fuzzy-match application brand name against OCR text.
+
+    Notes
+    -----
+    Strong fuzzy matches pass, ambiguous matches route to Needs Review, and
+    clear mismatches fail when OCR confidence is adequate.
+    """
+
     score = fuzzy_score(application.brand_name, text)
     if score >= 90:
         verdict = "pass"
@@ -246,6 +320,16 @@ def check_brand(application: ColaApplication, text: str, confidence: float) -> R
 
 
 def check_country_origin(application: ColaApplication, text: str, confidence: float) -> RuleCheck:
+    """Evaluate imported-product country-of-origin consistency.
+
+    Notes
+    -----
+    Domestic/non-imported labels pass this check as non-applicable. Imported
+    labels pass on a strong expected-country match, need review when data or OCR
+    is insufficient, and fail only when a conflicting country is detected with
+    adequate confidence.
+    """
+
     if not application.imported:
         return check(
             "COUNTRY_OF_ORIGIN_MATCH",
@@ -342,6 +426,8 @@ def check_country_origin(application: ColaApplication, text: str, confidence: fl
 
 
 def overall_verdict(checks: list[RuleCheck]) -> str:
+    """Collapse rule-check verdicts into the final item verdict."""
+
     if any(item.verdict == "fail" for item in checks):
         return "fail"
     if any(item.verdict == "needs_review" for item in checks):

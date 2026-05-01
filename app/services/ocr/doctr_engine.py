@@ -1,3 +1,12 @@
+"""Local docTR OCR adapter.
+
+Notes
+-----
+docTR is optional at import time because the evaluator demos and unit tests use
+fixture OCR. When docTR cannot be imported or initialized, the adapter returns a
+low-confidence ``OCRResult`` instead of crashing the request.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,11 +16,28 @@ from app.schemas.ocr import OCRResult
 
 
 class DoctrOCREngine:
+    """Lazy-loading docTR engine wrapper."""
+
     def __init__(self) -> None:
+        """Initialize the wrapper without loading model weights."""
+
         self._model = None
         self._error: str | None = None
 
     def _load_model(self):
+        """Load and cache the docTR OCR predictor.
+
+        Raises
+        ------
+        RuntimeError
+            Raised when docTR or one of its runtime dependencies is unavailable.
+
+        Notes
+        -----
+        Model loading is delayed until the first real OCR call so fixture demos
+        stay fast and deterministic.
+        """
+
         if self._model is not None:
             return self._model
         if self._error:
@@ -27,6 +53,27 @@ class DoctrOCREngine:
         return self._model
 
     def run(self, image_path: Path, fixture_id: str | None = None) -> OCRResult:
+        """Run local OCR and normalize docTR output.
+
+        Parameters
+        ----------
+        image_path:
+            Image to process.
+        fixture_id:
+            Optional fixture identifier for traceability.
+
+        Returns
+        -------
+        OCRResult
+            Normalized full text, confidence, blocks, source, and timing data.
+
+        Notes
+        -----
+        Runtime OCR failures intentionally become low-confidence OCR results.
+        The rule engine then routes the item to Needs Review rather than
+        failing the whole web request.
+        """
+
         started = perf_counter()
         try:
             model = self._load_model()

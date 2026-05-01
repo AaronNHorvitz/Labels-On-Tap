@@ -1,3 +1,11 @@
+"""Helpers for loading deterministic demo fixtures.
+
+Notes
+-----
+Fixtures make tests and evaluator demos reproducible without live scraping,
+hosted OCR, or access to confidential rejected applications.
+"""
+
 from __future__ import annotations
 
 import csv
@@ -33,27 +41,39 @@ DEMO_SCENARIOS = {
 
 
 def load_json(path: Path) -> dict:
+    """Load a UTF-8 JSON document from disk."""
+
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def fixture_path(fixture_id: str, suffix: str) -> Path:
+    """Return the path for a fixture sidecar file."""
+
     return DEMO_FIXTURE_DIR / f"{fixture_id}.{suffix}"
 
 
 def load_application(fixture_id: str) -> ColaApplication:
+    """Load fixture application fields."""
+
     return ColaApplication(**load_json(fixture_path(fixture_id, "application.json")))
 
 
 def load_fixture_ocr(fixture_id: str) -> OCRResult:
+    """Load fixture OCR ground truth and mark its source explicitly."""
+
     payload = load_json(fixture_path(fixture_id, "ocr_text.json"))
     payload["source"] = "fixture ground truth"
     return OCRResult(**payload)
 
 
 def load_expected_results() -> dict:
+    """Load source-map expected results keyed by fixture ID."""
+
     return load_json(SOURCE_MAP_DIR / "expected-results.json")["fixtures"]
 
 
 def load_batch_manifest() -> list[dict[str, str]]:
+    """Load the generated CSV batch manifest as dictionaries."""
+
     with (DEMO_FIXTURE_DIR / "batch_manifest.csv").open(encoding="utf-8", newline="") as f:
         return list(csv.DictReader(f))

@@ -1,3 +1,13 @@
+"""Runtime configuration and repository path constants.
+
+Notes
+-----
+Configuration is environment-variable driven so the same container can run in
+local development and on the EC2 deployment host. Defaults are conservative for
+the take-home prototype and can be overridden through ``.env`` / Docker
+environment values.
+"""
+
 from __future__ import annotations
 
 import os

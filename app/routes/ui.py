@@ -1,3 +1,5 @@
+"""Server-rendered browser routes."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
@@ -13,4 +15,6 @@ templates = Jinja2Templates(directory=str(ROOT / "app/templates"))
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request):
+    """Render the home page with demo, single-upload, and batch-upload forms."""
+
     return templates.TemplateResponse(request, "index.html")

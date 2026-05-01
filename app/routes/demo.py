@@ -1,3 +1,13 @@
+"""One-click deterministic demo routes.
+
+Notes
+-----
+The demo routes create normal filesystem-backed jobs using generated fixture
+images and fixture OCR ground truth. This keeps the evaluator walkthrough
+stable while preserving the same result storage and rule-engine path used by
+manual uploads.
+"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
@@ -15,6 +25,25 @@ ocr_engine = FixtureOCREngine()
 
 
 def run_fixture_job(scenario: str) -> str:
+    """Create a job from a named fixture scenario.
+
+    Parameters
+    ----------
+    scenario:
+        Scenario key from ``DEMO_SCENARIOS`` such as ``"clean"`` or
+        ``"batch"``.
+
+    Returns
+    -------
+    str
+        Newly-created job identifier.
+
+    Raises
+    ------
+    HTTPException
+        Raised with status 404 when the scenario is unknown.
+    """
+
     fixture_ids = DEMO_SCENARIOS.get(scenario)
     if not fixture_ids:
         raise HTTPException(status_code=404, detail="Unknown demo scenario")
@@ -40,5 +69,7 @@ def run_fixture_job(scenario: str) -> str:
 
 @router.get("/demo/{scenario}")
 def demo(scenario: str) -> RedirectResponse:
+    """Run a fixture demo and redirect to the result page."""
+
     job_id = run_fixture_job(scenario)
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)

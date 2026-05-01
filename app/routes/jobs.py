@@ -1,3 +1,12 @@
+"""Job creation, upload processing, result pages, and CSV export routes.
+
+Notes
+-----
+The sprint prototype uses synchronous processing and a filesystem job store.
+That keeps the implementation inspectable for the take-home while preserving a
+clear future path to background workers if batch sizes grow.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -43,6 +52,20 @@ ocr_engine = FixtureOCREngine()
 
 @dataclass
 class ValidatedUpload:
+    """Temporary upload metadata after preflight validation.
+
+    Attributes
+    ----------
+    original_filename:
+        User-provided filename preserved for UI display and CSV export.
+    stored_filename:
+        Randomized server-side filename used to avoid trusting user input.
+    temp_path:
+        Temporary path used before the upload is moved into a job directory.
+    upload_size:
+        Number of bytes copied after enforcing the configured size limit.
+    """
+
     original_filename: str
     stored_filename: str
     temp_path: Path
@@ -50,6 +73,33 @@ class ValidatedUpload:
 
 
 def _validate_image_upload(upload: UploadFile, temp_dir: Path) -> ValidatedUpload:
+    """Validate and stage one uploaded label image.
+
+    Parameters
+    ----------
+    upload:
+        FastAPI upload object for a user-supplied label image.
+    temp_dir:
+        Temporary directory owned by the current request.
+
+    Returns
+    -------
+    ValidatedUpload
+        Metadata for a staged upload that passed filename, size, signature, and
+        Pillow decode checks.
+
+    Raises
+    ------
+    HTTPException
+        Raised with ``400`` for unsafe/invalid images and ``413`` for uploads
+        exceeding ``MAX_UPLOAD_BYTES``.
+
+    Notes
+    -----
+    The original filename is never used as the stored filename. It is kept only
+    as display metadata so result pages remain understandable to reviewers.
+    """
+
     if not upload.filename:
         raise HTTPException(status_code=400, detail="Missing upload filename")
     original_filename = upload.filename
@@ -79,6 +129,21 @@ def _validate_image_upload(upload: UploadFile, temp_dir: Path) -> ValidatedUploa
 
 
 def _move_validated_upload(job_id: str, upload: ValidatedUpload) -> Path:
+    """Move a staged upload into its final job upload directory.
+
+    Parameters
+    ----------
+    job_id:
+        Filesystem job identifier.
+    upload:
+        Validated upload metadata returned by ``_validate_image_upload``.
+
+    Returns
+    -------
+    pathlib.Path
+        Final randomized upload path under ``data/jobs/{job_id}/uploads``.
+    """
+
     dest = job_dir(job_id) / "uploads" / upload.stored_filename
     dest.parent.mkdir(parents=True, exist_ok=True)
     upload.temp_path.replace(dest)
@@ -86,6 +151,19 @@ def _move_validated_upload(job_id: str, upload: ValidatedUpload) -> Path:
 
 
 def _manifest_item_to_application(item: ManifestItem) -> ColaApplication:
+    """Convert a parsed batch manifest item to a verification application.
+
+    Parameters
+    ----------
+    item:
+        Parsed CSV/JSON manifest item.
+
+    Returns
+    -------
+    ColaApplication
+        Application schema consumed by the rule registry.
+    """
+
     payload = item.model_dump() if hasattr(item, "model_dump") else item.dict()
     return ColaApplication(**payload)
 
@@ -101,6 +179,23 @@ def create_single_job(
     country_of_origin: str = Form(""),
     label_image: UploadFile = File(...),
 ) -> RedirectResponse:
+    """Create and process a single-label upload job.
+
+    Parameters
+    ----------
+    brand_name, product_type, class_type, alcohol_content, net_contents:
+        Application fields entered in the single-label form.
+    imported, country_of_origin:
+        Import-origin fields used by ``COUNTRY_OF_ORIGIN_MATCH``.
+    label_image:
+        JPG/PNG label image uploaded by the reviewer.
+
+    Returns
+    -------
+    RedirectResponse
+        Redirects to the job result page after synchronous processing.
+    """
+
     JOBS_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="_upload-", dir=JOBS_DIR) as temp_dir:
         upload = _validate_image_upload(label_image, Path(temp_dir))
@@ -140,6 +235,32 @@ def create_batch_job(
     manifest_file: UploadFile = File(...),
     label_images: list[UploadFile] = File(...),
 ) -> RedirectResponse:
+    """Create and process a manifest-backed batch upload job.
+
+    Parameters
+    ----------
+    manifest_file:
+        CSV or JSON manifest with one row/item per label image.
+    label_images:
+        Uploaded label images referenced by the manifest.
+
+    Returns
+    -------
+    RedirectResponse
+        Redirects to the batch job result page after synchronous processing.
+
+    Raises
+    ------
+    HTTPException
+        Raised when the manifest is malformed, referenced images are missing,
+        extra images are supplied, or any image fails upload preflight.
+
+    Notes
+    -----
+    Batch work is synchronous for the take-home. A production implementation
+    should enqueue OCR/rule work and stream progress from a worker-backed store.
+    """
+
     if not manifest_file.filename:
         raise HTTPException(status_code=400, detail="Missing manifest filename")
     try:
@@ -193,6 +314,8 @@ def create_batch_job(
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
 def job_page(request: Request, job_id: str):
+    """Render a job's result table."""
+
     return templates.TemplateResponse(
         request,
         "job.html",
@@ -206,6 +329,8 @@ def job_page(request: Request, job_id: str):
 
 @router.get("/jobs/{job_id}/status", response_class=HTMLResponse)
 def job_status(request: Request, job_id: str):
+    """Render the HTMX status/result table partial for a job."""
+
     results = list_results(job_id)
     return templates.TemplateResponse(
         request,
@@ -216,6 +341,8 @@ def job_status(request: Request, job_id: str):
 
 @router.get("/jobs/{job_id}/items/{item_id}", response_class=HTMLResponse)
 def item_detail(request: Request, job_id: str, item_id: str):
+    """Render per-item evidence, OCR text, and rule checks."""
+
     return templates.TemplateResponse(
         request,
         "item_detail.html",
@@ -225,6 +352,8 @@ def item_detail(request: Request, job_id: str, item_id: str):
 
 @router.get("/jobs/{job_id}/results.csv")
 def csv_export(job_id: str) -> Response:
+    """Export all job results as CSV."""
+
     csv_text = results_to_csv(list_results(job_id))
     return PlainTextResponse(
         csv_text,

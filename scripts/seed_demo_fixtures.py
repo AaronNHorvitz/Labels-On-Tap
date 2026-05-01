@@ -49,6 +49,15 @@ WARNING_TITLE_CASE = CANONICAL_WARNING.replace(
 
 @dataclass(frozen=True)
 class FixtureSpec:
+    """Specification for one generated synthetic label fixture.
+
+    Notes
+    -----
+    Each spec drives four outputs: PNG image, application JSON, OCR text JSON,
+    and expected-result JSON. Keeping these in one data structure prevents the
+    fixture image and expected verdict from drifting apart.
+    """
+
     fixture_id: str
     filename: str
     product_type: str
@@ -398,6 +407,8 @@ FIXTURES: list[FixtureSpec] = [
 
 
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load a local font with fallback to Pillow's default font."""
+
     candidates = [
         "/usr/share/fonts/google-noto/NotoSans-Bold.ttf"
         if bold
@@ -417,6 +428,8 @@ def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.Im
 
 
 def draw_centered(draw: ImageDraw.ImageDraw, text: str, y: int, fnt, fill: str) -> int:
+    """Draw centered text and return the next vertical position."""
+
     bbox = draw.textbbox((0, 0), text, font=fnt)
     width = bbox[2] - bbox[0]
     x = (1200 - width) // 2
@@ -434,6 +447,26 @@ def draw_wrapped(
     fill: str,
     line_gap: int = 8,
 ) -> int:
+    """Draw wrapped text at a fixed starting coordinate.
+
+    Parameters
+    ----------
+    draw:
+        Pillow drawing context.
+    text:
+        Text to wrap and draw.
+    x, y:
+        Starting coordinate.
+    max_chars:
+        Approximate wrap width in characters.
+    fnt:
+        Pillow font.
+    fill:
+        Text color.
+    line_gap:
+        Pixel gap between wrapped lines.
+    """
+
     line_height = draw.textbbox((0, 0), "Ag", font=fnt)[3] + line_gap
     for line in wrap(text, width=max_chars):
         draw.text((x, y), line, font=fnt, fill=fill)
@@ -442,6 +475,8 @@ def draw_wrapped(
 
 
 def label_text(spec: FixtureSpec) -> str:
+    """Build deterministic OCR ground-truth text for a fixture."""
+
     lines = [
         spec.label_brand_name,
         spec.class_type.upper(),
@@ -456,6 +491,14 @@ def label_text(spec: FixtureSpec) -> str:
 
 
 def render_label(spec: FixtureSpec, path: Path) -> None:
+    """Render a synthetic label PNG for a fixture.
+
+    Notes
+    -----
+    The image is intentionally simple and readable. The point is deterministic
+    rule coverage, not photorealistic label art.
+    """
+
     image = Image.new("RGB", (1200, 1800), "#f8f5ee")
     draw = ImageDraw.Draw(image)
 
@@ -518,6 +561,8 @@ def render_label(spec: FixtureSpec, path: Path) -> None:
 
 
 def application_payload(spec: FixtureSpec) -> dict[str, object]:
+    """Return the Form 5100.31-style application payload for a fixture."""
+
     return {
         "fixture_id": spec.fixture_id,
         "filename": spec.filename,
@@ -535,6 +580,8 @@ def application_payload(spec: FixtureSpec) -> dict[str, object]:
 
 
 def expected_payload(spec: FixtureSpec) -> dict[str, object]:
+    """Return expected verdict metadata for a fixture."""
+
     return {
         "fixture_id": spec.fixture_id,
         "filename": spec.filename,
@@ -546,6 +593,8 @@ def expected_payload(spec: FixtureSpec) -> dict[str, object]:
 
 
 def ocr_text_payload(spec: FixtureSpec) -> dict[str, object]:
+    """Return OCR ground-truth payload for fixture OCR fallback."""
+
     confidence = spec.ocr_confidence if spec.ocr_confidence is not None else 0.42 if spec.blur else 0.98
     return {
         "fixture_id": spec.fixture_id,
@@ -561,6 +610,8 @@ def ocr_text_payload(spec: FixtureSpec) -> dict[str, object]:
 
 
 def provenance_payload(spec: FixtureSpec) -> dict[str, object]:
+    """Return source/provenance metadata for a generated fixture."""
+
     return {
         "fixture_id": spec.fixture_id,
         "file_path": f"data/fixtures/demo/{spec.filename}",
@@ -574,6 +625,8 @@ def provenance_payload(spec: FixtureSpec) -> dict[str, object]:
 
 
 def write_json(path: Path, payload: object, force: bool) -> None:
+    """Write fixture JSON, optionally preserving existing files."""
+
     if path.exists() and not force:
         print(f"skip existing: {path}")
         return
@@ -583,6 +636,8 @@ def write_json(path: Path, payload: object, force: bool) -> None:
 
 
 def write_image(spec: FixtureSpec, force: bool) -> None:
+    """Write one fixture PNG."""
+
     path = DEMO_DIR / spec.filename
     if path.exists() and not force:
         print(f"skip existing: {path}")
@@ -592,6 +647,8 @@ def write_image(spec: FixtureSpec, force: bool) -> None:
 
 
 def write_manifest_csv(force: bool) -> None:
+    """Write the generated CSV batch manifest."""
+
     path = DEMO_DIR / "batch_manifest.csv"
     if path.exists() and not force:
         print(f"skip existing: {path}")
@@ -633,6 +690,8 @@ def write_manifest_csv(force: bool) -> None:
 
 
 def write_manifest_json(force: bool) -> None:
+    """Write the generated JSON batch manifest."""
+
     payload = {
         "generated_at": TODAY,
         "items": [
@@ -647,6 +706,8 @@ def write_manifest_json(force: bool) -> None:
 
 
 def merge_fixture_provenance(force: bool) -> None:
+    """Merge generated fixture provenance into the source-map file."""
+
     path = SOURCE_MAP_DIR / "fixture-provenance.json"
     existing: list[dict[str, object]] = []
     if path.exists():
@@ -672,6 +733,8 @@ def merge_fixture_provenance(force: bool) -> None:
 
 
 def write_fixture_provenance_md(fixtures: list[dict[str, object]], force: bool) -> None:
+    """Write a Markdown table of fixture provenance."""
+
     rows = []
     for fixture in fixtures:
         rows.append(
@@ -707,6 +770,8 @@ def write_fixture_provenance_md(fixtures: list[dict[str, object]], force: bool) 
 
 
 def write_expected_results(force: bool) -> None:
+    """Write expected result source map for all generated fixtures."""
+
     expected = {
         spec.fixture_id: expected_payload(spec)
         for spec in FIXTURES
@@ -715,6 +780,8 @@ def write_expected_results(force: bool) -> None:
 
 
 def write_fixture_files(force: bool) -> None:
+    """Write all generated fixture artifacts."""
+
     DEMO_DIR.mkdir(parents=True, exist_ok=True)
     for spec in FIXTURES:
         write_image(spec, force)
@@ -729,6 +796,8 @@ def write_fixture_files(force: bool) -> None:
 
 
 def main() -> None:
+    """Parse CLI arguments and generate fixture artifacts."""
+
     parser = argparse.ArgumentParser(description="Generate deterministic demo label fixtures.")
     parser.add_argument("--force", action="store_true", help="Overwrite existing generated files.")
     args = parser.parse_args()

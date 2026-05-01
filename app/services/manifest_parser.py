@@ -1,3 +1,12 @@
+"""CSV/JSON batch manifest parsing.
+
+Notes
+-----
+The parser keeps upload validation deterministic and local. It accepts only the
+small manifest contract used by the UI and fixtures, then turns rows into
+``ManifestItem`` objects for the batch route.
+"""
+
 from __future__ import annotations
 
 import csv
@@ -19,6 +28,26 @@ REQUIRED_FIELDS = {"filename", "product_type", "brand_name"}
 
 
 def parse_manifest(filename: str, content: bytes) -> list[ManifestItem]:
+    """Parse a user-supplied CSV or JSON manifest.
+
+    Parameters
+    ----------
+    filename:
+        Original manifest filename, used only to choose CSV vs JSON by suffix.
+    content:
+        Uploaded manifest bytes after size-limit enforcement.
+
+    Returns
+    -------
+    list[ManifestItem]
+        Validated manifest items.
+
+    Raises
+    ------
+    ManifestParseError
+        Raised when the suffix, encoding, schema, or row contents are invalid.
+    """
+
     suffix = Path(filename).suffix.lower()
     if suffix == ".csv":
         return _parse_csv_manifest(content)
@@ -28,6 +57,8 @@ def parse_manifest(filename: str, content: bytes) -> list[ManifestItem]:
 
 
 def _parse_csv_manifest(content: bytes) -> list[ManifestItem]:
+    """Parse UTF-8 CSV manifest bytes into manifest items."""
+
     try:
         text = content.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
@@ -48,6 +79,8 @@ def _parse_csv_manifest(content: bytes) -> list[ManifestItem]:
 
 
 def _parse_json_manifest(content: bytes) -> list[ManifestItem]:
+    """Parse JSON manifest bytes into manifest items."""
+
     try:
         payload = json.loads(content.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -70,6 +103,16 @@ def _parse_json_manifest(content: bytes) -> list[ManifestItem]:
 
 
 def _manifest_item_from_payload(payload: dict[str, Any], row_number: int) -> ManifestItem:
+    """Normalize and validate one manifest row/object.
+
+    Parameters
+    ----------
+    payload:
+        Raw CSV row or JSON item.
+    row_number:
+        Human-readable row/item number used in error messages.
+    """
+
     for field in REQUIRED_FIELDS:
         if not str(payload.get(field, "")).strip():
             raise ManifestParseError(f"Manifest row {row_number} is missing required field: {field}.")
@@ -86,6 +129,8 @@ def _manifest_item_from_payload(payload: dict[str, Any], row_number: int) -> Man
 
 
 def _parse_bool(value: Any, row_number: int) -> bool:
+    """Parse user-friendly truthy/falsy values from a manifest field."""
+
     if isinstance(value, bool):
         return value
     if value is None:
@@ -99,6 +144,15 @@ def _parse_bool(value: Any, row_number: int) -> bool:
 
 
 def _validate_manifest_items(items: list[ManifestItem]) -> list[ManifestItem]:
+    """Validate manifest-level invariants.
+
+    Notes
+    -----
+    Duplicate filenames are rejected because they make file-to-row matching
+    ambiguous. Duplicate fixture IDs are also rejected because result filenames
+    are keyed by item ID in the filesystem store.
+    """
+
     if not items:
         raise ManifestParseError("Manifest must contain at least one item.")
 

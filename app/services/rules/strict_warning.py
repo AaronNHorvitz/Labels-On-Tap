@@ -1,3 +1,5 @@
+"""Government warning extraction and strict comparison helpers."""
+
 from __future__ import annotations
 
 import re
@@ -12,10 +14,20 @@ CANONICAL_WARNING = (
 
 
 def normalize_whitespace(value: str) -> str:
+    """Collapse whitespace without changing punctuation or capitalization."""
+
     return re.sub(r"\s+", " ", value).strip()
 
 
 def extract_warning_block(full_text: str) -> str | None:
+    """Extract the government warning block from OCR text.
+
+    Notes
+    -----
+    This deliberately normalizes whitespace only. Punctuation and capitalization
+    remain meaningful for strict warning comparison.
+    """
+
     match = re.search(r"(government\s+warning\s*:.*)", full_text, flags=re.IGNORECASE | re.DOTALL)
     if not match:
         return None
@@ -23,5 +35,7 @@ def extract_warning_block(full_text: str) -> str | None:
 
 
 def warning_heading(full_text: str) -> str | None:
+    """Return the warning heading text as it appears in OCR."""
+
     match = re.search(r"government\s+warning\s*:", full_text, flags=re.IGNORECASE)
     return match.group(0) if match else None

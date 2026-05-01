@@ -1,3 +1,5 @@
+"""CSV serialization for reviewer-facing job exports."""
+
 from __future__ import annotations
 
 import csv
@@ -7,6 +9,24 @@ from app.schemas.results import VerificationResult
 
 
 def results_to_csv(results: list[VerificationResult]) -> str:
+    """Serialize verification results into a compact CSV report.
+
+    Parameters
+    ----------
+    results:
+        Verification results for a single job.
+
+    Returns
+    -------
+    str
+        CSV text suitable for a ``text/csv`` HTTP response.
+
+    Notes
+    -----
+    Rule ID lists are semicolon-delimited to keep the export single-row-per-
+    label and friendly to spreadsheet tools.
+    """
+
     buffer = io.StringIO()
     fieldnames = [
         "filename",

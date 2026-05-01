@@ -1,9 +1,33 @@
+"""Application-field schemas used by label verification.
+
+Notes
+-----
+The model is intentionally close to the fields surfaced in the take-home brief
+and Form 5100.31-style workflows. It is not a complete COLA application model.
+"""
+
 from __future__ import annotations
 
 from pydantic import BaseModel
 
 
 class ColaApplication(BaseModel):
+    """Structured application fields compared against label OCR text.
+
+    Attributes
+    ----------
+    filename:
+        Original label filename shown in the UI and CSV export.
+    product_type:
+        Broad commodity type used to route product-specific rules.
+    brand_name:
+        Application brand value used by fuzzy label matching.
+    country_of_origin:
+        Required for imported-product checks when ``imported`` is true.
+    imported:
+        Controls whether ``COUNTRY_OF_ORIGIN_MATCH`` is enforced.
+    """
+
     fixture_id: str | None = None
     filename: str
     product_type: str = "malt_beverage"

@@ -31,6 +31,8 @@ TODAY = date.today().isoformat()
 
 
 def write_text(path: Path, content: str, force: bool = False) -> None:
+    """Write UTF-8 text unless the file already exists."""
+
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and not force:
         print(f"skip existing: {path}")
@@ -40,6 +42,8 @@ def write_text(path: Path, content: str, force: bool = False) -> None:
 
 
 def write_json(path: Path, obj: object, force: bool = False) -> None:
+    """Write pretty JSON unless the file already exists."""
+
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and not force:
         print(f"skip existing: {path}")
@@ -49,6 +53,8 @@ def write_json(path: Path, obj: object, force: bool = False) -> None:
 
 
 def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str], force: bool = False) -> None:
+    """Write a CSV file from dictionaries."""
+
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and not force:
         print(f"skip existing: {path}")
@@ -64,6 +70,8 @@ def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str], 
 
 
 def mkdirs() -> None:
+    """Create the legal-corpus, docs, and data directory skeleton."""
+
     dirs = [
         "research/legal-corpus",
         "research/legal-corpus/excerpts/statutes",

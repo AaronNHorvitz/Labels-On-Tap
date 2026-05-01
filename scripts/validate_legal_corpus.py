@@ -20,10 +20,14 @@ CORPUS = ROOT / "research/legal-corpus"
 
 
 def load_json(path: Path):
+    """Load a JSON file from the legal corpus."""
+
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def main() -> None:
+    """Validate source, rule, and fixture-reference consistency."""
+
     errors: list[str] = []
 
     sources_doc = load_json(CORPUS / "source-ledger.json")
