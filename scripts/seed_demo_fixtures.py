@@ -61,6 +61,7 @@ class FixtureSpec:
     label_net_contents: str
     warning_text: str
     expected_verdict: str
+    checked_rule_ids: list[str]
     triggered_rule_ids: list[str]
     source_refs: list[str]
     mutation_summary: str
@@ -82,13 +83,14 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=CANONICAL_WARNING,
         expected_verdict="pass",
-        triggered_rule_ids=[
+        checked_rule_ids=[
             "GOV_WARNING_EXACT_TEXT",
             "GOV_WARNING_HEADER_CAPS",
             "ALCOHOL_ABV_PROHIBITED",
             "MALT_NET_CONTENTS_16OZ_PINT",
             "FORM_BRAND_MATCHES_LABEL",
         ],
+        triggered_rule_ids=[],
         source_refs=[
             "SRC_27_USC_215",
             "SRC_27_CFR_PART_16",
@@ -112,6 +114,7 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=WARNING_MISSING_COMMA,
         expected_verdict="fail",
+        checked_rule_ids=["GOV_WARNING_EXACT_TEXT"],
         triggered_rule_ids=["GOV_WARNING_EXACT_TEXT"],
         source_refs=["SRC_27_USC_215", "SRC_27_CFR_PART_16"],
         mutation_summary="Removed the required comma after 'machinery' in the government warning.",
@@ -130,6 +133,7 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=WARNING_TITLE_CASE,
         expected_verdict="fail",
+        checked_rule_ids=["GOV_WARNING_HEADER_CAPS"],
         triggered_rule_ids=["GOV_WARNING_HEADER_CAPS"],
         source_refs=["SRC_27_CFR_PART_16"],
         mutation_summary="Changed the warning heading from all caps to title case.",
@@ -148,6 +152,7 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=CANONICAL_WARNING,
         expected_verdict="fail",
+        checked_rule_ids=["ALCOHOL_ABV_PROHIBITED"],
         triggered_rule_ids=["ALCOHOL_ABV_PROHIBITED"],
         source_refs=["SRC_27_CFR_PART_7"],
         mutation_summary="Used ABV shorthand in a malt beverage alcohol-content statement.",
@@ -166,6 +171,7 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="16 fl. oz.",
         warning_text=CANONICAL_WARNING,
         expected_verdict="fail",
+        checked_rule_ids=["MALT_NET_CONTENTS_16OZ_PINT"],
         triggered_rule_ids=["MALT_NET_CONTENTS_16OZ_PINT"],
         source_refs=["SRC_27_CFR_PART_7"],
         mutation_summary="Used 16 fl. oz. where the demo application expects 1 Pint.",
@@ -184,7 +190,8 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=CANONICAL_WARNING,
         expected_verdict="pass",
-        triggered_rule_ids=["FORM_BRAND_MATCHES_LABEL"],
+        checked_rule_ids=["FORM_BRAND_MATCHES_LABEL"],
+        triggered_rule_ids=[],
         source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
         mutation_summary="Changed brand casing to validate fuzzy matching tolerance.",
         top_reason="Brand casing differs but should still be treated as the same brand.",
@@ -202,8 +209,9 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=CANONICAL_WARNING,
         expected_verdict="needs_review",
-        triggered_rule_ids=["GOV_WARNING_HEADER_BOLD"],
-        source_refs=["SRC_27_CFR_PART_16"],
+        checked_rule_ids=["OCR_LOW_CONFIDENCE", "GOV_WARNING_HEADER_BOLD_REVIEW"],
+        triggered_rule_ids=["OCR_LOW_CONFIDENCE", "GOV_WARNING_HEADER_BOLD_REVIEW"],
+        source_refs=["SRC_27_CFR_PART_16", "SRC_REPORT_14_HARDENING"],
         mutation_summary="Applied blur to create an OCR/typography confidence review fixture.",
         top_reason="Image quality should route the warning typography check to human review.",
         blur=True,
@@ -337,6 +345,7 @@ def expected_payload(spec: FixtureSpec) -> dict[str, object]:
         "fixture_id": spec.fixture_id,
         "filename": spec.filename,
         "overall_verdict": spec.expected_verdict,
+        "checked_rule_ids": spec.checked_rule_ids,
         "triggered_rule_ids": spec.triggered_rule_ids,
         "top_reason": spec.top_reason,
     }
@@ -363,7 +372,7 @@ def provenance_payload(spec: FixtureSpec) -> dict[str, object]:
         "file_path": f"data/fixtures/demo/{spec.filename}",
         "source_type": "synthetic_generation",
         "base_image_source": "synthetic",
-        "rule_ids": spec.triggered_rule_ids,
+        "rule_ids": spec.checked_rule_ids,
         "source_refs": spec.source_refs,
         "expected_verdict": spec.expected_verdict,
         "mutation_summary": spec.mutation_summary,

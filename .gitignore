@@ -23,6 +23,8 @@ htmlcov/
 !.env.example
 *.pem
 *.key
+.codex
+.codex/
 
 # Editors / OS
 .vscode/
@@ -37,3 +39,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Runtime data
+data/jobs/

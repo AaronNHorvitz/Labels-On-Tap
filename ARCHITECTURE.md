@@ -707,7 +707,7 @@ MALT_NET_CONTENTS_16OZ_PINT
 ### 9.2 Manual typography / Needs Review checks
 
 ```text
-GOV_WARNING_HEADER_BOLD
+GOV_WARNING_HEADER_BOLD_REVIEW
 GOV_WARNING_BODY_NOT_BOLD
 GOV_WARNING_TYPE_SIZE_ESTIMATE
 GOV_WARNING_CONTRAST_LEGIBILITY
@@ -717,8 +717,7 @@ Sprint behavior:
 
 ```text
 Do not overclaim visual font compliance from arbitrary raster images.
-If text/caps are correct but font-weight or physical typography cannot be verified,
-return Needs Review with a manual-verification explanation.
+If image quality is weak or physical typography cannot be verified, return Needs Review with a manual-verification explanation.
 ```
 
 ### 9.3 Fuzzy application-vs-label matching

@@ -1,0 +1,26 @@
+<section class="panel">
+  <table>
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Status</th>
+        <th>Top reason</th>
+        <th>OCR</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for result in results %}
+      <tr>
+        <td>{{ result.filename }}</td>
+        <td><span class="badge {{ result.overall_verdict }}">{{ result.overall_verdict|replace("_", " ")|title }}</span></td>
+        <td>{{ result.top_reason }}</td>
+        <td>{{ result.ocr.source }} · {{ "%.0f"|format(result.ocr.avg_confidence * 100) }}%</td>
+        <td><a href="/jobs/{{ job_id }}/items/{{ result.item_id }}">Details</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No results yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

@@ -1,0 +1,7 @@
+labelsontap.ai {
+    reverse_proxy web:8000
+}
+
+www.labelsontap.ai {
+    redir https://labelsontap.ai{uri}
+}

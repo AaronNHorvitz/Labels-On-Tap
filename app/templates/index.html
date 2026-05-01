@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Labels On Tap{% endblock %}
+{% block content %}
+<section class="workspace">
+  <div class="intro">
+    <h1>Alcohol Label Verification</h1>
+    <p>Run source-backed checks against demo labels or upload one label image for local preflight review.</p>
+  </div>
+
+  <section class="panel">
+    <h2>Demo Queue</h2>
+    <div class="demo-actions">
+      <a class="button primary" href="/demo/clean">Run Clean Label Demo</a>
+      <a class="button danger" href="/demo/warning">Run Warning Failure Demo</a>
+      <a class="button danger" href="/demo/abv">Run ABV Failure Demo</a>
+      <a class="button danger" href="/demo/net_contents">Run Malt Net Contents Failure Demo</a>
+      <a class="button secondary" href="/demo/batch">Run Batch Demo</a>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Single Label Upload</h2>
+    <form action="/jobs" method="post" enctype="multipart/form-data" class="upload-form">
+      <label>
+        Brand name
+        <input name="brand_name" value="OLD RIVER BREWING" required>
+      </label>
+      <label>
+        Product type
+        <select name="product_type">
+          <option value="malt_beverage">Malt beverage</option>
+          <option value="wine">Wine</option>
+          <option value="distilled_spirits">Distilled spirits</option>
+        </select>
+      </label>
+      <label>
+        Class/type
+        <input name="class_type" value="Ale">
+      </label>
+      <label>
+        Alcohol content
+        <input name="alcohol_content" value="5% ALC/VOL">
+      </label>
+      <label>
+        Net contents
+        <input name="net_contents" value="1 Pint">
+      </label>
+      <label class="full">
+        Label image
+        <input name="label_image" type="file" accept=".jpg,.jpeg,.png" required>
+      </label>
+      <button class="button primary" type="submit">Verify Label</button>
+    </form>
+  </section>
+</section>
+{% endblock %}

@@ -2,8 +2,13 @@
   "fixture_id": "low_confidence_blur_review",
   "filename": "low_confidence_blur_review.png",
   "overall_verdict": "needs_review",
+  "checked_rule_ids": [
+    "OCR_LOW_CONFIDENCE",
+    "GOV_WARNING_HEADER_BOLD_REVIEW"
+  ],
   "triggered_rule_ids": [
-    "GOV_WARNING_HEADER_BOLD"
+    "OCR_LOW_CONFIDENCE",
+    "GOV_WARNING_HEADER_BOLD_REVIEW"
   ],
   "top_reason": "Image quality should route the warning typography check to human review."
 }

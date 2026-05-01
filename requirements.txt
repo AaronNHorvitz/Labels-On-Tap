@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+python-doctr[torch]
+opencv-python-headless
+pillow
+rapidfuzz
+pydantic
+python-dotenv
+pytest

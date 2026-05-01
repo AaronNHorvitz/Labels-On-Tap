@@ -2,8 +2,9 @@
   "fixture_id": "brand_case_difference_pass",
   "filename": "brand_case_difference_pass.png",
   "overall_verdict": "pass",
-  "triggered_rule_ids": [
+  "checked_rule_ids": [
     "FORM_BRAND_MATCHES_LABEL"
   ],
+  "triggered_rule_ids": [],
   "top_reason": "Brand casing differs but should still be treated as the same brand."
 }

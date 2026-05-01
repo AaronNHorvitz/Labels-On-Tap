@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Job {{ job_id }}{% endblock %}
+{% block content %}
+<section class="workspace">
+  <div class="page-title">
+    <div>
+      <h1>Review Results</h1>
+      <p>Job {{ job_id }} · {{ manifest.label }}</p>
+    </div>
+    <a class="button secondary" href="/jobs/{{ job_id }}/results.csv">Export CSV</a>
+  </div>
+
+  <div
+    hx-get="/jobs/{{ job_id }}/status"
+    hx-trigger="load, every 3s"
+    hx-swap="innerHTML"
+  >
+    {% include "partials/job_status.html" %}
+  </div>
+</section>
+{% endblock %}

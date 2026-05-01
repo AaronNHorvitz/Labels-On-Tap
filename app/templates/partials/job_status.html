@@ -1,0 +1,14 @@
+{% set manifest_items = manifest["items"] %}
+{% set total = manifest_items|length %}
+{% set pass_count = results|selectattr("overall_verdict", "equalto", "pass")|list|length %}
+{% set review_count = results|selectattr("overall_verdict", "equalto", "needs_review")|list|length %}
+{% set fail_count = results|selectattr("overall_verdict", "equalto", "fail")|list|length %}
+
+<section class="summary-grid">
+  <div class="metric"><span>{{ results|length }} / {{ total }}</span><small>Processed</small></div>
+  <div class="metric pass"><span>{{ pass_count }}</span><small>Pass</small></div>
+  <div class="metric review"><span>{{ review_count }}</span><small>Needs Review</small></div>
+  <div class="metric fail"><span>{{ fail_count }}</span><small>Fail</small></div>
+</section>
+
+{% include "partials/result_table.html" %}

@@ -2,12 +2,13 @@
   "fixture_id": "clean_malt_pass",
   "filename": "clean_malt_pass.png",
   "overall_verdict": "pass",
-  "triggered_rule_ids": [
+  "checked_rule_ids": [
     "GOV_WARNING_EXACT_TEXT",
     "GOV_WARNING_HEADER_CAPS",
     "ALCOHOL_ABV_PROHIBITED",
     "MALT_NET_CONTENTS_16OZ_PINT",
     "FORM_BRAND_MATCHES_LABEL"
   ],
+  "triggered_rule_ids": [],
   "top_reason": "All implemented source-backed checks should pass."
 }

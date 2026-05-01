@@ -62,7 +62,8 @@ Each fixture has:
 - a synthetic label image,
 - Form 5100.31-style application fields,
 - expected Pass / Needs Review / Fail outcome,
-- rule IDs,
+- checked rule IDs,
+- triggered rule IDs for Fail or Needs Review outcomes,
 - source references,
 - OCR-text ground truth for deterministic unit tests.
 

@@ -13,7 +13,7 @@
 | SRC_27_CFR_PART_5 | tier_1_official_current_reference | regulation | 27 CFR Part 5 — Labeling and Advertising of Distilled Spirits | SPIRITS_RULES, SPIRITS_CLASS_TYPE, SPIRITS_ALCOHOL_CONTENT |
 | SRC_27_CFR_PART_7 | tier_1_official_current_reference | regulation | 27 CFR Part 7 — Labeling and Advertising of Malt Beverages | MALT_RULES, MALT_NET_CONTENTS, MALT_ALCOHOL_CONTENT |
 | SRC_27_CFR_PART_13 | tier_1_official_current_reference | regulation | 27 CFR Part 13 — Labeling Proceedings | PUBLIC_DATA_BOUNDARIES, COLA_PROCEDURE, CERTIFICATE_EXEMPTION_CONTEXT |
-| SRC_27_CFR_PART_16 | tier_1_official_current_reference | regulation | 27 CFR Part 16 — Alcoholic Beverage Health Warning Statement | GOV_WARNING_EXACT_TEXT, GOV_WARNING_HEADER_CAPS, GOV_WARNING_HEADER_BOLD, GOV_WARNING_BODY_NOT_BOLD, GOV_WARNING_LEGIBILITY |
+| SRC_27_CFR_PART_16 | tier_1_official_current_reference | regulation | 27 CFR Part 16 — Alcoholic Beverage Health Warning Statement | GOV_WARNING_EXACT_TEXT, GOV_WARNING_HEADER_CAPS, GOV_WARNING_HEADER_BOLD_REVIEW, GOV_WARNING_BODY_NOT_BOLD, GOV_WARNING_LEGIBILITY |
 | SRC_TTB_FORM_5100_31 | tier_1_official | ttb_form | TTB Form 5100.31 — Application for and Certification/Exemption of Label/Bottle Approval | FORM_FIELD_MAPPING, APPLICATION_SCHEMA, FORM_BRAND_MATCHES_LABEL |
 | SRC_TTB_PUBLIC_COLA_REGISTRY | tier_1_official | ttb_public_registry | TTB Public COLA Registry | PUBLIC_APPROVED_FIXTURES, PUBLIC_POSTMARKET_FIXTURES |
 | SRC_TTB_IC_2006_01 | tier_1_official | ttb_industry_circular | TTB Industry Circular 2006-01 — Semi-generic wine names and Retsina | WINE_SEMI_GENERIC_NAME_DETECTED, WINE_SEMI_GENERIC_SUPPORT_REQUIRED |

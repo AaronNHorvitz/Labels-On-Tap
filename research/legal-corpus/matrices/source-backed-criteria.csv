@@ -1,7 +1,7 @@
 rule_id,name,category,confidence_tier,default_verdict,source_refs,implemented_status,app_module,fixtures
 GOV_WARNING_EXACT_TEXT,Government warning exact text,strict_compliance,tier_1_official,fail,SRC_27_USC_215;SRC_27_CFR_PART_16,planned,app/rules/strict_warning.py,warning_good.png;warning_missing_machinery_comma.png;warning_title_case_heading.png
 GOV_WARNING_HEADER_CAPS,Government warning heading capitalization,strict_compliance,tier_1_official,fail,SRC_27_CFR_PART_16,planned,app/rules/strict_warning.py,warning_title_case_heading.png
-GOV_WARNING_HEADER_BOLD,Government warning heading boldness,cv_typography,tier_1_official,needs_review,SRC_27_CFR_PART_16,planned,app/rules/strict_warning.py,warning_not_bold.png;warning_low_contrast.png
+GOV_WARNING_HEADER_BOLD_REVIEW,Government warning heading manual typography review,manual_review,tier_1_official,needs_review,SRC_27_CFR_PART_16,implemented,app/services/rules/strict_warning.py,warning_low_contrast.png;low_confidence_blur_review.png
 ALCOHOL_ABV_PROHIBITED,Prohibited ABV abbreviation detected,strict_compliance,tier_1_official,fail,SRC_27_CFR_PART_5;SRC_27_CFR_PART_7,planned,app/rules/alcohol_terms.py,beer_5_percent_abv.png;spirits_45_percent_abv.png
 MALT_NET_CONTENTS_16OZ_PINT,Malt beverage 16 fl. oz. should be 1 Pint,strict_compliance,tier_1_official,fail,SRC_27_CFR_PART_7,planned,app/rules/net_contents.py,beer_16_fl_oz_only.png;beer_1_pint_good.png
 FORM_BRAND_MATCHES_LABEL,Application brand name matches label artwork,fuzzy_match,stakeholder_requirement,needs_review,SRC_TTB_FORM_5100_31;SRC_STAKEHOLDER_DISCOVERY,planned,app/rules/field_matching.py,brand_match_good.png;brand_case_difference.png;brand_mismatch.png

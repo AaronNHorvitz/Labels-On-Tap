@@ -9,7 +9,8 @@
         |---|---|---|---|---|---|
         | GOV_WARNING_EXACT_TEXT | strict_compliance | fail | SRC_27_USC_215, SRC_27_CFR_PART_16 | planned | warning_good.png, warning_missing_machinery_comma.png, warning_title_case_heading.png |
 | GOV_WARNING_HEADER_CAPS | strict_compliance | fail | SRC_27_CFR_PART_16 | planned | warning_title_case_heading.png |
-| GOV_WARNING_HEADER_BOLD | cv_typography | needs_review | SRC_27_CFR_PART_16 | planned | warning_not_bold.png, warning_low_contrast.png |
+| GOV_WARNING_HEADER_BOLD_REVIEW | cv_typography | needs_review | SRC_27_CFR_PART_16 | implemented | warning_not_bold.png, warning_low_contrast.png |
+| OCR_LOW_CONFIDENCE | ocr_quality | needs_review | SRC_STAKEHOLDER_DISCOVERY, SRC_REPORT_14_HARDENING | implemented | low_confidence_blur_review.png |
 | ALCOHOL_ABV_PROHIBITED | strict_compliance | fail | SRC_27_CFR_PART_5, SRC_27_CFR_PART_7 | planned | beer_5_percent_abv.png, spirits_45_percent_abv.png |
 | MALT_NET_CONTENTS_16OZ_PINT | strict_compliance | fail | SRC_27_CFR_PART_7 | planned | beer_16_fl_oz_only.png, beer_1_pint_good.png |
 | FORM_BRAND_MATCHES_LABEL | fuzzy_match | needs_review | SRC_TTB_FORM_5100_31, SRC_STAKEHOLDER_DISCOVERY | planned | brand_match_good.png, brand_case_difference.png, brand_mismatch.png |

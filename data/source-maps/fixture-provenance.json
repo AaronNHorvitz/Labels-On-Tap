@@ -158,10 +158,12 @@
       "source_type": "synthetic_generation",
       "base_image_source": "synthetic",
       "rule_ids": [
-        "GOV_WARNING_HEADER_BOLD"
+        "OCR_LOW_CONFIDENCE",
+        "GOV_WARNING_HEADER_BOLD_REVIEW"
       ],
       "source_refs": [
-        "SRC_27_CFR_PART_16"
+        "SRC_27_CFR_PART_16",
+        "SRC_REPORT_14_HARDENING"
       ],
       "expected_verdict": "needs_review",
       "mutation_summary": "Applied blur to create an OCR/typography confidence review fixture."

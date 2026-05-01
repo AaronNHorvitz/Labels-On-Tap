@@ -5,19 +5,23 @@
       "fixture_id": "clean_malt_pass",
       "filename": "clean_malt_pass.png",
       "overall_verdict": "pass",
-      "triggered_rule_ids": [
+      "checked_rule_ids": [
         "GOV_WARNING_EXACT_TEXT",
         "GOV_WARNING_HEADER_CAPS",
         "ALCOHOL_ABV_PROHIBITED",
         "MALT_NET_CONTENTS_16OZ_PINT",
         "FORM_BRAND_MATCHES_LABEL"
       ],
+      "triggered_rule_ids": [],
       "top_reason": "All implemented source-backed checks should pass."
     },
     "warning_missing_comma_fail": {
       "fixture_id": "warning_missing_comma_fail",
       "filename": "warning_missing_comma_fail.png",
       "overall_verdict": "fail",
+      "checked_rule_ids": [
+        "GOV_WARNING_EXACT_TEXT"
+      ],
       "triggered_rule_ids": [
         "GOV_WARNING_EXACT_TEXT"
       ],
@@ -27,6 +31,9 @@
       "fixture_id": "warning_title_case_fail",
       "filename": "warning_title_case_fail.png",
       "overall_verdict": "fail",
+      "checked_rule_ids": [
+        "GOV_WARNING_HEADER_CAPS"
+      ],
       "triggered_rule_ids": [
         "GOV_WARNING_HEADER_CAPS"
       ],
@@ -36,6 +43,9 @@
       "fixture_id": "abv_prohibited_fail",
       "filename": "abv_prohibited_fail.png",
       "overall_verdict": "fail",
+      "checked_rule_ids": [
+        "ALCOHOL_ABV_PROHIBITED"
+      ],
       "triggered_rule_ids": [
         "ALCOHOL_ABV_PROHIBITED"
       ],
@@ -45,6 +55,9 @@
       "fixture_id": "malt_16_fl_oz_fail",
       "filename": "malt_16_fl_oz_fail.png",
       "overall_verdict": "fail",
+      "checked_rule_ids": [
+        "MALT_NET_CONTENTS_16OZ_PINT"
+      ],
       "triggered_rule_ids": [
         "MALT_NET_CONTENTS_16OZ_PINT"
       ],
@@ -54,17 +67,23 @@
       "fixture_id": "brand_case_difference_pass",
       "filename": "brand_case_difference_pass.png",
       "overall_verdict": "pass",
-      "triggered_rule_ids": [
+      "checked_rule_ids": [
         "FORM_BRAND_MATCHES_LABEL"
       ],
+      "triggered_rule_ids": [],
       "top_reason": "Brand casing differs but should still be treated as the same brand."
     },
     "low_confidence_blur_review": {
       "fixture_id": "low_confidence_blur_review",
       "filename": "low_confidence_blur_review.png",
       "overall_verdict": "needs_review",
+      "checked_rule_ids": [
+        "OCR_LOW_CONFIDENCE",
+        "GOV_WARNING_HEADER_BOLD_REVIEW"
+      ],
       "triggered_rule_ids": [
-        "GOV_WARNING_HEADER_BOLD"
+        "OCR_LOW_CONFIDENCE",
+        "GOV_WARNING_HEADER_BOLD_REVIEW"
       ],
       "top_reason": "Image quality should route the warning typography check to human review."
     }

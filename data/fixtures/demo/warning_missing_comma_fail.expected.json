@@ -2,6 +2,9 @@
   "fixture_id": "warning_missing_comma_fail",
   "filename": "warning_missing_comma_fail.png",
   "overall_verdict": "fail",
+  "checked_rule_ids": [
+    "GOV_WARNING_EXACT_TEXT"
+  ],
   "triggered_rule_ids": [
     "GOV_WARNING_EXACT_TEXT"
   ],

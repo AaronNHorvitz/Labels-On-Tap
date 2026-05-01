@@ -196,7 +196,7 @@ Reviewer can upload:
 
 - `manifest.csv` or `manifest.json`.
 - Multiple label images.
-- Optional `.zip` containing allowed image/manifest files.
+- ZIP intake is intentionally out of scope for the MVP unless safe archive handling is added later.
 
 The job page must show:
 

@@ -100,7 +100,7 @@
       "used_for": [
         "GOV_WARNING_EXACT_TEXT",
         "GOV_WARNING_HEADER_CAPS",
-        "GOV_WARNING_HEADER_BOLD",
+        "GOV_WARNING_HEADER_BOLD_REVIEW",
         "GOV_WARNING_BODY_NOT_BOLD",
         "GOV_WARNING_LEGIBILITY"
       ],

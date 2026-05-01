@@ -16,4 +16,4 @@ This file maps demo/test fixtures to rule IDs, source references, and expected v
 | abv_prohibited_fail | ALCOHOL_ABV_PROHIBITED | fail | synthetic_generation | Used ABV shorthand in a malt beverage alcohol-content statement. |
 | malt_16_fl_oz_fail | MALT_NET_CONTENTS_16OZ_PINT | fail | synthetic_generation | Used 16 fl. oz. where the demo application expects 1 Pint. |
 | brand_case_difference_pass | FORM_BRAND_MATCHES_LABEL | pass | synthetic_generation | Changed brand casing to validate fuzzy matching tolerance. |
-| low_confidence_blur_review | GOV_WARNING_HEADER_BOLD | needs_review | synthetic_generation | Applied blur to create an OCR/typography confidence review fixture. |
+| low_confidence_blur_review | OCR_LOW_CONFIDENCE, GOV_WARNING_HEADER_BOLD_REVIEW | needs_review | synthetic_generation | Applied blur to create an OCR/typography confidence review fixture. |

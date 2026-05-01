@@ -2,6 +2,9 @@
   "fixture_id": "malt_16_fl_oz_fail",
   "filename": "malt_16_fl_oz_fail.png",
   "overall_verdict": "fail",
+  "checked_rule_ids": [
+    "MALT_NET_CONTENTS_16OZ_PINT"
+  ],
   "triggered_rule_ids": [
     "MALT_NET_CONTENTS_16OZ_PINT"
   ],

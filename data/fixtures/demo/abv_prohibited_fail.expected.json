@@ -2,6 +2,9 @@
   "fixture_id": "abv_prohibited_fail",
   "filename": "abv_prohibited_fail.png",
   "overall_verdict": "fail",
+  "checked_rule_ids": [
+    "ALCOHOL_ABV_PROHIBITED"
+  ],
   "triggered_rule_ids": [
     "ALCOHOL_ABV_PROHIBITED"
   ],

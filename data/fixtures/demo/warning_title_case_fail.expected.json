@@ -2,6 +2,9 @@
   "fixture_id": "warning_title_case_fail",
   "filename": "warning_title_case_fail.png",
   "overall_verdict": "fail",
+  "checked_rule_ids": [
+    "GOV_WARNING_HEADER_CAPS"
+  ],
   "triggered_rule_ids": [
     "GOV_WARNING_HEADER_CAPS"
   ],

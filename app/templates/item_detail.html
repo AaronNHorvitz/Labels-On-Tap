@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ result.filename }}{% endblock %}
+{% block content %}
+<section class="workspace">
+  <div class="page-title">
+    <div>
+      <h1>{{ result.filename }}</h1>
+      <p><span class="badge {{ result.overall_verdict }}">{{ result.overall_verdict|replace("_", " ")|title }}</span> · OCR source: {{ result.ocr.source }}</p>
+    </div>
+    <a class="button secondary" href="/jobs/{{ job_id }}">Back to job</a>
+  </div>
+
+  <section class="panel">
+    <h2>Rule Checks</h2>
+    <div class="checks">
+      {% for check in result.checks %}
+      <article class="check {{ check.verdict }}">
+        <div class="check-head">
+          <strong>{{ check.rule_id }}</strong>
+          <span class="badge {{ check.verdict }}">{{ check.verdict|replace("_", " ")|title }}</span>
+        </div>
+        <p>{{ check.message }}</p>
+        {% if check.expected %}<p><b>Expected:</b> {{ check.expected }}</p>{% endif %}
+        {% if check.observed %}<p><b>Observed:</b> {{ check.observed }}</p>{% endif %}
+        {% if check.reviewer_action %}<p><b>Reviewer action:</b> {{ check.reviewer_action }}</p>{% endif %}
+        <p><b>Sources:</b> {{ check.source_refs|join(", ") }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>OCR Text</h2>
+    <pre>{{ result.ocr.full_text }}</pre>
+  </section>
+</section>
+{% endblock %}
