@@ -3,7 +3,12 @@
   "filename": "brand_case_difference_pass.png",
   "overall_verdict": "pass",
   "checked_rule_ids": [
-    "FORM_BRAND_MATCHES_LABEL"
+    "GOV_WARNING_HEADER_CAPS",
+    "GOV_WARNING_EXACT_TEXT",
+    "ALCOHOL_ABV_PROHIBITED",
+    "MALT_NET_CONTENTS_16OZ_PINT",
+    "FORM_BRAND_MATCHES_LABEL",
+    "COUNTRY_OF_ORIGIN_MATCH"
   ],
   "triggered_rule_ids": [],
   "top_reason": "Brand casing differs but should still be treated as the same brand."

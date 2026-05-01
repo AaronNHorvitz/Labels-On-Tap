@@ -1,15 +1,15 @@
 {
-  "fixture_id": "clean_malt_pass",
-  "filename": "clean_malt_pass.png",
+  "fixture_id": "imported_country_origin_pass",
+  "filename": "imported_country_origin_pass.png",
   "overall_verdict": "pass",
   "checked_rule_ids": [
-    "GOV_WARNING_EXACT_TEXT",
     "GOV_WARNING_HEADER_CAPS",
+    "GOV_WARNING_EXACT_TEXT",
     "ALCOHOL_ABV_PROHIBITED",
     "MALT_NET_CONTENTS_16OZ_PINT",
     "FORM_BRAND_MATCHES_LABEL",
     "COUNTRY_OF_ORIGIN_MATCH"
   ],
   "triggered_rule_ids": [],
-  "top_reason": "All implemented source-backed checks should pass."
+  "top_reason": "Imported product country-of-origin statement should match the application field."
 }

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-30",
+  "generated_at": "2026-05-01",
   "items": [
     {
       "fixture_id": "clean_malt_pass",
@@ -23,7 +23,8 @@
           "GOV_WARNING_HEADER_CAPS",
           "ALCOHOL_ABV_PROHIBITED",
           "MALT_NET_CONTENTS_16OZ_PINT",
-          "FORM_BRAND_MATCHES_LABEL"
+          "FORM_BRAND_MATCHES_LABEL",
+          "COUNTRY_OF_ORIGIN_MATCH"
         ],
         "triggered_rule_ids": [],
         "top_reason": "All implemented source-backed checks should pass."
@@ -47,7 +48,12 @@
         "filename": "warning_missing_comma_fail.png",
         "overall_verdict": "fail",
         "checked_rule_ids": [
-          "GOV_WARNING_EXACT_TEXT"
+          "GOV_WARNING_HEADER_CAPS",
+          "GOV_WARNING_EXACT_TEXT",
+          "ALCOHOL_ABV_PROHIBITED",
+          "MALT_NET_CONTENTS_16OZ_PINT",
+          "FORM_BRAND_MATCHES_LABEL",
+          "COUNTRY_OF_ORIGIN_MATCH"
         ],
         "triggered_rule_ids": [
           "GOV_WARNING_EXACT_TEXT"
@@ -73,10 +79,16 @@
         "filename": "warning_title_case_fail.png",
         "overall_verdict": "fail",
         "checked_rule_ids": [
-          "GOV_WARNING_HEADER_CAPS"
+          "GOV_WARNING_HEADER_CAPS",
+          "GOV_WARNING_EXACT_TEXT",
+          "ALCOHOL_ABV_PROHIBITED",
+          "MALT_NET_CONTENTS_16OZ_PINT",
+          "FORM_BRAND_MATCHES_LABEL",
+          "COUNTRY_OF_ORIGIN_MATCH"
         ],
         "triggered_rule_ids": [
-          "GOV_WARNING_HEADER_CAPS"
+          "GOV_WARNING_HEADER_CAPS",
+          "GOV_WARNING_EXACT_TEXT"
         ],
         "top_reason": "Government warning heading is not in the required all-caps form."
       }
@@ -99,7 +111,12 @@
         "filename": "abv_prohibited_fail.png",
         "overall_verdict": "fail",
         "checked_rule_ids": [
-          "ALCOHOL_ABV_PROHIBITED"
+          "GOV_WARNING_HEADER_CAPS",
+          "GOV_WARNING_EXACT_TEXT",
+          "ALCOHOL_ABV_PROHIBITED",
+          "MALT_NET_CONTENTS_16OZ_PINT",
+          "FORM_BRAND_MATCHES_LABEL",
+          "COUNTRY_OF_ORIGIN_MATCH"
         ],
         "triggered_rule_ids": [
           "ALCOHOL_ABV_PROHIBITED"
@@ -125,7 +142,12 @@
         "filename": "malt_16_fl_oz_fail.png",
         "overall_verdict": "fail",
         "checked_rule_ids": [
-          "MALT_NET_CONTENTS_16OZ_PINT"
+          "GOV_WARNING_HEADER_CAPS",
+          "GOV_WARNING_EXACT_TEXT",
+          "ALCOHOL_ABV_PROHIBITED",
+          "MALT_NET_CONTENTS_16OZ_PINT",
+          "FORM_BRAND_MATCHES_LABEL",
+          "COUNTRY_OF_ORIGIN_MATCH"
         ],
         "triggered_rule_ids": [
           "MALT_NET_CONTENTS_16OZ_PINT"
@@ -151,7 +173,12 @@
         "filename": "brand_case_difference_pass.png",
         "overall_verdict": "pass",
         "checked_rule_ids": [
-          "FORM_BRAND_MATCHES_LABEL"
+          "GOV_WARNING_HEADER_CAPS",
+          "GOV_WARNING_EXACT_TEXT",
+          "ALCOHOL_ABV_PROHIBITED",
+          "MALT_NET_CONTENTS_16OZ_PINT",
+          "FORM_BRAND_MATCHES_LABEL",
+          "COUNTRY_OF_ORIGIN_MATCH"
         ],
         "triggered_rule_ids": [],
         "top_reason": "Brand casing differs but should still be treated as the same brand."
@@ -176,13 +203,43 @@
         "overall_verdict": "needs_review",
         "checked_rule_ids": [
           "OCR_LOW_CONFIDENCE",
-          "GOV_WARNING_HEADER_BOLD_REVIEW"
+          "GOV_WARNING_HEADER_BOLD_REVIEW",
+          "COUNTRY_OF_ORIGIN_MATCH"
         ],
         "triggered_rule_ids": [
           "OCR_LOW_CONFIDENCE",
           "GOV_WARNING_HEADER_BOLD_REVIEW"
         ],
         "top_reason": "Image quality should route the warning typography check to human review."
+      }
+    },
+    {
+      "fixture_id": "imported_country_origin_pass",
+      "filename": "imported_country_origin_pass.png",
+      "product_type": "wine",
+      "brand_name": "VALLEY RIDGE",
+      "fanciful_name": "",
+      "class_type": "Red Wine",
+      "alcohol_content": "13.5% ALC/VOL",
+      "net_contents": "750 mL",
+      "country_of_origin": "France",
+      "imported": true,
+      "formula_id": "",
+      "statement_of_composition": "",
+      "expected": {
+        "fixture_id": "imported_country_origin_pass",
+        "filename": "imported_country_origin_pass.png",
+        "overall_verdict": "pass",
+        "checked_rule_ids": [
+          "GOV_WARNING_HEADER_CAPS",
+          "GOV_WARNING_EXACT_TEXT",
+          "ALCOHOL_ABV_PROHIBITED",
+          "MALT_NET_CONTENTS_16OZ_PINT",
+          "FORM_BRAND_MATCHES_LABEL",
+          "COUNTRY_OF_ORIGIN_MATCH"
+        ],
+        "triggered_rule_ids": [],
+        "top_reason": "Imported product country-of-origin statement should match the application field."
       }
     }
   ]

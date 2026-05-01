@@ -3,10 +3,16 @@
   "filename": "warning_title_case_fail.png",
   "overall_verdict": "fail",
   "checked_rule_ids": [
-    "GOV_WARNING_HEADER_CAPS"
+    "GOV_WARNING_HEADER_CAPS",
+    "GOV_WARNING_EXACT_TEXT",
+    "ALCOHOL_ABV_PROHIBITED",
+    "MALT_NET_CONTENTS_16OZ_PINT",
+    "FORM_BRAND_MATCHES_LABEL",
+    "COUNTRY_OF_ORIGIN_MATCH"
   ],
   "triggered_rule_ids": [
-    "GOV_WARNING_HEADER_CAPS"
+    "GOV_WARNING_HEADER_CAPS",
+    "GOV_WARNING_EXACT_TEXT"
   ],
   "top_reason": "Government warning heading is not in the required all-caps form."
 }

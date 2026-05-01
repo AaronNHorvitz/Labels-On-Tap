@@ -2,10 +2,10 @@
 
 ## Product Requirements Document
 
-**Product:** Labels On Tap  
-**Repository:** `https://github.com/AaronNHorvitz/Labels-On-Tap`  
-**Deployment URL:** `https://labelsontap.ai`  
-**Document status:** Draft v1 for build planning  
+**Product:** Labels On Tap
+**Repository:** `https://github.com/AaronNHorvitz/Labels-On-Tap`
+**Deployment URL:** `https://www.labelsontap.ai`
+**Document status:** Draft v1 for build planning
 **Primary deliverable:** Working deployed prototype with source code, README, setup/run instructions, documented assumptions, and trade-offs
 
 ---
@@ -70,7 +70,7 @@ The correct product language is:
 
 | Goal | Description | Priority |
 |---|---|---:|
-| Deployed working app | Publicly accessible prototype at `https://labelsontap.ai`. | P0 |
+| Deployed working app | Publicly accessible prototype at `https://www.labelsontap.ai`. | P0 |
 | Local-first OCR | Runtime OCR and validation run without hosted ML endpoints. | P0 |
 | Fast single-label feedback | Target approximately 5 seconds per label after OCR model warmup, dependent on image complexity and VM resources. | P0 |
 | Batch support | Accept and process large label batches asynchronously with immediate progress feedback. | P0 |
@@ -85,7 +85,7 @@ The correct product language is:
 
 | Metric | Target |
 |---|---|
-| Live app availability | `labelsontap.ai` loads and supports demo workflow. |
+| Live app availability | `www.labelsontap.ai` loads and supports demo workflow. |
 | Single-label result latency | Approximately 5 seconds after OCR warmup on target VM for demo fixtures. |
 | Batch responsiveness | Job page renders immediately and updates progress every few seconds. |
 | Batch size | Designed for 200+ images; sprint validation should demonstrate at least one large synthetic batch. |
@@ -99,31 +99,31 @@ The correct product language is:
 
 ### 5.1 Sarah Chen — Deputy Director of Label Compliance
 
-**Need:** Faster routine matching and batch triage.  
-**Pain:** Agents are overloaded with repetitive visual checks; prior automation was too slow.  
+**Need:** Faster routine matching and batch triage.
+**Pain:** Agents are overloaded with repetitive visual checks; prior automation was too slow.
 **Product implication:** The app must return fast per-label feedback, support batch uploads, and avoid complex UI.
 
 ### 5.2 Marcus Williams — IT Systems Administrator
 
-**Need:** Standalone, local-first prototype that does not rely on blocked cloud ML endpoints.  
-**Pain:** Hosted ML features failed behind federal firewall constraints; direct COLA integration is out of scope.  
+**Need:** Standalone, local-first prototype that does not rely on blocked cloud ML endpoints.
+**Pain:** Hosted ML features failed behind federal firewall constraints; direct COLA integration is out of scope.
 **Product implication:** No OpenAI, Anthropic, Google Cloud Vision, Azure AI Vision, AWS Textract, or hosted VLM runtime. The prototype must be deployable as a standalone app.
 
 ### 5.3 Dave Morrison — Senior Compliance Agent
 
-**Need:** Review nuance.  
-**Pain:** Not every text difference is a real mismatch; a tool that fails harmless typographic differences will make the job harder.  
+**Need:** Review nuance.
+**Pain:** Not every text difference is a real mismatch; a tool that fails harmless typographic differences will make the job harder.
 **Product implication:** Use fuzzy matching for fields such as brand name, fanciful name, class/type, and addresses. Route ambiguous results to Needs Review.
 
 ### 5.4 Jenny Park — Junior Compliance Agent
 
-**Need:** Exact checks for routine checklist items, especially the government warning.  
-**Pain:** Warning text and formatting are easy to miss manually, and applicants often alter wording, capitalization, size, or placement.  
+**Need:** Exact checks for routine checklist items, especially the government warning.
+**Pain:** Warning text and formatting are easy to miss manually, and applicants often alter wording, capitalization, size, or placement.
 **Product implication:** Government warning must be checked strictly for wording and capitalization; visual formatting such as boldness and legibility should be checked with best-effort CV heuristics and Needs Review fallbacks.
 
 ### 5.5 Evaluator / Hiring Panel
 
-**Need:** Quickly evaluate whether the prototype works, why the technical choices were made, and how the candidate handled trade-offs.  
+**Need:** Quickly evaluate whether the prototype works, why the technical choices were made, and how the candidate handled trade-offs.
 **Product implication:** The app must ship with a five-minute demo path, README, PRD, architecture docs, validation docs, trade-offs, and clean repository organization.
 
 ---
@@ -169,7 +169,7 @@ Upload Labels
 
 #### P0.1 Public deployed app
 
-- App available at `https://labelsontap.ai`.
+- App available at `https://www.labelsontap.ai`.
 - Dockerized deployment on an x86_64 Linux VM.
 - HTTPS enabled through Caddy or equivalent reverse proxy.
 - No hosted ML endpoints required for runtime validation.
@@ -760,7 +760,8 @@ The manifest should support simple demo mode and expanded Form 5100.31 mode.
   "container_volume": "750 mL",
   "alcohol_content": "45% ALC/VOL",
   "net_contents": "750 mL",
-  "country_of_origin": null
+  "country_of_origin": null,
+  "imported": false
 }
 ```
 
@@ -839,7 +840,7 @@ The app should document that production federal deployment would require additio
 
 The submission is acceptable if:
 
-- `https://labelsontap.ai` loads.
+- `https://www.labelsontap.ai` loads.
 - User can upload a single label and expected fields.
 - User receives Pass / Needs Review / Fail result.
 - Result includes evidence and source-backed reason.
@@ -947,7 +948,7 @@ The README should be shorter and more evaluator-facing than this PRD. It should 
 9. Demo fixtures.
 10. Legal corpus bootstrap and validation script.
 11. README / docs / trade-offs.
-12. Deployment smoke test at `labelsontap.ai`.
+12. Deployment smoke test at `www.labelsontap.ai`.
 
 ---
 

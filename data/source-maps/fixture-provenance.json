@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-30",
+  "generated_at": "2026-05-01",
   "fixtures": [
     {
       "fixture_id": "warning_missing_machinery_comma",
@@ -68,7 +68,8 @@
         "GOV_WARNING_HEADER_CAPS",
         "ALCOHOL_ABV_PROHIBITED",
         "MALT_NET_CONTENTS_16OZ_PINT",
-        "FORM_BRAND_MATCHES_LABEL"
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
       ],
       "source_refs": [
         "SRC_27_USC_215",
@@ -86,7 +87,12 @@
       "source_type": "synthetic_generation",
       "base_image_source": "synthetic",
       "rule_ids": [
-        "GOV_WARNING_EXACT_TEXT"
+        "GOV_WARNING_HEADER_CAPS",
+        "GOV_WARNING_EXACT_TEXT",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
       ],
       "source_refs": [
         "SRC_27_USC_215",
@@ -101,7 +107,12 @@
       "source_type": "synthetic_generation",
       "base_image_source": "synthetic",
       "rule_ids": [
-        "GOV_WARNING_HEADER_CAPS"
+        "GOV_WARNING_HEADER_CAPS",
+        "GOV_WARNING_EXACT_TEXT",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
       ],
       "source_refs": [
         "SRC_27_CFR_PART_16"
@@ -115,7 +126,12 @@
       "source_type": "synthetic_generation",
       "base_image_source": "synthetic",
       "rule_ids": [
-        "ALCOHOL_ABV_PROHIBITED"
+        "GOV_WARNING_HEADER_CAPS",
+        "GOV_WARNING_EXACT_TEXT",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
       ],
       "source_refs": [
         "SRC_27_CFR_PART_7"
@@ -129,7 +145,12 @@
       "source_type": "synthetic_generation",
       "base_image_source": "synthetic",
       "rule_ids": [
-        "MALT_NET_CONTENTS_16OZ_PINT"
+        "GOV_WARNING_HEADER_CAPS",
+        "GOV_WARNING_EXACT_TEXT",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
       ],
       "source_refs": [
         "SRC_27_CFR_PART_7"
@@ -143,7 +164,12 @@
       "source_type": "synthetic_generation",
       "base_image_source": "synthetic",
       "rule_ids": [
-        "FORM_BRAND_MATCHES_LABEL"
+        "GOV_WARNING_HEADER_CAPS",
+        "GOV_WARNING_EXACT_TEXT",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
       ],
       "source_refs": [
         "SRC_TTB_FORM_5100_31",
@@ -159,7 +185,8 @@
       "base_image_source": "synthetic",
       "rule_ids": [
         "OCR_LOW_CONFIDENCE",
-        "GOV_WARNING_HEADER_BOLD_REVIEW"
+        "GOV_WARNING_HEADER_BOLD_REVIEW",
+        "COUNTRY_OF_ORIGIN_MATCH"
       ],
       "source_refs": [
         "SRC_27_CFR_PART_16",
@@ -167,6 +194,29 @@
       ],
       "expected_verdict": "needs_review",
       "mutation_summary": "Applied blur to create an OCR/typography confidence review fixture."
+    },
+    {
+      "fixture_id": "imported_country_origin_pass",
+      "file_path": "data/fixtures/demo/imported_country_origin_pass.png",
+      "source_type": "synthetic_generation",
+      "base_image_source": "synthetic",
+      "rule_ids": [
+        "GOV_WARNING_HEADER_CAPS",
+        "GOV_WARNING_EXACT_TEXT",
+        "ALCOHOL_ABV_PROHIBITED",
+        "MALT_NET_CONTENTS_16OZ_PINT",
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
+      ],
+      "source_refs": [
+        "SRC_27_USC_215",
+        "SRC_27_CFR_PART_16",
+        "SRC_27_CFR_PART_4",
+        "SRC_TTB_FORM_5100_31",
+        "SRC_STAKEHOLDER_DISCOVERY"
+      ],
+      "expected_verdict": "pass",
+      "mutation_summary": "Imported wine fixture with matching country-of-origin label text."
     }
   ]
 }

@@ -23,7 +23,7 @@ def test_batch_demo_route_renders_counts_and_csv():
     client = TestClient(app)
     response = client.get("/demo/batch", follow_redirects=True)
     assert response.status_code == 200
-    assert "7 / 7" in response.text
+    assert "8 / 8" in response.text
     assert "Needs Review" in response.text
 
     job_id = str(response.url).rstrip("/").split("/")[-1]

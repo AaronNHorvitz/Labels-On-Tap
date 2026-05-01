@@ -67,6 +67,9 @@ class FixtureSpec:
     mutation_summary: str
     top_reason: str
     blur: bool = False
+    country_of_origin: str = ""
+    imported: bool = False
+    label_country_of_origin: str = ""
 
 
 FIXTURES: list[FixtureSpec] = [
@@ -89,6 +92,7 @@ FIXTURES: list[FixtureSpec] = [
             "ALCOHOL_ABV_PROHIBITED",
             "MALT_NET_CONTENTS_16OZ_PINT",
             "FORM_BRAND_MATCHES_LABEL",
+            "COUNTRY_OF_ORIGIN_MATCH",
         ],
         triggered_rule_ids=[],
         source_refs=[
@@ -114,7 +118,14 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=WARNING_MISSING_COMMA,
         expected_verdict="fail",
-        checked_rule_ids=["GOV_WARNING_EXACT_TEXT"],
+        checked_rule_ids=[
+            "GOV_WARNING_HEADER_CAPS",
+            "GOV_WARNING_EXACT_TEXT",
+            "ALCOHOL_ABV_PROHIBITED",
+            "MALT_NET_CONTENTS_16OZ_PINT",
+            "FORM_BRAND_MATCHES_LABEL",
+            "COUNTRY_OF_ORIGIN_MATCH",
+        ],
         triggered_rule_ids=["GOV_WARNING_EXACT_TEXT"],
         source_refs=["SRC_27_USC_215", "SRC_27_CFR_PART_16"],
         mutation_summary="Removed the required comma after 'machinery' in the government warning.",
@@ -133,8 +144,15 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=WARNING_TITLE_CASE,
         expected_verdict="fail",
-        checked_rule_ids=["GOV_WARNING_HEADER_CAPS"],
-        triggered_rule_ids=["GOV_WARNING_HEADER_CAPS"],
+        checked_rule_ids=[
+            "GOV_WARNING_HEADER_CAPS",
+            "GOV_WARNING_EXACT_TEXT",
+            "ALCOHOL_ABV_PROHIBITED",
+            "MALT_NET_CONTENTS_16OZ_PINT",
+            "FORM_BRAND_MATCHES_LABEL",
+            "COUNTRY_OF_ORIGIN_MATCH",
+        ],
+        triggered_rule_ids=["GOV_WARNING_HEADER_CAPS", "GOV_WARNING_EXACT_TEXT"],
         source_refs=["SRC_27_CFR_PART_16"],
         mutation_summary="Changed the warning heading from all caps to title case.",
         top_reason="Government warning heading is not in the required all-caps form.",
@@ -152,7 +170,14 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=CANONICAL_WARNING,
         expected_verdict="fail",
-        checked_rule_ids=["ALCOHOL_ABV_PROHIBITED"],
+        checked_rule_ids=[
+            "GOV_WARNING_HEADER_CAPS",
+            "GOV_WARNING_EXACT_TEXT",
+            "ALCOHOL_ABV_PROHIBITED",
+            "MALT_NET_CONTENTS_16OZ_PINT",
+            "FORM_BRAND_MATCHES_LABEL",
+            "COUNTRY_OF_ORIGIN_MATCH",
+        ],
         triggered_rule_ids=["ALCOHOL_ABV_PROHIBITED"],
         source_refs=["SRC_27_CFR_PART_7"],
         mutation_summary="Used ABV shorthand in a malt beverage alcohol-content statement.",
@@ -171,7 +196,14 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="16 fl. oz.",
         warning_text=CANONICAL_WARNING,
         expected_verdict="fail",
-        checked_rule_ids=["MALT_NET_CONTENTS_16OZ_PINT"],
+        checked_rule_ids=[
+            "GOV_WARNING_HEADER_CAPS",
+            "GOV_WARNING_EXACT_TEXT",
+            "ALCOHOL_ABV_PROHIBITED",
+            "MALT_NET_CONTENTS_16OZ_PINT",
+            "FORM_BRAND_MATCHES_LABEL",
+            "COUNTRY_OF_ORIGIN_MATCH",
+        ],
         triggered_rule_ids=["MALT_NET_CONTENTS_16OZ_PINT"],
         source_refs=["SRC_27_CFR_PART_7"],
         mutation_summary="Used 16 fl. oz. where the demo application expects 1 Pint.",
@@ -190,7 +222,14 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=CANONICAL_WARNING,
         expected_verdict="pass",
-        checked_rule_ids=["FORM_BRAND_MATCHES_LABEL"],
+        checked_rule_ids=[
+            "GOV_WARNING_HEADER_CAPS",
+            "GOV_WARNING_EXACT_TEXT",
+            "ALCOHOL_ABV_PROHIBITED",
+            "MALT_NET_CONTENTS_16OZ_PINT",
+            "FORM_BRAND_MATCHES_LABEL",
+            "COUNTRY_OF_ORIGIN_MATCH",
+        ],
         triggered_rule_ids=[],
         source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
         mutation_summary="Changed brand casing to validate fuzzy matching tolerance.",
@@ -209,12 +248,47 @@ FIXTURES: list[FixtureSpec] = [
         label_net_contents="1 Pint",
         warning_text=CANONICAL_WARNING,
         expected_verdict="needs_review",
-        checked_rule_ids=["OCR_LOW_CONFIDENCE", "GOV_WARNING_HEADER_BOLD_REVIEW"],
+        checked_rule_ids=["OCR_LOW_CONFIDENCE", "GOV_WARNING_HEADER_BOLD_REVIEW", "COUNTRY_OF_ORIGIN_MATCH"],
         triggered_rule_ids=["OCR_LOW_CONFIDENCE", "GOV_WARNING_HEADER_BOLD_REVIEW"],
         source_refs=["SRC_27_CFR_PART_16", "SRC_REPORT_14_HARDENING"],
         mutation_summary="Applied blur to create an OCR/typography confidence review fixture.",
         top_reason="Image quality should route the warning typography check to human review.",
         blur=True,
+    ),
+    FixtureSpec(
+        fixture_id="imported_country_origin_pass",
+        filename="imported_country_origin_pass.png",
+        product_type="wine",
+        brand_name="VALLEY RIDGE",
+        label_brand_name="VALLEY RIDGE",
+        class_type="Red Wine",
+        alcohol_content="13.5% ALC/VOL",
+        label_alcohol_content="13.5% ALC/VOL",
+        net_contents="750 mL",
+        label_net_contents="750 mL",
+        warning_text=CANONICAL_WARNING,
+        expected_verdict="pass",
+        checked_rule_ids=[
+            "GOV_WARNING_HEADER_CAPS",
+            "GOV_WARNING_EXACT_TEXT",
+            "ALCOHOL_ABV_PROHIBITED",
+            "MALT_NET_CONTENTS_16OZ_PINT",
+            "FORM_BRAND_MATCHES_LABEL",
+            "COUNTRY_OF_ORIGIN_MATCH",
+        ],
+        triggered_rule_ids=[],
+        source_refs=[
+            "SRC_27_USC_215",
+            "SRC_27_CFR_PART_16",
+            "SRC_27_CFR_PART_4",
+            "SRC_TTB_FORM_5100_31",
+            "SRC_STAKEHOLDER_DISCOVERY",
+        ],
+        mutation_summary="Imported wine fixture with matching country-of-origin label text.",
+        top_reason="Imported product country-of-origin statement should match the application field.",
+        country_of_origin="France",
+        imported=True,
+        label_country_of_origin="France",
     ),
 ]
 
@@ -264,15 +338,16 @@ def draw_wrapped(
 
 
 def label_text(spec: FixtureSpec) -> str:
-    return "\n".join(
-        [
-            spec.label_brand_name,
-            spec.class_type.upper(),
-            spec.label_alcohol_content,
-            f"NET CONTENTS {spec.label_net_contents}",
-            spec.warning_text,
-        ]
-    )
+    lines = [
+        spec.label_brand_name,
+        spec.class_type.upper(),
+        spec.label_alcohol_content,
+        f"NET CONTENTS {spec.label_net_contents}",
+    ]
+    if spec.imported and spec.label_country_of_origin:
+        lines.append(f"PRODUCT OF {spec.label_country_of_origin.upper()}")
+    lines.append(spec.warning_text)
+    return "\n".join(lines)
 
 
 def render_label(spec: FixtureSpec, path: Path) -> None:
@@ -300,7 +375,18 @@ def render_label(spec: FixtureSpec, path: Path) -> None:
         y,
         font(42, bold=True),
         ink,
-    ) + 230
+    ) + 70
+
+    if spec.imported and spec.label_country_of_origin:
+        y = draw_centered(
+            draw,
+            f"PRODUCT OF {spec.label_country_of_origin.upper()}",
+            y,
+            font(36, bold=True),
+            accent,
+        ) + 150
+    else:
+        y += 160
 
     draw.text((150, y), "PRODUCED AND PACKED BY", font=font(28), fill=muted)
     y += 42
@@ -333,8 +419,8 @@ def application_payload(spec: FixtureSpec) -> dict[str, object]:
         "class_type": spec.class_type,
         "alcohol_content": spec.alcohol_content,
         "net_contents": spec.net_contents,
-        "country_of_origin": "",
-        "imported": False,
+        "country_of_origin": spec.country_of_origin,
+        "imported": spec.imported,
         "formula_id": "",
         "statement_of_composition": "",
     }

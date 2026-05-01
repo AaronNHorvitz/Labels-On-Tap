@@ -1,7 +1,8 @@
-labelsontap.ai {
-    reverse_proxy web:8000
+www.labelsontap.ai {
+    encode gzip zstd
+    reverse_proxy app:8000
 }
 
-www.labelsontap.ai {
-    redir https://labelsontap.ai{uri}
+labelsontap.ai {
+    redir https://www.labelsontap.ai{uri} permanent
 }

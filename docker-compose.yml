@@ -1,5 +1,5 @@
 services:
-  web:
+  app:
     build: .
     environment:
       - APP_ENV=production
@@ -12,7 +12,7 @@ services:
   caddy:
     image: caddy:2
     depends_on:
-      - web
+      - app
     ports:
       - "80:80"
       - "443:443"

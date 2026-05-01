@@ -11,6 +11,19 @@
   </div>
 
   <section class="panel">
+    <h2>Application Fields</h2>
+    <dl class="detail-grid">
+      <div><dt>Brand</dt><dd>{{ result.application.brand_name }}</dd></div>
+      <div><dt>Product type</dt><dd>{{ result.application.product_type|replace("_", " ")|title }}</dd></div>
+      <div><dt>Class/type</dt><dd>{{ result.application.class_type or "Not provided" }}</dd></div>
+      <div><dt>Alcohol content</dt><dd>{{ result.application.alcohol_content or "Not provided" }}</dd></div>
+      <div><dt>Net contents</dt><dd>{{ result.application.net_contents or "Not provided" }}</dd></div>
+      <div><dt>Imported</dt><dd>{{ "Yes" if result.application.imported else "No" }}</dd></div>
+      <div><dt>Country of origin</dt><dd>{{ result.application.country_of_origin or "Not provided" }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="panel">
     <h2>Rule Checks</h2>
     <div class="checks">
       {% for check in result.checks %}

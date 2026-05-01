@@ -193,7 +193,12 @@ def starter_sources() -> list[dict[str, object]]:
             "publisher": "TTB",
             "url": "https://www.ttb.gov/system/files/images/pdfs/forms/f510031.pdf",
             "retrieved_at": TODAY,
-            "used_for": ["FORM_FIELD_MAPPING", "APPLICATION_SCHEMA", "FORM_BRAND_MATCHES_LABEL"],
+            "used_for": [
+                "FORM_FIELD_MAPPING",
+                "APPLICATION_SCHEMA",
+                "FORM_BRAND_MATCHES_LABEL",
+                "COUNTRY_OF_ORIGIN_MATCH",
+            ],
             "notes": "Primary form schema reference for expected application fields.",
         },
         {
@@ -392,6 +397,24 @@ def starter_criteria() -> list[dict[str, object]]:
             "app_module": "app/rules/field_matching.py",
             "fixtures": ["brand_match_good.png", "brand_case_difference.png", "brand_mismatch.png"],
             "ui_message": "Brand name on label does not clearly match application field.",
+        },
+        {
+            "rule_id": "COUNTRY_OF_ORIGIN_MATCH",
+            "name": "Country of origin matches imported application field",
+            "beverage_types": ["wine", "distilled_spirits", "malt_beverage"],
+            "category": "field_matching",
+            "confidence_tier": "stakeholder_requirement",
+            "default_verdict": "needs_review",
+            "source_refs": ["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            "requirement_summary": "Imported products should have label country-of-origin text that matches the application field.",
+            "detection_method": "For imported applications, normalize OCR text and compare the expected country with exact/fuzzy matching; detect clear conflicting country names.",
+            "pass_condition": "Application is not imported, or expected country appears in high-confidence OCR text.",
+            "fail_condition": "A clearly conflicting country appears in high-confidence OCR text.",
+            "needs_review_condition": "Imported country field is blank, OCR confidence is low, or expected country cannot be found confidently.",
+            "implemented_status": "implemented",
+            "app_module": "app/services/rules/registry.py",
+            "fixtures": ["imported_country_origin_pass.png"],
+            "ui_message": "Country of origin does not clearly match the imported application field.",
         },
         {
             "rule_id": "IMAGE_FORMAT_ALLOWED_TYPES",
@@ -806,6 +829,7 @@ def write_static_docs(force: bool) -> None:
         | Representative ID | representative_id | No | FORM_REPRESENTATIVE_CONTEXT | Proxy/agent context |
         | Plant Registry / Basic Permit | plant_registry_or_basic_permit | No | FORM_PERMIT_PRESENT | Applicant authority |
         | Source of Product | source_of_product | No | PRODUCT_SOURCE_ROUTING | Domestic/imported routing |
+        | Country of Origin | country_of_origin | Yes, for imports | COUNTRY_OF_ORIGIN_MATCH | Import-origin match |
         | Serial Number | serial_number | No | FORM_SERIAL_PRESENT | Applicant tracking |
         | Type of Product | product_type | No | PRODUCT_TYPE_ROUTING | Wine / spirits / malt |
         | Brand Name | brand_name | Yes | FORM_BRAND_MATCHES_LABEL | Fuzzy match |

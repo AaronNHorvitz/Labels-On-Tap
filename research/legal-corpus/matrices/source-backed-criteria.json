@@ -192,6 +192,33 @@
       "ui_message": "Brand name on label does not clearly match application field."
     },
     {
+      "rule_id": "COUNTRY_OF_ORIGIN_MATCH",
+      "name": "Country of origin matches imported application field",
+      "beverage_types": [
+        "wine",
+        "distilled_spirits",
+        "malt_beverage"
+      ],
+      "category": "field_matching",
+      "confidence_tier": "stakeholder_requirement",
+      "default_verdict": "needs_review",
+      "source_refs": [
+        "SRC_TTB_FORM_5100_31",
+        "SRC_STAKEHOLDER_DISCOVERY"
+      ],
+      "requirement_summary": "Imported products should have label country-of-origin text that matches the application field.",
+      "detection_method": "For imported applications, normalize OCR text and compare the expected country with exact/fuzzy matching; detect clear conflicting country names.",
+      "pass_condition": "Application is not imported, or expected country appears in high-confidence OCR text.",
+      "fail_condition": "A clearly conflicting country appears in high-confidence OCR text.",
+      "needs_review_condition": "Imported country field is blank, OCR confidence is low, or expected country cannot be found confidently.",
+      "implemented_status": "implemented",
+      "app_module": "app/services/rules/registry.py",
+      "fixtures": [
+        "imported_country_origin_pass.png"
+      ],
+      "ui_message": "Country of origin does not clearly match the imported application field."
+    },
+    {
       "rule_id": "IMAGE_FORMAT_ALLOWED_TYPES",
       "name": "Allowed label image file types",
       "beverage_types": [

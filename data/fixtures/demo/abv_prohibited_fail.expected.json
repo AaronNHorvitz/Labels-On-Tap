@@ -3,7 +3,12 @@
   "filename": "abv_prohibited_fail.png",
   "overall_verdict": "fail",
   "checked_rule_ids": [
-    "ALCOHOL_ABV_PROHIBITED"
+    "GOV_WARNING_HEADER_CAPS",
+    "GOV_WARNING_EXACT_TEXT",
+    "ALCOHOL_ABV_PROHIBITED",
+    "MALT_NET_CONTENTS_16OZ_PINT",
+    "FORM_BRAND_MATCHES_LABEL",
+    "COUNTRY_OF_ORIGIN_MATCH"
   ],
   "triggered_rule_ids": [
     "ALCOHOL_ABV_PROHIBITED"

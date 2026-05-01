@@ -1,0 +1,14 @@
+{
+  "fixture_id": "imported_country_origin_pass",
+  "filename": "imported_country_origin_pass.png",
+  "product_type": "wine",
+  "brand_name": "VALLEY RIDGE",
+  "fanciful_name": "",
+  "class_type": "Red Wine",
+  "alcohol_content": "13.5% ALC/VOL",
+  "net_contents": "750 mL",
+  "country_of_origin": "France",
+  "imported": true,
+  "formula_id": "",
+  "statement_of_composition": ""
+}

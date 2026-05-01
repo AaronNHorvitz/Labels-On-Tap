@@ -37,6 +37,8 @@ def create_single_job(
     class_type: str = Form(""),
     alcohol_content: str = Form(""),
     net_contents: str = Form(""),
+    imported: str = Form("false"),
+    country_of_origin: str = Form(""),
     label_image: UploadFile = File(...),
 ) -> RedirectResponse:
     if not label_image.filename:
@@ -63,6 +65,8 @@ def create_single_job(
         class_type=class_type,
         alcohol_content=alcohol_content,
         net_contents=net_contents,
+        imported=imported.lower() in {"1", "true", "yes", "on"},
+        country_of_origin=country_of_origin,
     )
     item_id = dest.stem
     ocr = ocr_engine.run(dest, fixture_id=item_id)

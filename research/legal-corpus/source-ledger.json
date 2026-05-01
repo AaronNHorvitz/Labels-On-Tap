@@ -117,7 +117,8 @@
       "used_for": [
         "FORM_FIELD_MAPPING",
         "APPLICATION_SCHEMA",
-        "FORM_BRAND_MATCHES_LABEL"
+        "FORM_BRAND_MATCHES_LABEL",
+        "COUNTRY_OF_ORIGIN_MATCH"
       ],
       "notes": "Primary form schema reference for expected application fields."
     },

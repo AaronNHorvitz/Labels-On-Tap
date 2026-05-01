@@ -14,6 +14,7 @@
       <a class="button danger" href="/demo/warning">Run Warning Failure Demo</a>
       <a class="button danger" href="/demo/abv">Run ABV Failure Demo</a>
       <a class="button danger" href="/demo/net_contents">Run Malt Net Contents Failure Demo</a>
+      <a class="button primary" href="/demo/country_origin">Run Import Origin Demo</a>
       <a class="button secondary" href="/demo/batch">Run Batch Demo</a>
     </div>
   </section>
@@ -44,6 +45,17 @@
       <label>
         Net contents
         <input name="net_contents" value="1 Pint">
+      </label>
+      <label>
+        Imported product?
+        <select name="imported">
+          <option value="false">No</option>
+          <option value="true">Yes</option>
+        </select>
+      </label>
+      <label>
+        Country of origin
+        <input name="country_of_origin" placeholder="Required for imports">
       </label>
       <label class="full">
         Label image

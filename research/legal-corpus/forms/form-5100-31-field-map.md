@@ -5,6 +5,7 @@
         | Representative ID | representative_id | No | FORM_REPRESENTATIVE_CONTEXT | Proxy/agent context |
         | Plant Registry / Basic Permit | plant_registry_or_basic_permit | No | FORM_PERMIT_PRESENT | Applicant authority |
         | Source of Product | source_of_product | No | PRODUCT_SOURCE_ROUTING | Domestic/imported routing |
+        | Country of Origin | country_of_origin | Yes, for imports | COUNTRY_OF_ORIGIN_MATCH | Import-origin match |
         | Serial Number | serial_number | No | FORM_SERIAL_PRESENT | Applicant tracking |
         | Type of Product | product_type | No | PRODUCT_TYPE_ROUTING | Wine / spirits / malt |
         | Brand Name | brand_name | Yes | FORM_BRAND_MATCHES_LABEL | Fuzzy match |

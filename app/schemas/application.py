@@ -12,7 +12,7 @@ class ColaApplication(BaseModel):
     class_type: str = ""
     alcohol_content: str = ""
     net_contents: str = ""
-    country_of_origin: str = ""
+    country_of_origin: str | None = None
     imported: bool = False
     formula_id: str = ""
     statement_of_composition: str = ""

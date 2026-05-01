@@ -1,6 +1,6 @@
 # Deployment
 
-Labels On Tap is designed for a small x86_64 Linux VM running Docker Compose and Caddy.
+Labels On Tap is designed for an x86_64 Linux VM running Docker Compose and Caddy.
 
 ## Bootstrap
 
@@ -16,7 +16,16 @@ docker compose up -d
 curl http://localhost:8000/health
 ```
 
-The Caddyfile serves `labelsontap.ai` and redirects `www.labelsontap.ai` to the bare domain.
+The recommended target is AWS EC2 On-Demand on Ubuntu 24.04 LTS. Use `m7i.xlarge` for the deadline window if available; `t3a.large` or `t3.large` is the minimum fallback for a modest demo.
+
+The Caddyfile serves `www.labelsontap.ai` and redirects `labelsontap.ai` permanently to the `www` hostname.
+
+DNS should point both records at the VM's Elastic IP:
+
+```text
+www.labelsontap.ai  A  <elastic-ip>
+labelsontap.ai      A  <elastic-ip>
+```
 
 ## Runtime Notes
 

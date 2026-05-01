@@ -14,6 +14,7 @@ DEMO_SCENARIOS = {
     "warning": ["warning_missing_comma_fail"],
     "abv": ["abv_prohibited_fail"],
     "net_contents": ["malt_16_fl_oz_fail"],
+    "country_origin": ["imported_country_origin_pass"],
     "batch": [
         "clean_malt_pass",
         "warning_missing_comma_fail",
@@ -22,6 +23,7 @@ DEMO_SCENARIOS = {
         "malt_16_fl_oz_fail",
         "brand_case_difference_pass",
         "low_confidence_blur_review",
+        "imported_country_origin_pass",
     ],
 }
 

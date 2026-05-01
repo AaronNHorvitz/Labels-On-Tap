@@ -7,6 +7,7 @@ from app.schemas.application import ColaApplication
 from app.schemas.ocr import OCRResult
 from app.schemas.results import RuleCheck, VerificationResult
 from app.services.rules.alcohol_terms import contains_abv_shorthand
+from app.services.rules.country_origin import country_match_score, find_conflicting_country
 from app.services.rules.field_matching import fuzzy_score
 from app.services.rules.net_contents import has_bad_malt_16oz_statement
 from app.services.rules.strict_warning import (
@@ -96,6 +97,7 @@ def verify_label(
         checks.append(check_abv(text))
         checks.append(check_malt_net_contents(application, text))
         checks.append(check_brand(application, text, ocr.avg_confidence))
+    checks.append(check_country_origin(application, text, ocr.avg_confidence))
 
     overall = overall_verdict(checks)
     triggered = [item.rule_id for item in checks if item.verdict in {"fail", "needs_review"}]
@@ -238,6 +240,102 @@ def check_brand(application: ColaApplication, text: str, confidence: float) -> R
         evidence_text=text,
         source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
         reviewer_action=action,
+        score=score,
+        confidence=confidence,
+    )
+
+
+def check_country_origin(application: ColaApplication, text: str, confidence: float) -> RuleCheck:
+    if not application.imported:
+        return check(
+            "COUNTRY_OF_ORIGIN_MATCH",
+            "Country of origin matches imported application field",
+            "field_matching",
+            "pass",
+            "Country-of-origin check skipped because the application is not marked imported.",
+            expected="Imported product origin statement when imported is true",
+            observed="Application marked domestic/not imported",
+            evidence_text=None,
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            reviewer_action=None,
+            confidence=confidence,
+        )
+
+    expected = (application.country_of_origin or "").strip()
+    if not expected:
+        return check(
+            "COUNTRY_OF_ORIGIN_MATCH",
+            "Country of origin matches imported application field",
+            "field_matching",
+            "needs_review",
+            "Imported product is missing a country-of-origin application field.",
+            expected="Declared country of origin",
+            observed="Blank application country_of_origin",
+            evidence_text=text[:500],
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            reviewer_action="Enter the expected country of origin or review the label manually.",
+            confidence=confidence,
+        )
+
+    if confidence < OCR_CONFIDENCE_THRESHOLD:
+        return check(
+            "COUNTRY_OF_ORIGIN_MATCH",
+            "Country of origin matches imported application field",
+            "field_matching",
+            "needs_review",
+            "OCR confidence is too low to verify the country-of-origin statement.",
+            expected=expected,
+            observed=f"OCR confidence {confidence:.2f}",
+            evidence_text=text[:500],
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            reviewer_action="Review the country-of-origin statement manually.",
+            confidence=confidence,
+        )
+
+    score = country_match_score(expected, text)
+    if score >= 90:
+        return check(
+            "COUNTRY_OF_ORIGIN_MATCH",
+            "Country of origin matches imported application field",
+            "field_matching",
+            "pass",
+            "Country-of-origin statement appears to match the application field.",
+            expected=expected,
+            observed="Country found in OCR text",
+            evidence_text=text,
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            score=score,
+            confidence=confidence,
+        )
+
+    conflict = find_conflicting_country(expected, text)
+    if conflict:
+        return check(
+            "COUNTRY_OF_ORIGIN_MATCH",
+            "Country of origin matches imported application field",
+            "field_matching",
+            "fail",
+            "A conflicting country-of-origin statement appears on the label.",
+            expected=expected,
+            observed=conflict,
+            evidence_text=text,
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            reviewer_action="Correct the label origin statement or the application country-of-origin field.",
+            score=score,
+            confidence=confidence,
+        )
+
+    return check(
+        "COUNTRY_OF_ORIGIN_MATCH",
+        "Country of origin matches imported application field",
+        "field_matching",
+        "needs_review",
+        "Expected country of origin was not found with enough confidence.",
+        expected=expected,
+        observed="No clear country-of-origin match in OCR text",
+        evidence_text=text,
+        source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+        reviewer_action="Review the imported product origin statement manually.",
         score=score,
         confidence=confidence,
     )

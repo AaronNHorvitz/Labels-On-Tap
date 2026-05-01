@@ -200,6 +200,29 @@ td {
   gap: 0.75rem;
 }
 
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.detail-grid div {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.detail-grid dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.detail-grid dd {
+  margin: 0.25rem 0 0;
+}
+
 .check {
   padding: 1rem;
   border: 1px solid var(--line);
@@ -241,7 +264,8 @@ pre {
   }
 
   .upload-form,
-  .summary-grid {
+  .summary-grid,
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 

@@ -4,7 +4,7 @@
 
 **Project:** Labels On Tap
 **Repository:** `github.com/AaronNHorvitz/Labels-On-Tap`
-**Deployment Target:** `https://labelsontap.ai`
+**Deployment Target:** `https://www.labelsontap.ai`
 **Document Type:** Root-level architecture blueprint
 **Status:** Sprint architecture for deployed take-home prototype
 
@@ -125,7 +125,8 @@ No Kubernetes, no serverless, no separate React build, and no cloud ML APIs are 
 │                                                                    │
 │  - TLS termination                                                 │
 │  - Reverse proxy to FastAPI                                        │
-│  - labelsontap.ai                                                  │
+│  - www.labelsontap.ai                                              │
+│  - labelsontap.ai → www redirect                                  │
 └───────────────────────────────┬────────────────────────────────────┘
                                 │ HTTP inside Docker network
                                 ▼
@@ -186,7 +187,7 @@ No Kubernetes, no serverless, no separate React build, and no cloud ML APIs are 
 | Validation | Python rules + JSON criteria registry | Deterministic and source-backed checks |
 | Job storage | Filesystem JSON | Sprint-safe persistence and batch progress |
 | Containerization | Docker | Reproducible deployment |
-| TLS / proxy | Caddy | HTTPS for `labelsontap.ai` |
+| TLS / proxy | Caddy | HTTPS for `www.labelsontap.ai` with apex redirect |
 | Deployment | x86_64 cloud VM | Local-first OCR runtime with predictable CPU/RAM |
 
 ---
@@ -196,7 +197,7 @@ No Kubernetes, no serverless, no separate React build, and no cloud ML APIs are 
 ### 4.1 Target deployment
 
 ```text
-Canonical URL: https://labelsontap.ai
+Canonical URL: https://www.labelsontap.ai
 Host type: x86_64 Linux VM
 Runtime: Docker Compose
 TLS: Caddy automatic HTTPS
@@ -726,7 +727,7 @@ If image quality is weak or physical typography cannot be verified, return Needs
 FORM_BRAND_MATCHES_LABEL
 FORM_FANCIFUL_NAME_MATCHES_LABEL
 FORM_CLASS_TYPE_MATCHES_LABEL
-FORM_COUNTRY_OF_ORIGIN_MATCHES_LABEL
+COUNTRY_OF_ORIGIN_MATCH
 ```
 
 Fuzzy behavior:
@@ -1273,13 +1274,13 @@ copy repo
 configure Caddy
 point DNS
 run docker compose
-smoke test labelsontap.ai
+smoke test www.labelsontap.ai
 ```
 
 Acceptance:
 
 ```text
-https://labelsontap.ai loads
+https://www.labelsontap.ai loads
 one-click demo works
 upload demo works
 batch demo works
@@ -1399,7 +1400,7 @@ filesystem job store
   → sprint-safe asynchronous batch progress
 
 Docker + Caddy
-  → deployed HTTPS app at labelsontap.ai
+  → deployed HTTPS app at www.labelsontap.ai
 ```
 
 The architecture prioritizes the take-home’s actual success criteria:

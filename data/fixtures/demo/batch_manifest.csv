@@ -6,3 +6,4 @@ abv_prohibited_fail.png,abv_prohibited_fail,malt_beverage,OLD RIVER BREWING,Ale,
 malt_16_fl_oz_fail.png,malt_16_fl_oz_fail,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint,,false,fail
 brand_case_difference_pass.png,brand_case_difference_pass,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint,,false,pass
 low_confidence_blur_review.png,low_confidence_blur_review,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint,,false,needs_review
+imported_country_origin_pass.png,imported_country_origin_pass,wine,VALLEY RIDGE,Red Wine,13.5% ALC/VOL,750 mL,France,true,pass

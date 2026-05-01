@@ -3,7 +3,7 @@ from app.services.rules.registry import verify_label
 
 
 def test_all_demo_scenarios_are_declared():
-    assert set(DEMO_SCENARIOS) == {"clean", "warning", "abv", "net_contents", "batch"}
+    assert set(DEMO_SCENARIOS) == {"clean", "warning", "abv", "net_contents", "country_origin", "batch"}
 
 
 def test_low_confidence_fixture_needs_review():
@@ -16,3 +16,15 @@ def test_low_confidence_fixture_needs_review():
     assert result.overall_verdict == "needs_review"
     assert "OCR_LOW_CONFIDENCE" in result.triggered_rule_ids
     assert "GOV_WARNING_HEADER_BOLD_REVIEW" in result.triggered_rule_ids
+
+
+def test_imported_country_origin_fixture_passes():
+    result = verify_label(
+        "test-job",
+        "imported_country_origin_pass",
+        load_application("imported_country_origin_pass"),
+        load_fixture_ocr("imported_country_origin_pass"),
+    )
+    assert result.overall_verdict == "pass"
+    assert "COUNTRY_OF_ORIGIN_MATCH" in result.checked_rule_ids
+    assert "COUNTRY_OF_ORIGIN_MATCH" not in result.triggered_rule_ids
