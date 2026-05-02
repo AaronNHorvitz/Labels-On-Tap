@@ -42,3 +42,6 @@ Thumbs.db
 
 # Runtime data
 data/jobs/
+
+# Local ETL / benchmark data
+data/work/

@@ -36,7 +36,55 @@ Synthetic fixtures are preferred for the required test path because they are det
 
 Public approved COLA labels may be curated later for realistic OCR examples, typography variation, and manual demo enrichment.
 
-They are optional. Tests and one-click demos should not depend on scraping or live registry access.
+They should be collected through a local ETL workspace first, then exported into small committed fixtures only after the source, parsed application data, label images, expected results, and provenance are clear.
+
+Bulk public-registry work belongs in the gitignored local workspace:
+
+```text
+data/work/
+  public-cola/
+    raw/
+      search-results/
+      forms/
+      images/
+    parsed/
+      applications/
+      ocr/
+    registry.sqlite
+```
+
+The SQLite database is a local indexing/ETL aid. It should store metadata and parsed fields, not image blobs. Label images stay on disk under `data/work/public-cola/raw/images/`.
+
+Curated official examples that are small and reviewer-safe can be exported into:
+
+```text
+data/fixtures/public-cola/
+  <ttb_id>/
+    source.html
+    application.json
+    labels/
+    expected.json
+    provenance.json
+```
+
+Tests and one-click demos should not depend on live scraping or public-registry network access.
+
+## Local Phone Photo Benchmark
+
+Phone photos from store visits are useful for OCR stress testing, glare/blur/angle checks, and synthetic negative cases. They should not be committed to git.
+
+Use:
+
+```text
+data/work/local-photo-benchmark/
+  raw/
+  normalized/
+  ocr/
+  synthetic-applications/
+  expected-results/
+```
+
+Before using these images, strip EXIF/location metadata, normalize orientation, and treat them as private benchmark material unless a later curated derivative is explicitly safe to publish.
 
 ## Post-Market Public Data
 

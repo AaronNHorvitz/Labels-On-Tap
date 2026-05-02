@@ -23,6 +23,7 @@ Do not use the deadline or existing deployment as a reason to waive interview-de
 - [x] Storage architecture is filesystem JSON job/result store.
 - [x] Deployment architecture is Docker Compose + Caddy on an x86_64 cloud VM.
 - [x] Current public deployment is AWS Lightsail Ubuntu VM with static IP, Docker Compose, and Caddy.
+- [x] Current deployment target remains AWS for submission; Azure is a portability/documentation path if time allows.
 - [x] Public health smoke passed at `https://www.labelsontap.ai/health`.
 - [x] Apex redirect smoke passed for `https://labelsontap.ai`.
 - [x] FastAPI app scaffold is implemented.
@@ -73,6 +74,55 @@ This is the consolidated Phase 1 requirements list. If these are not covered, th
 - [ ] Build a field map from COLAs Online / TTB F 5100.31 concepts to the app's `ColaApplication` schema.
 - [ ] Document the prototype ingestion boundary: no direct authenticated COLAs Online integration, but standalone COLA-style application export plus attached label artwork.
 
+### Step 1A - Local Public COLA Data Workspace
+
+Create the public-registry ETL and database locally first. Do not change the AWS deployment until the local data contract, parser, fixtures, and tests are working.
+
+Use this gitignored local workspace:
+
+```text
+data/work/
+  public-cola/
+    raw/
+      search-results/
+      forms/
+      images/
+    parsed/
+      applications/
+      ocr/
+    registry.sqlite
+  local-photo-benchmark/
+    raw/
+    normalized/
+    ocr/
+    synthetic-applications/
+    expected-results/
+```
+
+Use this committed curated-fixture export path:
+
+```text
+data/fixtures/public-cola/
+  README.md
+  <ttb_id>/
+    source.html
+    application.json
+    labels/
+    expected.json
+    provenance.json
+```
+
+- [ ] Add local ETL scripts for public registry search-result CSV imports, public form HTML fetches, form parsing, label image download, and curated fixture export.
+- [ ] Store bulk/raw public registry pulls, local OCR output, and SQLite data only under `data/work/`.
+- [ ] Store local phone-photo benchmark data only under `data/work/local-photo-benchmark/`.
+- [ ] Keep `data/work/` out of git.
+- [ ] Use SQLite for the local ETL/index database; do not store image blobs in SQLite.
+- [ ] Store image files on disk and image/application metadata in SQLite.
+- [ ] Export a small curated set of official public COLA fixtures into `data/fixtures/public-cola/` with provenance.
+- [ ] Runtime app and tests must use committed fixtures or user uploads, not live scraping.
+- [ ] Redeploy AWS only after local parser/fixture/test changes pass locally.
+- [ ] Keep Azure migration optional unless AWS becomes a blocker; document Azure portability if time allows.
+
 ### Step 2 - Phase 1 Rejection / Needs Correction Coverage
 
 - [ ] Treat [PHASE1_REJECTION.md](PHASE1_REJECTION.md) as the complete Phase 1 screen-out checklist.
@@ -89,6 +139,7 @@ This is the consolidated Phase 1 requirements list. If these are not covered, th
 - [ ] Aggregate OCR across all label panels when comparing application fields to label artwork.
 - [ ] Support curved, rotated, or circular label text by attempting OCR first, then routing low-confidence/partial extraction to Needs Review.
 - [ ] Add a local-photo benchmark workflow for phone photos: strip EXIF, normalize orientation, resize, run OCR, save OCR confidence/timing, and keep raw photos out of git.
+- [ ] Store local phone photos and derived OCR artifacts under `data/work/local-photo-benchmark/`.
 - [ ] Benchmark OCR on real phone label photos.
 - [ ] Add image preprocessing for orientation, size, and readability before OCR.
 - [ ] Add image-quality checks for blur, low contrast, glare/lighting, low resolution, and skew/angle where practical.
@@ -162,9 +213,10 @@ future procurement signal
 Azure infrastructure context
 ```
 
-Current app risk: AWS deployment proves public availability, but Marcus explicitly hints that Azure compatibility, restricted-network behavior, and production-security posture matter.
+Current app risk: AWS deployment proves public availability, but Marcus explicitly hints that Azure compatibility, restricted-network behavior, and production-security posture matter. Keep AWS as the live submission host unless it becomes a blocker; make Azure a documented portability path, not a Friday-night migration.
 
-- [ ] Add Azure deployment documentation/path because Marcus says current infrastructure is on Azure.
+- [ ] Keep the current public deployment on AWS Lightsail for the take-home submission.
+- [ ] Add Azure deployment documentation/path if time allows because Marcus says current infrastructure is on Azure.
 - [ ] Document that the current AWS deployment is for evaluation convenience and that the container stack is cloud-portable to Azure VM or Azure Container Apps.
 - [ ] Ensure runtime architecture is not AWS-specific.
 - [ ] Add restricted-network runtime posture: no hosted ML/OCR calls, no external model endpoints, local static assets, and no outbound AI dependency during label verification.
@@ -199,16 +251,19 @@ Jenny and Dave fill in practical reviewer behavior: exact warning checks, non-pe
 
 Build in this order so every change reinforces the agency workflow:
 
-1. Investigate and document the COLAs Online data structure.
-2. Expand `ColaApplication` and `ManifestItem` into a COLA-style application record.
-3. Regenerate fixtures/manifests with application IDs and bottler/producer fields.
-4. Create a Phase 1 fixture coverage matrix where every item in `PHASE1_REJECTION.md` has application data, image data, expected results, and provenance.
-5. Add field-by-field rules for alcohol content, class/type, net contents, bottler/producer, and fanciful name.
-6. Update result detail pages and CSV export into field-level mismatch reports.
-7. Add OCR benchmarking/preprocessing for real phone photos and document p50/p95 timings.
-8. Add 200-300 row synthetic batch proof and tests.
-9. Update README, PRD, ARCHITECTURE, DEMO_SCRIPT, performance docs, security docs, and Azure deployment docs.
-10. Redeploy and rerun public smoke/demo checks.
+1. Finish the local data path contract and keep `data/work/` gitignored.
+2. Investigate and document the COLAs Online data structure.
+3. Build the local public COLA ETL/SQLite workspace before touching AWS.
+4. Export a small curated official public COLA fixture set with source HTML, label images, parsed application JSON, expected results, and provenance.
+5. Expand `ColaApplication` and `ManifestItem` into a COLA-style application record.
+6. Regenerate fixtures/manifests with application IDs and bottler/producer fields.
+7. Create a Phase 1 fixture coverage matrix where every item in `PHASE1_REJECTION.md` has application data, image data, expected results, and provenance.
+8. Add field-by-field rules for alcohol content, class/type, net contents, bottler/producer, and fanciful name.
+9. Update result detail pages and CSV export into field-level mismatch reports.
+10. Add OCR benchmarking/preprocessing for real phone photos and document p50/p95 timings.
+11. Add 200-300 row synthetic batch proof and tests.
+12. Update README, PRD, ARCHITECTURE, DEMO_SCRIPT, performance docs, security docs, and optional Azure deployment docs.
+13. Redeploy AWS and rerun public smoke/demo checks.
 
 ---
 
@@ -309,7 +364,7 @@ These were previously time-permitting items and are now implemented.
 ## Deferred Unless Interview Requirements Are Complete
 
 - [ ] ZIP upload with safe archive limits and ZIP-bomb protection.
-- [ ] Public COLA fixture curation.
+- [ ] Broad public COLA fixture curation beyond the first targeted official sample set.
 - [ ] OCR benchmark harness across real public labels.
 - [ ] Extra risk-rule demos beyond the current source-backed core.
 - [ ] Thumbnails/evidence/export folders if they are not used by the UI.
@@ -341,7 +396,8 @@ Keep this architecture stable:
 - [ ] Do not add ZIP upload.
 - [ ] Do not add React/Vue/Angular.
 - [ ] Do not scrape private or authenticated COLA data.
-- [ ] Do not add a database.
+- [ ] Do not replace the runtime filesystem job store with a database before interview requirements are covered.
+- [ ] Do not commit `data/work/`, local SQLite databases, raw registry pulls, or raw phone-photo benchmark data.
 - [ ] Do not add authentication.
 - [ ] Do not chase speculative rules before the Sarah/Marcus application-data workflow is complete.
 - [ ] Do not replace the fixture-backed demo path with live OCR-only behavior.
@@ -445,7 +501,11 @@ curl -I https://labelsontap.ai
 - [ ] Field-by-field application-to-label matching covers brand, alcohol content, class/type, net contents, country of origin, and bottler/producer.
 - [ ] CSV export is reviewer-ready and includes application IDs, expected values, observed values, verdicts, and reviewer actions.
 - [ ] Large synthetic batch proof covers Sarah's 200-300 application scenario.
-- [ ] Azure deployment path is documented.
+- [ ] Local public COLA ETL workspace exists and stays gitignored.
+- [ ] Public form parser extracts structured application fields and label attachment metadata into local SQLite.
+- [ ] Curated official public COLA fixtures are exported from local ETL data into committed fixture folders.
+- [ ] AWS deployment is updated after local parser/fixture/app changes are tested.
+- [ ] Azure deployment path is documented if time allows.
 - [ ] Restricted-network runtime posture is documented.
 - [ ] PII/document-retention prototype limits are documented.
 - [x] README has quick start and live demo instructions.
