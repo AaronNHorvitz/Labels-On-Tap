@@ -55,6 +55,62 @@ Do not use the deadline or existing deployment as a reason to waive interview-de
 
 ---
 
+## Non-Negotiable Requirements
+
+This is the consolidated Phase 1 requirements list. If these are not covered, the prototype is still incomplete even though the repo and public app exist.
+
+### Step 1 - Investigate COLAs Online Data Structure
+
+- [ ] Confirm the current COLAs Online create-application flow from official TTB docs and screenshots.
+- [ ] Confirm Step 1 Application Type fields and conditional options.
+- [ ] Confirm Step 2 COLA Information fields and product-specific fields.
+- [ ] Confirm Step 3 Upload Labels image/attachment behavior.
+- [ ] Confirm whether public registry printable records expose enough application data and label images to derive realistic fixtures.
+- [ ] Treat public `publicFormDisplay` HTML as a first-class input source when available, not only screenshots.
+- [ ] Extract structured application fields from public form HTML labels/data cells.
+- [ ] Identify all `/colasonline/publicViewAttachment.do?...&filetype=l` label image tags and ignore non-label images such as signatures.
+- [ ] Store attachment metadata for every label image: source URL, filename, image type, stated dimensions, alt text, and panel order.
+- [ ] Build a field map from COLAs Online / TTB F 5100.31 concepts to the app's `ColaApplication` schema.
+- [ ] Document the prototype ingestion boundary: no direct authenticated COLAs Online integration, but standalone COLA-style application export plus attached label artwork.
+
+### Step 2 - Phase 1 Rejection / Needs Correction Coverage
+
+- [ ] Treat [PHASE1_REJECTION.md](PHASE1_REJECTION.md) as the complete Phase 1 screen-out checklist.
+- [ ] Create test data for every item in `PHASE1_REJECTION.md`.
+- [ ] Each Phase 1 case must include COLA-style application data, at least one label image, expected result JSON, OCR text/ground truth where appropriate, and provenance.
+- [ ] Keep synthetic negative data for mismatch/rejection cases that are not available as public registry data.
+- [ ] Use public registry-derived data only with recorded status and source provenance.
+
+### Step 3 - Image Data And OCR
+
+- [ ] Treat image data as mandatory, not optional decoration.
+- [ ] Support front/back/multi-panel label artwork for one application where applicable.
+- [ ] OCR each attached label image separately and preserve panel-level evidence.
+- [ ] Aggregate OCR across all label panels when comparing application fields to label artwork.
+- [ ] Support curved, rotated, or circular label text by attempting OCR first, then routing low-confidence/partial extraction to Needs Review.
+- [ ] Add a local-photo benchmark workflow for phone photos: strip EXIF, normalize orientation, resize, run OCR, save OCR confidence/timing, and keep raw photos out of git.
+- [ ] Benchmark OCR on real phone label photos.
+- [ ] Add image preprocessing for orientation, size, and readability before OCR.
+- [ ] Add image-quality checks for blur, low contrast, glare/lighting, low resolution, and skew/angle where practical.
+- [ ] Keep OCR local/self-hosted; do not use hosted OCR, hosted VLM, or cloud ML APIs at runtime.
+
+### Step 4 - Five-Second Per-Label Target
+
+- [ ] Measure deployed per-label processing time on AWS Lightsail.
+- [ ] Track OCR time separately from preprocessing and rule evaluation.
+- [ ] Record p50 and p95 per-label timings in `docs/performance.md`.
+- [ ] Target useful per-label feedback in approximately 5 seconds after OCR warmup.
+- [ ] If docTR cannot meet the target on realistic images, evaluate a faster local OCR adapter or a two-stage local OCR path.
+- [ ] For 200-300 label batches, show immediate progress and completed-item results; do not imply the whole batch completes in 5 seconds.
+
+### Step 5 - Reviewer-Ready Output
+
+- [ ] Output must show application ID, image filename, field/rule, expected application value, observed label evidence, verdict, reviewer action, OCR source, and confidence.
+- [ ] CSV export must be useful as a batch mismatch report, not only a compact summary.
+- [ ] UI wording must describe "application data" and "label artwork" in plain reviewer language.
+
+---
+
 ## Interview-Derived Product Gap List
 
 This section is the authoritative requirements gap list. It is derived from Sarah Chen's and Marcus Williams's interview notes, not from what is currently convenient to build.
@@ -143,14 +199,16 @@ Jenny and Dave fill in practical reviewer behavior: exact warning checks, non-pe
 
 Build in this order so every change reinforces the agency workflow:
 
-1. Expand `ColaApplication` and `ManifestItem` into a COLA-style application record.
-2. Regenerate fixtures/manifests with application IDs and bottler/producer fields.
-3. Create a Phase 1 fixture coverage matrix where every item in `PHASE1_REJECTION.md` has application data, image data, expected results, and provenance.
-4. Add field-by-field rules for alcohol content, class/type, net contents, bottler/producer, and fanciful name.
-5. Update result detail pages and CSV export into field-level mismatch reports.
-6. Add 200-300 row synthetic batch proof and tests.
-7. Update README, PRD, ARCHITECTURE, DEMO_SCRIPT, performance docs, security docs, and Azure deployment docs.
-8. Redeploy and rerun public smoke/demo checks.
+1. Investigate and document the COLAs Online data structure.
+2. Expand `ColaApplication` and `ManifestItem` into a COLA-style application record.
+3. Regenerate fixtures/manifests with application IDs and bottler/producer fields.
+4. Create a Phase 1 fixture coverage matrix where every item in `PHASE1_REJECTION.md` has application data, image data, expected results, and provenance.
+5. Add field-by-field rules for alcohol content, class/type, net contents, bottler/producer, and fanciful name.
+6. Update result detail pages and CSV export into field-level mismatch reports.
+7. Add OCR benchmarking/preprocessing for real phone photos and document p50/p95 timings.
+8. Add 200-300 row synthetic batch proof and tests.
+9. Update README, PRD, ARCHITECTURE, DEMO_SCRIPT, performance docs, security docs, and Azure deployment docs.
+10. Redeploy and rerun public smoke/demo checks.
 
 ---
 
