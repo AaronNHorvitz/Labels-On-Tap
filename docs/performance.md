@@ -140,6 +140,40 @@ from commercial public-data sample pack to local OCR to field-level evidence.
 It also shows the next tuning target: class/type matching needs more tolerant
 normalization and/or product-class synonym handling.
 
+## May 2 Graph-Aware OCR Evidence POC
+
+An experimental PyTorch graph scorer was trained on the existing 100-application
+calibration set using cached local OCR boxes. The model does not replace OCR. It
+scores whether OCR fragments support one expected application field, using
+box-level geometry, KNN graph context, text-similarity features, field type, and
+panel-level summary features.
+
+The best initial GPU run was:
+
+```bash
+.venv-gpu/bin/python experiments/graph_ocr/train_graph_matcher.py \
+  --epochs 40 \
+  --run-name gpu-safety-neg2-e40 \
+  --device cuda \
+  --negative-loss-weight 2.0 \
+  --false-clear-tolerance 0.0
+```
+
+On the held-out test split from the 100-application calibration set:
+
+| Metric | Baseline Fuzzy Matcher | Graph-Aware Scorer |
+|---|---:|---:|
+| Accuracy | 0.8947 | 0.9408 |
+| Precision | 0.8438 | 0.9531 |
+| Positive-support recall | 0.7105 | 0.8026 |
+| Specificity / negative rejection | 0.9561 | 0.9868 |
+| F1 | 0.7714 | 0.8714 |
+| False-clear rate | 0.0439 | 0.0132 |
+
+The graph scorer improved support detection for brand name, fanciful name, and
+net contents while lowering false clears on shuffled negative examples. This is
+an experimental calibration result, not a locked-holdout production claim.
+
 ## May 2 COLA Cloud Stratified Calibration
 
 After the sample-pack smoke test, a bounded COLA Cloud API sampling workflow

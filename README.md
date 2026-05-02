@@ -173,6 +173,14 @@ A practical version of this architecture would start with a deterministic graph 
 
 This could later become a Higher-Order Graph Neural Network or Hypergraph Neural Network research path. The near-term engineering value is that the graph layer can improve curved-text and fragmented-text reassembly while preserving the current conservative triage posture: it may improve evidence gathering, but deterministic rules still decide `Pass`, `Needs Review`, or `Fail`.
 
+A first experimental version of this near-term graph layer now exists under
+`experiments/graph_ocr/`. It trains a small PyTorch graph-aware evidence scorer
+over cached local OCR boxes. On the initial 100-application calibration test,
+the safety-weighted GPU run improved F1 from `0.7714` to `0.8714` and reduced
+false-clear rate from `0.0439` to `0.0132` on shuffled negative examples. This
+is a proof of signal, not a final accuracy claim; the full HO-GNN/TPS/SVTR
+architecture below remains the longer research path.
+
 Relevant research and implementation links:
 
 | Area | Link | Why It Matters |
