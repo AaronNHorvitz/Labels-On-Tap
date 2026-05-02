@@ -27,6 +27,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--delay", type=float, default=3.0)
     parser.add_argument("--jitter", type=float, default=1.0)
     parser.add_argument("--timeout", type=float, default=30.0)
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=3,
+        help="Retry transient daily-search fetch failures before skipping the day",
+    )
     parser.add_argument("--insecure", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--limit", type=int, default=None)
@@ -69,6 +75,34 @@ def append_imported_day(
         )
 
 
+def fetch_search_results_with_retries(
+    search_date: date,
+    *,
+    timeout: float,
+    verify: bool,
+    retries: int,
+    delay: float,
+    jitter: float,
+) -> bytes | None:
+    """Fetch one daily search export, retrying transient network failures."""
+
+    for attempt in range(1, retries + 2):
+        try:
+            csv_bytes, _, _ = fetch_search_results_csv(
+                search_date,
+                timeout=timeout,
+                verify=verify,
+            )
+            return csv_bytes
+        except Exception as exc:  # noqa: BLE001 - ETL should keep walking.
+            if attempt > retries:
+                print(f"  failed after {attempt} attempt(s): {exc}")
+                return None
+            print(f"  transient fetch error on attempt {attempt}; retrying: {exc}")
+            polite_sleep(delay, jitter)
+    return None
+
+
 def main() -> None:
     """Fetch and import daily public search-result CSV exports."""
 
@@ -99,11 +133,16 @@ def main() -> None:
                 continue
 
             print(f"[{index}/{len(dates)}] fetch search results for {search_date.isoformat()}")
-            csv_bytes, _, _ = fetch_search_results_csv(
+            csv_bytes = fetch_search_results_with_retries(
                 search_date,
                 timeout=args.timeout,
                 verify=not args.insecure,
+                retries=args.retries,
+                delay=args.delay,
+                jitter=args.jitter,
             )
+            if csv_bytes is None:
+                continue
             csv_path.write_bytes(csv_bytes)
             rows = read_registry_csv(csv_path)
             for row in rows:

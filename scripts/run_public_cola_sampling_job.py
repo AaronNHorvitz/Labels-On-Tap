@@ -37,6 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--image-delay", type=float, default=2.0)
     parser.add_argument("--image-jitter", type=float, default=0.75)
     parser.add_argument("--timeout", type=float, default=30.0)
+    parser.add_argument("--search-retries", type=int, default=3)
     parser.add_argument(
         "--exclude-ttb-id-file",
         help="Optional newline or CSV file of TTB IDs to exclude from selection.",
@@ -217,6 +218,8 @@ def main() -> None:
         str(args.search_jitter),
         "--timeout",
         str(args.timeout),
+        "--retries",
+        str(args.search_retries),
         "--time-budget-seconds",
         str(remaining_seconds(deadline)),
     ]
