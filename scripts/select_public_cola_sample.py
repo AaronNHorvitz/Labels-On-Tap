@@ -109,12 +109,17 @@ def main() -> None:
     monthly_counts: dict[str, int] = {}
     by_month: dict[str, list[dict[str, str]]] = {}
     seen_ttb_ids: set[str] = set()
+    skipped_invalid_date_rows = 0
     for row in rows:
         canonical_ttb_id = normalize_value(row["ttb_id"])
         if not canonical_ttb_id or canonical_ttb_id in seen_ttb_ids:
             continue
         seen_ttb_ids.add(canonical_ttb_id)
-        completed = parse_registry_date(row["completed_date"])
+        try:
+            completed = parse_registry_date(row["completed_date"])
+        except ValueError:
+            skipped_invalid_date_rows += 1
+            continue
         month = completed.strftime("%Y-%m")
         prepared_row = {
             "ttb_id": canonical_ttb_id,
@@ -186,6 +191,7 @@ def main() -> None:
             "target_total": args.target_total,
             "selected_total": len(selected),
             "source_csv_count": len(source_csv_paths),
+            "skipped_invalid_date_rows": skipped_invalid_date_rows,
             "monthly_allocation": allocation,
             "monthly_counts": by_month_selected,
             "split_counts": split_counts,
