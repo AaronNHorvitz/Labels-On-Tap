@@ -1,6 +1,6 @@
 # Labels On Tap
 
-**Local-first, source-backed alcohol label verification for TTB-style COLA review.**
+**Labels On Tap is designed to triage COLAs Online-style submissions and identify alcohol labels that appear out of compliance.**
 
 [![Live Demo](https://img.shields.io/badge/Demo-www.labelsontap.ai-blue?style=for-the-badge)](https://www.labelsontap.ai)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
@@ -15,7 +15,7 @@
 
 ## Model Posture: Conservative Triage
 
-Labels On Tap is designed as a reviewer-support triage assistant, not as an automatic legal approver.
+COLAs Online is an Internet-based system that allows registered industry members to apply online for a certificate of label approval, certificate of exemption from label approval, or distinctive liquor bottle approval. Labels On Tap is a reviewer-support triage assistant for that workflow: it compares application data against submitted label artwork, identifies likely compliance problems, and routes uncertain cases to human review.
 
 The highest-risk failure is a **false clear**: a problematic label incorrectly marked as `Pass`. The prototype therefore favors catching possible problems over automatically clearing borderline cases:
 
