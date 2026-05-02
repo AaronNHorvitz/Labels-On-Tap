@@ -146,6 +146,25 @@ data/fixtures/public-cola/
 - [ ] Add image-quality checks for blur, low contrast, glare/lighting, low resolution, and skew/angle where practical.
 - [ ] Keep OCR local/self-hosted; do not use hosted OCR, hosted VLM, or cloud ML APIs at runtime.
 
+### Step 3A - OCR Evaluation, Tuning, And Holdout Metrics
+
+Treat the OCR pipeline like the model being evaluated. The prototype should use deterministic compliance comparisons, but OCR extraction is probabilistic enough that it needs documented accuracy, failure modes, and a held-out evaluation set.
+
+- [ ] Build an OCR evaluation dataset from official public COLA records, synthetic rejection cases, and local phone-photo stress cases.
+- [ ] Split curated data into train/dev/tuning and held-out test sets before tuning OCR thresholds or preprocessing.
+- [ ] Keep the split manifest under source control, but keep bulk images and private phone photos under `data/work/`.
+- [ ] Use official public COLA records as realistic positive/structure examples, not as confidential rejection examples.
+- [ ] Use synthetic negative records to cover the full `PHASE1_REJECTION.md` checklist.
+- [ ] Use iPhone/store-label photos only as local OCR stress tests and synthetic-negative inputs after EXIF/location stripping.
+- [ ] Tune OCR preprocessing and confidence thresholds on the train/dev set only.
+- [ ] Evaluate the final OCR/comparison pipeline on the held-out set.
+- [ ] Report field-level extraction accuracy for brand, fanciful name, class/type, alcohol content, net contents, country of origin, and government warning text when labels contain those fields.
+- [ ] Report verdict-level confusion matrix for `pass`, `needs_review`, and `fail`.
+- [ ] Report false-pass cases separately because false acceptance is the highest-risk failure mode.
+- [ ] Report OCR failure modes: unreadable image, missed curved text, wrong panel, low confidence, partial warning extraction, punctuation/capitalization error, and field not present on label.
+- [ ] Save evaluation outputs under `data/work/public-cola/parsed/ocr/` or `data/work/local-photo-benchmark/ocr/`.
+- [ ] Summarize the measured accuracy and limitations in `docs/performance.md` or a dedicated OCR evaluation doc.
+
 ### Step 4 - Five-Second Per-Label Target
 
 - [ ] Measure deployed per-label processing time on AWS Lightsail.
@@ -192,6 +211,7 @@ Current app risk: the prototype has strong compliance-rule demos, but it must mo
 - [ ] Expand CSV export into a reviewer-ready mismatch report with application ID, filename, field/rule, expected, observed, verdict, evidence, reviewer action, and OCR source.
 - [ ] Add fixture cases for clean application-data match, alcohol-content mismatch, class/type mismatch, net-contents mismatch, bottler/address missing, and mixed batch triage.
 - [ ] Add test data coverage for every Phase 1 rejection / Needs Correction reason in `PHASE1_REJECTION.md`.
+- [ ] Add train/dev/test split manifests and OCR evaluation metrics so the demo can show documented accuracy, not only hand-picked examples.
 - [ ] Add a distilled spirits sample fixture modeled after the prompt's `OLD TOM DISTILLERY` example.
 - [ ] Add wine, malt beverage, and distilled spirits coverage so product-type differences are visible.
 - [ ] Add a 200-300 row synthetic batch generator or fixture-backed batch proof to address Sarah's peak-season importer scenario.
@@ -261,10 +281,11 @@ Build in this order so every change reinforces the agency workflow:
 7. Create a Phase 1 fixture coverage matrix where every item in `PHASE1_REJECTION.md` has application data, image data, expected results, and provenance.
 8. Add field-by-field rules for alcohol content, class/type, net contents, bottler/producer, and fanciful name.
 9. Update result detail pages and CSV export into field-level mismatch reports.
-10. Add OCR benchmarking/preprocessing for real phone photos and document p50/p95 timings.
-11. Add 200-300 row synthetic batch proof and tests.
-12. Update README, PRD, ARCHITECTURE, DEMO_SCRIPT, performance docs, security docs, and optional Azure deployment docs.
-13. Redeploy AWS and rerun public smoke/demo checks.
+10. Add OCR evaluation split manifests, tune preprocessing on train/dev only, and report held-out accuracy/confusion metrics.
+11. Add OCR benchmarking/preprocessing for real phone photos and document p50/p95 timings.
+12. Add 200-300 row synthetic batch proof and tests.
+13. Update README, PRD, ARCHITECTURE, DEMO_SCRIPT, performance docs, security docs, and optional Azure deployment docs.
+14. Redeploy AWS and rerun public smoke/demo checks.
 
 ---
 
@@ -366,7 +387,7 @@ These were previously time-permitting items and are now implemented.
 
 - [ ] ZIP upload with safe archive limits and ZIP-bomb protection.
 - [ ] Broad public COLA fixture curation beyond the first targeted official sample set.
-- [ ] OCR benchmark harness across real public labels.
+- [ ] Large OCR benchmark harness beyond the first train/test evaluation set.
 - [ ] Extra risk-rule demos beyond the current source-backed core.
 - [ ] Thumbnails/evidence/export folders if they are not used by the UI.
 - [ ] Database-backed job store.
@@ -505,6 +526,7 @@ curl -I https://labelsontap.ai
 - [ ] Local public COLA ETL workspace exists and stays gitignored.
 - [ ] Public form parser extracts structured application fields and label attachment metadata into local SQLite.
 - [ ] Curated official public COLA fixtures are exported from local ETL data into committed fixture folders.
+- [ ] OCR evaluation has train/dev/test split manifests, held-out accuracy, and a verdict confusion matrix.
 - [ ] AWS deployment is updated after local parser/fixture/app changes are tested.
 - [ ] Azure deployment path is documented if time allows.
 - [ ] Restricted-network runtime posture is documented.
