@@ -54,8 +54,12 @@ The sprint priority is now:
 - [ ] Current valid downloaded public label raster count is **0** until the TTB attachment endpoint is reachable and pending downloads are retried.
 - [x] COLA Cloud sample pack importer exists as a development-only fallback when TTBOnline.gov is unavailable.
 - [x] COLA Cloud API puller exists as a development-only fallback for bounded public-data pulls.
+- [x] COLA Cloud adaptive stratified sampler exists for reproducible API-backed OCR evaluation plans.
 - [x] COLA Cloud smoke imported 5 applications and 8 real label images locally.
 - [x] COLA Cloud smoke OCR ran through local docTR in the Podman app image.
+- [x] COLA Cloud balanced plan selected **1,500 applications** from **7,788 candidates** across May 1, 2025 through April 30, 2026.
+- [x] COLA Cloud balanced calibration fetched **100 detail records** and evaluated **169 label images** with local docTR.
+- [x] Balanced calibration latency met Sarah's target: mean **1,413 ms/application**, max **3,620 ms/application**.
 - [x] Existing public sampling used deterministic seeds and sampling without replacement.
 - [x] Existing public sampling produced two non-overlapping samples: 300 applications and 500 applications.
 - [x] TTB's public processing-time page reports **57,636 label applications received in 2026 as of May 1, 2026**.
@@ -123,6 +127,8 @@ Use accepted public COLA applications as positive ground truth. The goal is not 
 - [ ] Use COLA Cloud sample pack/API only as development/silver-label fallback; do not make it a runtime dependency.
 - [ ] Pull a bounded COLA Cloud API corpus only after the API key is stored locally in `.env`.
 - [ ] Keep COLA Cloud API requests slow enough to respect the provider burst limit and detail-view quota.
+- [ ] Before scaling beyond the 100-record calibration set, map ABV/net-content fields from COLA Cloud details where available.
+- [ ] Before scaling beyond the 100-record calibration set, improve class/type synonym matching.
 - [ ] Export 10-25 curated official public COLA fixtures into `data/fixtures/public-cola/`.
 - [ ] Each curated fixture must include source/provenance, parsed application JSON, label image metadata, and expected field checks.
 - [ ] Keep official public records separate from synthetic negative records.

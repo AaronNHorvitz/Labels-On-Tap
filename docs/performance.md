@@ -139,3 +139,38 @@ This is only a smoke result, not final accuracy. It proves the end-to-end path
 from commercial public-data sample pack to local OCR to field-level evidence.
 It also shows the next tuning target: class/type matching needs more tolerant
 normalization and/or product-class synonym handling.
+
+## May 2 COLA Cloud Stratified Calibration
+
+After the sample-pack smoke test, a bounded COLA Cloud API sampling workflow
+created a 1,500-record stratified evaluation plan under gitignored
+`data/work/cola/official-sample-1500-balanced/`. The plan selected from 7,788
+candidate records across May 1, 2025 through April 30, 2026 using deterministic
+random business-day clusters within month strata, then balanced by product
+type, domestic/import bucket, and single-panel versus multi-panel image
+complexity.
+
+The first 100 selected records were fetched as a calibration set and evaluated
+with local docTR inside the Podman app image.
+
+| Metric | Result |
+|---|---:|
+| Planned sample size | 1,500 applications |
+| Candidate pool | 7,788 applications |
+| Calibration details fetched | 100 applications |
+| Calibration label images OCR'd | 169 images |
+| Mean latency per application | 1,413 ms |
+| Max latency per application | 3,620 ms |
+| Brand-name match rate | 71% |
+| Fanciful-name match rate | 65% |
+| Country-origin match rate | 78.95% of 38 attempted |
+| Class/type match rate | 16% |
+| Alcohol/net-content match rate | Not measured; provider detail mapping not yet wired |
+
+This is a calibration result, not final model accuracy. It proves that the
+bounded API corpus, image download, local OCR, and field-comparison pipeline all
+work on recent real public COLA label images within Sarah's 5-second usability
+target. It also shows the next engineering priorities before scaling the full
+1,500-record evaluation: map ABV/net-content fields from detail data where
+available, improve class/type synonym handling, and tune pass/review thresholds
+on train/dev before reporting held-out test performance.

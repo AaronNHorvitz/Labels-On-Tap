@@ -225,6 +225,39 @@ This API path is still development-only. The deployed app does not call COLA
 Cloud at runtime, and provider OCR/enrichment fields are not counted as Labels
 On Tap OCR results.
 
+Build a larger stratified COLA Cloud evaluation plan with a capped calibration
+fetch:
+
+```bash
+python scripts/run_colacloud_stratified_sample.py \
+  --run-name official-sample-1500-balanced \
+  --target 1500 \
+  --start-date 2025-05-01 \
+  --end-date 2026-04-30 \
+  --days-per-month 8 \
+  --min-candidates-per-month 400 \
+  --fetch-limit 100 \
+  --download-images \
+  --resume
+```
+
+This workflow selects random business-day clusters within month strata, keeps
+drawing days in sparse months until the month has enough candidates or the day
+cap is reached, then samples without replacement across product type,
+domestic/import bucket, and single-panel versus multi-panel image complexity.
+
+The raw API responses, selected TTB IDs, parsed application JSON, downloaded
+images, and evaluation outputs stay under:
+
+```text
+data/work/cola/<run-name>/
+```
+
+The command above intentionally fetches only the first 100 selected detail
+records/images. Use that calibration set to verify image validity, local OCR
+latency, field-match behavior, and provider field coverage before spending the
+remaining detail-view quota.
+
 Evaluate OCR field matching against downloaded public COLA records:
 
 ```bash
