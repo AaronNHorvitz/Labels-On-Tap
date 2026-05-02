@@ -11,7 +11,11 @@ from pathlib import Path
 from cola_etl.csv_import import normalize_value
 from cola_etl.database import connect, pending_attachments, record_attachment_download
 from cola_etl.http import make_client, polite_sleep
+from cola_etl.images import InvalidImageDownload, validate_image_bytes
 from cola_etl.paths import RAW_IMAGES_DIR, ensure_public_cola_work_dirs
+
+
+PUBLIC_FORM_URL = "https://ttbonline.gov/colasonline/viewColaDetails.do?action=publicFormDisplay&ttbid={ttb_id}"
 
 
 def safe_filename(value: str, fallback: str) -> str:
@@ -91,6 +95,22 @@ def download_attachment_with_retries(
             polite_sleep(delay, jitter)
 
 
+def warm_attachment_session(client, ttb_id: str) -> None:
+    """Load the public form page before attachment requests for that TTB ID.
+
+    Notes
+    -----
+    The public attachment endpoint appears to be stateful in some cases: direct
+    image URL fetches can return an HTML "Unable to render attachment" page.
+    Loading the printable public form first mirrors how a browser reaches the
+    image URLs and gives the server a chance to establish any required session
+    context.
+    """
+
+    response = client.get(PUBLIC_FORM_URL.format(ttb_id=ttb_id))
+    response.raise_for_status()
+
+
 def main() -> None:
     """Download parsed public label image attachments."""
 
@@ -113,6 +133,7 @@ def main() -> None:
             return
 
         with make_client(timeout=args.timeout, verify=not args.insecure) as client:
+            warmed_ttb_id = ""
             for index, row in enumerate(rows, start=1):
                 if deadline is not None and time.monotonic() >= deadline:
                     print("Time budget reached before next image download.")
@@ -125,6 +146,10 @@ def main() -> None:
                 output_path = RAW_IMAGES_DIR / ttb_id / f"{row['panel_order']:02d}_{filename}"
                 print(f"[{index}/{len(rows)}] download {ttb_id} panel {row['panel_order']}")
                 try:
+                    if ttb_id != warmed_ttb_id:
+                        warm_attachment_session(client, ttb_id)
+                        warmed_ttb_id = ttb_id
+                        polite_sleep(args.delay, args.jitter)
                     response = download_attachment_with_retries(
                         client,
                         row["source_url"],
@@ -132,14 +157,26 @@ def main() -> None:
                         delay=args.delay,
                         jitter=args.jitter,
                     )
+                    image_bytes = validate_image_bytes(
+                        response.content,
+                        content_type=response.headers.get("content-type", ""),
+                    )
                     output_path.parent.mkdir(parents=True, exist_ok=True)
-                    output_path.write_bytes(response.content)
+                    output_path.write_bytes(image_bytes)
                     record_attachment_download(
                         connection,
                         attachment_id=row["id"],
                         raw_image_path=str(output_path),
                         http_status=response.status_code,
                     )
+                except InvalidImageDownload as exc:
+                    record_attachment_download(
+                        connection,
+                        attachment_id=row["id"],
+                        raw_image_path=None,
+                        http_status=0,
+                    )
+                    print(f"  invalid image response: {exc}")
                 except Exception as exc:  # noqa: BLE001 - ETL should continue.
                     record_attachment_download(
                         connection,

@@ -88,6 +88,73 @@ Download parsed public label image attachments slowly:
 python scripts/download_public_cola_images.py --limit 10 --delay 2 --jitter 1
 ```
 
+The attachment downloader validates every response with Pillow before accepting
+it as an OCR-ready image. This is important because the public attachment
+endpoint can return an HTML error page with HTTP 200 when an image cannot be
+rendered. Invalid responses are marked pending in SQLite instead of being saved
+as successful label images.
+
+Audit locally downloaded attachments before OCR:
+
+```bash
+python scripts/audit_public_cola_images.py
+```
+
+If the audit finds invalid rows, clear those SQLite paths so the downloader can
+retry them later:
+
+```bash
+python scripts/audit_public_cola_images.py --mark-invalid
+```
+
+Evaluate OCR field matching against downloaded public COLA records:
+
+```bash
+python scripts/evaluate_public_cola_ocr.py --limit 25 --run-name pilot-25
+```
+
+If the host shell does not have docTR installed, run the evaluator through the
+app container and bind-mount the gitignored work directory:
+
+```bash
+docker compose run --rm \
+  -v "$PWD/data/work:/app/data/work" \
+  app python scripts/evaluate_public_cola_ocr.py --limit 25 --run-name pilot-25
+```
+
+Podman equivalent for Fedora/Kinoite-style local development:
+
+```bash
+podman run --rm \
+  -v "$PWD/data/work:/app/data/work:Z" \
+  -v "$PWD/data/work/model-cache:/root/.cache:Z" \
+  labels-on-tap-app:local \
+  python scripts/evaluate_public_cola_ocr.py --limit 25 --run-name pilot-25
+```
+
+The evaluator does not contact the public registry. It reads parsed
+applications and validated downloaded label images from `data/work/public-cola/`,
+runs or reuses local OCR, and writes outputs under:
+
+```text
+data/work/public-cola/parsed/ocr/
+  panels/<ttb_id>/*.json
+  evaluations/<run-name>/
+    summary.json
+    applications.json
+    application_results.csv
+    field_results.csv
+```
+
+Each COLA application is treated as one evidence bundle that may contain many
+label panels. The evaluator OCRs each panel separately, preserves panel-level
+evidence, aggregates OCR text across panels, and compares application fields
+against the full label-artwork bundle.
+
+Do not treat an OCR run as valid until `audit_public_cola_images.py` reports
+readable image files. Parsed forms and attachment metadata are still valuable,
+but field-level OCR metrics require real raster label panels.
+
 Export a reviewed public record into a committed fixture folder:
 
 ```bash
@@ -128,6 +195,29 @@ The parser extracts:
 - status
 - class/type description
 - every public label attachment URL with panel order, filename, image type, dimensions, and alt text
+
+## OCR Evaluation Contract
+
+Accepted public COLAs are used as positive ground truth for field matching, not
+as proof of every legal-compliance rule. The evaluation asks a narrower question:
+
+```text
+Given accepted public application data and its accepted label artwork,
+can local OCR recover enough label text to confirm the application fields?
+```
+
+The first evaluation fields are:
+
+- brand name,
+- fanciful name when present,
+- class/type,
+- alcohol content,
+- net contents,
+- country of origin for imported records when registry origin data is available,
+- applicant/producer/bottler text when visible.
+
+Synthetic negative fixtures remain necessary for mismatch and Needs Correction
+coverage because confidential rejected applications are not public.
 
 The first parser target is the public printable Form 5100.31 HTML exposed by:
 

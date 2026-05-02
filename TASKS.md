@@ -1,305 +1,272 @@
-# TASKS.md — Final Sprint Command Center
+# TASKS.md - Final Sprint Command Center
 
 **Project:** Labels On Tap
 **Repository:** `https://github.com/AaronNHorvitz/Labels-On-Tap`
 **Canonical deployment URL:** `https://www.labelsontap.ai`
 **Deadline:** Monday afternoon, May 4, 2026
-**Sprint target:** Stakeholder-complete prototype that automates the COLA-style application-data-to-label-artwork comparison workflow described in the interviews.
-**Status as of May 1:** A working repo and deployed public app exist. The remaining risk is product completeness against Sarah Chen and Marcus Williams's interview requirements, not basic deployment.
+**Current mission:** Prove that Labels On Tap can triage COLAs Online-style applications by comparing accepted public application data against OCR extracted from submitted label artwork, then route mismatches or uncertainty to human review.
 
-The highest priority is now a working deployed demo that visibly matches the agency workflow: upload COLA-style application data, upload label artwork, compare application fields against OCR text, triage mismatches, and export reviewer-ready results.
+Labels On Tap is not trying to replace a TTB compliance agent. The core proof is narrower and stronger:
 
-Do not use the deadline or existing deployment as a reason to waive interview-derived requirements. Direct COLA integration remains out of scope, but a COLA-shaped standalone proof of concept is in scope.
+```text
+COLAs Online-style application data
+  + accepted submitted label artwork
+  -> local OCR / parsing
+  -> deterministic field comparison
+  -> Pass / Needs Review / Fail with evidence
+```
+
+The sprint priority is now:
+
+1. Build a statistically defensible official public COLA evaluation corpus.
+2. Prove OCR + field matching works on accepted public COLAs.
+3. Demonstrate deterministic mismatch detection with synthetic negative cases.
+4. Add legal reasoning/guidance only after the measurement story is solid.
 
 ---
 
 ## Current Truth
 
-- [x] Canonical URL is `https://www.labelsontap.ai`.
 - [x] Public deployed app is live at `https://www.labelsontap.ai`.
 - [x] `https://labelsontap.ai` redirects to `https://www.labelsontap.ai`.
+- [x] Public health smoke passed at `https://www.labelsontap.ai/health`.
 - [x] Runtime architecture is FastAPI + Jinja2/HTMX + local CSS.
 - [x] OCR architecture is local docTR adapter with fixture OCR fallback.
 - [x] Storage architecture is filesystem JSON job/result store.
-- [x] Deployment architecture is Docker Compose + Caddy on an x86_64 cloud VM.
-- [x] Current public deployment is AWS Lightsail Ubuntu VM with static IP, Docker Compose, and Caddy.
-- [x] Current deployment target remains AWS for submission; Azure is a portability/documentation path if time allows.
-- [x] Public health smoke passed at `https://www.labelsontap.ai/health`.
-- [x] Apex redirect smoke passed for `https://labelsontap.ai`.
-- [x] FastAPI app scaffold is implemented.
-- [x] Home page, health route, demo routes, job pages, detail pages, and CSV export routes exist.
-- [x] Single-label upload route exists.
-- [x] Manual manifest-backed batch upload route exists.
+- [x] Deployment architecture is Docker Compose + Caddy on AWS Lightsail.
+- [x] Current deployment target remains AWS for submission; Azure is a documented portability path if time allows.
+- [x] The app has demo routes, job pages, detail pages, single-label upload, manifest-backed batch upload, and CSV export.
 - [x] `country_of_origin` and `imported` are first-class application fields.
-- [x] Country-of-origin fields are included in the single-label route.
-- [x] Core validation rules are implemented for brand match, warning text, warning caps, warning typography review, ABV shorthand, malt net contents, OCR confidence, and country of origin.
 - [x] Demo fixtures/data scaffold exists.
-- [x] `imported_country_origin_pass.*` fixture set exists.
-- [x] Batch fixture manifest exists.
-- [x] Expanded 12-row demo fixture set exists.
-- [x] `scripts/bootstrap_project.py` exists.
-- [x] `scripts/seed_demo_fixtures.py` exists.
 - [x] Tests scaffold exists.
-- [x] Last known local test run: `pytest -q` passed with 45 tests.
-- [x] `requirements.txt` exists.
-- [x] `Dockerfile` exists.
-- [x] `docker-compose.yml` exists.
-- [x] `Caddyfile` exists and uses `www.labelsontap.ai` as canonical host.
-- [x] `docs/deployment.md` exists.
-- [x] `docs/performance.md` exists.
-- [x] `docs/tradeoffs.md` exists.
-- [x] `docs/public-cola-etl.md` exists.
-- [x] `TASKS.md` is committed.
-- [x] Root `TRADEOFFS.md` exists.
-- [x] Root `TRADEOFFS.md` is committed.
-- [x] Root `DEMO_SCRIPT.md` exists.
-- [x] Root `DEMO_SCRIPT.md` is committed.
+- [x] Last known complete local test run: `pytest -q` passed with 61 tests.
+- [x] Local Podman image rebuild passed on May 2, 2026.
+- [x] Local container smoke passed on May 2, 2026 for `/health`, `/`, and `/demo/clean`.
+- [x] Public COLA ETL scripts exist for search-result imports, public form fetches, form parsing, label image download, curated fixture export, and stratified sampling.
+- [x] `data/work/` is gitignored and is the home for bulk/raw public COLA data.
+- [x] Existing official public COLA corpus contains **810 unique parsed applications**.
+- [x] Existing official public COLA corpus contains **1,433 discovered label panel attachments**.
+- [x] Attachment downloads were audited on May 2, 2026; the existing local files were HTML error pages, not valid raster images.
+- [x] Invalid local attachment rows were marked pending for future redownload. No raw files were deleted.
+- [x] The downloader now validates attachment bytes with Pillow before accepting them as OCR-ready images.
+- [x] The downloader now warms the public form session before requesting attachment URLs.
+- [x] The OCR evaluator now skips invalid image files instead of treating HTML error pages as OCR failures.
+- [ ] Current valid downloaded public label raster count is **0** until the TTB attachment endpoint is reachable and pending downloads are retried.
+- [x] Existing public sampling used deterministic seeds and sampling without replacement.
+- [x] Existing public sampling produced two non-overlapping samples: 300 applications and 500 applications.
+- [x] TTB's public processing-time page reports **57,636 label applications received in 2026 as of May 1, 2026**.
+- [x] Current month-stratified annual-volume estimate from local daily CSV exports is about **142,510 applications** for May 1, 2025 through April 30, 2026, with an approximate 95% CI of **132,011 to 153,009**.
+- [ ] Public COLA Registry access is currently fragile/resetting; pause further automated registry access until it cools down.
+- [ ] Deployment URL remains live through submission.
+- [ ] TASKS.md is committed after this priority reset.
 
 ---
 
-## Non-Negotiable Requirements
+## Statistical Evaluation Thesis
 
-This is the consolidated Phase 1 requirements list. If these are not covered, the prototype is still incomplete even though the repo and public app exist.
+Use accepted public COLA records as positive ground truth for this claim:
 
-### Step 1 - Investigate COLAs Online Data Structure
+> Given an accepted public COLA application and its accepted label artwork, the system can extract relevant label text and confirm whether it matches the application fields.
 
-- [ ] Confirm the current COLAs Online create-application flow from official TTB docs and screenshots.
-- [ ] Confirm Step 1 Application Type fields and conditional options.
-- [ ] Confirm Step 2 COLA Information fields and product-specific fields.
-- [ ] Confirm Step 3 Upload Labels image/attachment behavior.
-- [ ] Confirm whether public registry printable records expose enough application data and label images to derive realistic fixtures.
-- [ ] Treat public `publicFormDisplay` HTML as a first-class input source when available, not only screenshots.
-- [ ] Extract structured application fields from public form HTML labels/data cells.
-- [ ] Identify all `/colasonline/publicViewAttachment.do?...&filetype=l` label image tags and ignore non-label images such as signatures.
-- [ ] Store attachment metadata for every label image: source URL, filename, image type, stated dimensions, alt text, and panel order.
-- [ ] Build a field map from COLAs Online / TTB F 5100.31 concepts to the app's `ColaApplication` schema.
-- [ ] Document the prototype ingestion boundary: no direct authenticated COLAs Online integration, but standalone COLA-style application export plus attached label artwork.
+Do not claim accepted public COLAs are ground truth for all compliance law. They are ground truth for the narrower application-data-to-label-artwork matching task.
 
-### Step 1A - Local Public COLA Data Workspace
+Use synthetic negative fixtures for this separate claim:
 
-Create the public-registry ETL and database locally first. Do not change the AWS deployment until the local data contract, parser, fixtures, and tests are working.
+> When application data and label artwork do not match, deterministic comparison rules can route the submission to Needs Review or Fail with evidence.
 
-Use this gitignored local workspace:
+Core metrics to report:
+
+- [ ] Field-level match rate for brand name.
+- [ ] Field-level match rate for class/type.
+- [ ] Field-level match rate for alcohol content.
+- [ ] Field-level match rate for net contents.
+- [ ] Field-level match rate for country of origin when imported/origin data is available.
+- [ ] Field-level match rate for applicant/producer/bottler text when visible.
+- [ ] Application-level Pass / Needs Review / Fail distribution.
+- [ ] Per-label OCR latency: p50, p95, and worst-case.
+- [ ] OCR failure modes: low confidence, missing field, curved text, rotated text, poor image quality, multi-panel ambiguity.
+- [ ] False-clear rate on known synthetic negative cases.
+
+Sample-size framing:
+
+- [x] Use `N ~= 150,000` annual COLA applications as the working population size.
+- [x] Current `n = 810` parsed official public COLAs gives about **+/- 3.4%** conservative 95% margin of error for a broad proportion estimate.
+- [ ] Target `n = 1,000` official public COLAs if the registry stabilizes; that gives about **+/- 3.1%** conservative 95% margin of error.
+- [ ] Build 300-500 known-bad synthetic negative cases for false-clear testing.
+- [ ] Explain the "rule of three": zero false clears in 300 known-bad cases implies an approximate 95% upper bound of 1% on the false-clear rate.
+
+---
+
+## Layer 1 - Official Public COLA Evaluation Corpus
+
+**Priority:** P0
+
+Use accepted public COLA applications as positive ground truth. The goal is not a massive scrape. The goal is a reproducible, defensible evaluation corpus with provenance.
+
+- [x] Build local public COLA ETL workspace under `data/work/public-cola/`.
+- [x] Keep bulk/raw public registry pulls, OCR output, and SQLite data out of git.
+- [x] Use SQLite for metadata and fetch state.
+- [x] Store raw HTML and label image files on disk, not as SQLite blobs.
+- [x] Fetch and parse 810 unique public COLA applications.
+- [x] Discover 1,433 public label image/panel attachment records.
+- [x] Audit previously downloaded attachment files and prove they were invalid HTML error pages.
+- [x] Mark invalid attachment rows pending so they are not included in OCR evaluation.
+- [ ] Download valid public label raster images from those public records after the TTB endpoint stabilizes.
+- [x] Preserve deterministic sample provenance and exclusion files.
+- [ ] Pause additional TTB registry fetching while the public endpoint is resetting.
+- [ ] When the endpoint stabilizes, collect up to 200 more non-overlapping official public COLAs to reach `n = 1,000`.
+- [ ] Retry pending public label image downloads with session warming, Pillow validation, and polite delay/retry settings.
+- [ ] Export 10-25 curated official public COLA fixtures into `data/fixtures/public-cola/`.
+- [ ] Each curated fixture must include source/provenance, parsed application JSON, label image metadata, and expected field checks.
+- [ ] Keep official public records separate from synthetic negative records.
+- [ ] Document the sampling method as deterministic two-stage stratified cluster sampling across month strata, with secondary balancing by product/import status where available.
+
+Desired local layout:
 
 ```text
-data/work/
-  public-cola/
-    raw/
-      search-results/
-      forms/
-      images/
-    parsed/
-      applications/
-      ocr/
-    registry.sqlite
-  local-photo-benchmark/
-    raw/
-    normalized/
+data/work/public-cola/
+  registry.sqlite
+  sampling/
+    plan.json
+    selected_days.csv
+    selected_ttbs.csv
+    split_manifest.csv
+    summary.json
+  raw/
+    search-results/
+    forms/
+    images/
+  parsed/
+    applications/
     ocr/
-    synthetic-applications/
-    expected-results/
 ```
 
-Use this committed curated-fixture export path:
+Committed curated fixture layout:
 
 ```text
 data/fixtures/public-cola/
   README.md
   <ttb_id>/
-    source.html
     application.json
     labels/
     expected.json
     provenance.json
 ```
 
-- [x] Add local ETL scripts for public registry search-result CSV imports, public form HTML fetches, form parsing, label image download, and curated fixture export.
-- [ ] Store bulk/raw public registry pulls, local OCR output, and SQLite data only under `data/work/`.
-- [ ] Store local phone-photo benchmark data only under `data/work/local-photo-benchmark/`.
-- [x] Keep `data/work/` out of git.
-- [x] Use SQLite for the local ETL/index database; do not store image blobs in SQLite.
-- [x] Store image files on disk and image/application metadata in SQLite.
-- [ ] Export a small curated set of official public COLA fixtures into `data/fixtures/public-cola/` with provenance.
-- [ ] Runtime app and tests must use committed fixtures or user uploads, not live scraping.
-- [ ] Redeploy AWS only after local parser/fixture/test changes pass locally.
-- [ ] Keep Azure migration optional unless AWS becomes a blocker; document Azure portability if time allows.
+---
 
-### Step 2 - Phase 1 Rejection / Needs Correction Coverage
+## Layer 2 - OCR + Field Matching Proof
 
-- [ ] Treat [PHASE1_REJECTION.md](PHASE1_REJECTION.md) as the complete Phase 1 screen-out checklist.
-- [ ] Create test data for every item in `PHASE1_REJECTION.md`.
-- [ ] Each Phase 1 case must include COLA-style application data, at least one label image, expected result JSON, OCR text/ground truth where appropriate, and provenance.
-- [ ] Keep synthetic negative data for mismatch/rejection cases that are not available as public registry data.
-- [ ] Use public registry-derived data only with recorded status and source provenance.
+**Priority:** P0 and main submission story
 
-### Step 3 - Image Data And OCR
+This is the core AI-powered proof. Extract text from real accepted label images, compare it to accepted application fields, and report evidence.
 
-- [ ] Treat image data as mandatory, not optional decoration.
-- [ ] Support front/back/multi-panel label artwork for one application where applicable.
-- [ ] OCR each attached label image separately and preserve panel-level evidence.
-- [ ] Aggregate OCR across all label panels when comparing application fields to label artwork.
-- [ ] Support curved, rotated, or circular label text by attempting OCR first, then routing low-confidence/partial extraction to Needs Review.
-- [ ] Add a local-photo benchmark workflow for phone photos: strip EXIF, normalize orientation, resize, run OCR, save OCR confidence/timing, and keep raw photos out of git.
-- [ ] Store local phone photos and derived OCR artifacts under `data/work/local-photo-benchmark/`.
-- [ ] Benchmark OCR on real phone label photos.
-- [ ] Add image preprocessing for orientation, size, and readability before OCR.
-- [ ] Add image-quality checks for blur, low contrast, glare/lighting, low resolution, and skew/angle where practical.
-- [ ] Keep OCR local/self-hosted; do not use hosted OCR, hosted VLM, or cloud ML APIs at runtime.
+- [x] Treat one COLA application as one evidence bundle that may contain many label images/panels.
+- [x] Build an OCR evaluation runner for official public COLA records.
+- [x] OCR each label image separately and preserve panel-level text/evidence.
+- [x] Aggregate OCR text across front/back/neck/side panels for application-level comparison.
+- [x] Extract or normalize application fields from parsed public COLA forms.
+- [ ] Compare OCR text against application fields:
+  - [ ] Brand name.
+  - [ ] Fanciful name when present.
+  - [ ] Class/type.
+  - [ ] Alcohol content.
+  - [ ] Net contents.
+  - [ ] Country of origin / origin where applicable.
+  - [ ] Applicant, permittee, bottler, producer, or name/address when visible.
+- [ ] Report field-level expected value, observed OCR evidence, match verdict, OCR confidence, and reviewer action.
+- [ ] Split official public corpus into train/dev/tuning and held-out test manifests before tuning thresholds after valid images are available.
+- [ ] Tune OCR preprocessing and fuzzy-match thresholds only on train/dev.
+- [ ] Evaluate final OCR/comparison behavior on the held-out set.
+- [x] Save OCR and evaluation outputs under `data/work/public-cola/parsed/ocr/`.
+- [ ] Summarize measured accuracy, coverage, latency, and limitations in `docs/performance.md`.
+- [ ] Add a README section that leads with time/money savings using TTB's 2026 application-volume page and Sarah's 5-10 minute review estimate.
 
-### Step 3A - OCR Evaluation, Tuning, And Holdout Metrics
+Reviewer-ready output requirements:
 
-Treat the OCR pipeline like the model being evaluated. The prototype should use deterministic compliance comparisons, but OCR extraction is probabilistic enough that it needs documented accuracy, failure modes, and a held-out evaluation set.
-
-- [ ] Build an OCR evaluation dataset from official public COLA records, synthetic rejection cases, and local phone-photo stress cases.
-- [ ] Split curated data into train/dev/tuning and held-out test sets before tuning OCR thresholds or preprocessing.
-- [ ] Keep the split manifest under source control, but keep bulk images and private phone photos under `data/work/`.
-- [ ] Use official public COLA records as realistic positive/structure examples, not as confidential rejection examples.
-- [ ] Use synthetic negative records to cover the full `PHASE1_REJECTION.md` checklist.
-- [ ] Use iPhone/store-label photos only as local OCR stress tests and synthetic-negative inputs after EXIF/location stripping.
-- [ ] Tune OCR preprocessing and confidence thresholds on the train/dev set only.
-- [ ] Evaluate the final OCR/comparison pipeline on the held-out set.
-- [ ] Report field-level extraction accuracy for brand, fanciful name, class/type, alcohol content, net contents, country of origin, and government warning text when labels contain those fields.
-- [ ] Report verdict-level confusion matrix for `pass`, `needs_review`, and `fail`.
-- [ ] Report false-pass cases separately because false acceptance is the highest-risk failure mode.
-- [ ] Report OCR failure modes: unreadable image, missed curved text, wrong panel, low confidence, partial warning extraction, punctuation/capitalization error, and field not present on label.
-- [ ] Save evaluation outputs under `data/work/public-cola/parsed/ocr/` or `data/work/local-photo-benchmark/ocr/`.
-- [ ] Summarize the measured accuracy and limitations in `docs/performance.md` or a dedicated OCR evaluation doc.
-
-### Step 4 - Five-Second Per-Label Target
-
-- [ ] Measure deployed per-label processing time on AWS Lightsail.
-- [ ] Track OCR time separately from preprocessing and rule evaluation.
-- [ ] Record p50 and p95 per-label timings in `docs/performance.md`.
-- [ ] Target useful per-label feedback in approximately 5 seconds after OCR warmup.
-- [ ] If docTR cannot meet the target on realistic images, evaluate a faster local OCR adapter or a two-stage local OCR path.
-- [ ] For 200-300 label batches, show immediate progress and completed-item results; do not imply the whole batch completes in 5 seconds.
-
-### Step 5 - Reviewer-Ready Output
-
-- [ ] Output must show application ID, image filename, field/rule, expected application value, observed label evidence, verdict, reviewer action, OCR source, and confidence.
-- [ ] CSV export must be useful as a batch mismatch report, not only a compact summary.
-- [ ] UI wording must describe "application data" and "label artwork" in plain reviewer language.
+- [ ] Application ID / TTB ID.
+- [ ] Label panel filename or source URL.
+- [ ] Field name.
+- [ ] Expected application value.
+- [ ] Observed OCR evidence.
+- [ ] Match verdict.
+- [ ] OCR source and confidence.
+- [ ] Reviewer action.
+- [ ] Latency.
 
 ---
 
-## Interview-Derived Product Gap List
+## Layer 3 - Deterministic Mismatch Detection
 
-This section is the authoritative requirements gap list. It is derived from Sarah Chen's and Marcus Williams's interview notes, not from what is currently convenient to build.
+**Priority:** P1 after OCR proof
 
-### P0 Sarah Chen Workflow Gaps
+Use synthetic negative cases because confidential rejected/Needs Correction records are not public. The deterministic comparison layer should make the decision; OCR provides evidence.
 
-Sarah's core process is:
+- [ ] Treat [PHASE1_REJECTION.md](PHASE1_REJECTION.md) as the known-bad coverage checklist.
+- [ ] Create synthetic negative data for every Phase 1 mismatch/rejection reason that is feasible in this sprint.
+- [ ] Keep synthetic negative records separate from official public COLA records.
+- [ ] For each synthetic negative fixture, include application data, label image, expected result JSON, OCR text/ground truth where useful, and provenance.
+- [ ] Add or confirm deterministic rules:
+  - [x] `FORM_BRAND_MATCHES_LABEL`
+  - [ ] `FORM_ALCOHOL_CONTENT_MATCHES_LABEL`
+  - [ ] `FORM_CLASS_TYPE_MATCHES_LABEL`
+  - [ ] `FORM_NET_CONTENTS_MATCHES_LABEL`
+  - [ ] `FORM_COUNTRY_OF_ORIGIN_MATCHES_LABEL`
+  - [ ] `FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL`
+  - [ ] `FORM_FANCIFUL_NAME_MATCHES_LABEL`
+  - [x] `GOV_WARNING_EXACT_TEXT`
+  - [x] `GOV_WARNING_HEADER_CAPS`
+  - [x] `GOV_WARNING_HEADER_BOLD_REVIEW`
+  - [x] `OCR_LOW_CONFIDENCE`
+- [ ] Fail only on clear evidence-backed mismatches.
+- [ ] Route uncertainty, poor OCR, missing field evidence, curved text failures, and ambiguous matches to Needs Review.
+- [ ] Report false-clear rate on synthetic known-bad cases.
+- [ ] Make the CSV export usable as a reviewer mismatch report, not only a compact summary.
 
-```text
-agent opens COLA application data
-  + agent reviews submitted label artwork
-  -> agent verifies that the label matches the application
-```
+---
 
-Current app risk: the prototype has strong compliance-rule demos, but it must more visibly automate the routine application-record-to-label-artwork matching Sarah described.
+## Layer 4 - Legal Reasoning / Guidance
 
-- [ ] Reframe the batch input as a **COLA-style application data file** plus label artwork, not a generic manifest.
-- [ ] Add first-class `application_id` / `cola_id` traceability to schema, fixtures, batch input, job manifest, item detail, and CSV export.
-- [ ] Add applicant, permittee, bottler, producer, or name/address fields needed to represent common COLA-style application data.
-- [ ] Add `FORM_ALCOHOL_CONTENT_MATCHES_LABEL`.
-- [ ] Add `FORM_CLASS_TYPE_MATCHES_LABEL`.
-- [ ] Add `FORM_NET_CONTENTS_MATCHES_LABEL`.
-- [ ] Add `FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL`.
-- [ ] Add `FORM_FANCIFUL_NAME_MATCHES_LABEL` if `fanciful_name` remains in the application schema.
-- [ ] Keep `FORM_BRAND_MATCHES_LABEL`, but present it as one field in a broader field-by-field comparison report.
-- [ ] Expand result detail pages so each application field clearly shows expected value, observed OCR evidence, verdict, and reviewer action.
-- [ ] Expand CSV export into a reviewer-ready mismatch report with application ID, filename, field/rule, expected, observed, verdict, evidence, reviewer action, and OCR source.
-- [ ] Add fixture cases for clean application-data match, alcohol-content mismatch, class/type mismatch, net-contents mismatch, bottler/address missing, and mixed batch triage.
-- [ ] Add test data coverage for every Phase 1 rejection / Needs Correction reason in `PHASE1_REJECTION.md`.
-- [ ] Add train/dev/test split manifests and OCR evaluation metrics so the demo can show documented accuracy, not only hand-picked examples.
-- [ ] Add a distilled spirits sample fixture modeled after the prompt's `OLD TOM DISTILLERY` example.
-- [ ] Add wine, malt beverage, and distilled spirits coverage so product-type differences are visible.
-- [ ] Add a 200-300 row synthetic batch generator or fixture-backed batch proof to address Sarah's peak-season importer scenario.
-- [ ] Add automated test coverage for the large synthetic batch path.
-- [ ] Improve batch progress/status behavior so the UI feels responsive for large jobs, even when full completion takes longer.
-- [ ] Measure and document per-label timing on the deployed VM, with special attention to Sarah's approximately 5-second adoption threshold.
-- [ ] Improve UI copy so older/nontechnical agents see simple workflow language such as "Application data file" and "Label artwork files" instead of unexplained technical terms.
+**Priority:** P2, only after the OCR evaluation story is solid
 
-### P0 Marcus Williams Architecture Gaps
+Legal guidance is valuable, but it should explain deterministic findings rather than decide them.
 
-Marcus's core constraints are:
+- [ ] Keep the legal corpus and source-backed criteria matrix.
+- [ ] Preserve source references on deterministic rule outputs.
+- [ ] Add reviewer-facing explanation text for each deterministic finding.
+- [ ] If time allows, evaluate a local LLM for drafting plain-English guidance from deterministic findings only.
+- [ ] Do not let an LLM decide Pass / Needs Review / Fail.
+- [ ] Do not use hosted LLM APIs at runtime.
+- [ ] Clearly label any generated guidance as draft support for human review.
 
-```text
-standalone proof of concept
-no direct COLA integration
-government network constraints
-no hosted ML/OCR dependency
-PII and retention awareness
-future procurement signal
-Azure infrastructure context
-```
+---
 
-Current app risk: AWS deployment proves public availability, but Marcus explicitly hints that Azure compatibility, restricted-network behavior, and production-security posture matter. Keep AWS as the live submission host unless it becomes a blocker; make Azure a documented portability path, not a Friday-night migration.
+## Immediate Execution Order
 
-- [ ] Keep the current public deployment on AWS Lightsail for the take-home submission.
-- [ ] Add Azure deployment documentation/path if time allows because Marcus says current infrastructure is on Azure.
-- [ ] Document that the current AWS deployment is for evaluation convenience and that the container stack is cloud-portable to Azure VM or Azure Container Apps.
-- [ ] Ensure runtime architecture is not AWS-specific.
-- [ ] Add restricted-network runtime posture: no hosted ML/OCR calls, no external model endpoints, local static assets, and no outbound AI dependency during label verification.
-- [ ] Distinguish build-time dependency downloads from runtime network behavior.
-- [ ] Strengthen PII/document-retention docs: prototype storage is local filesystem job storage, cleanup is available, and production needs records policy.
-- [ ] Add or improve cleanup/retention workflow docs for uploaded label artifacts.
-- [ ] Add future .NET/COLA integration path without implementing direct COLA integration.
-- [ ] Add procurement-oriented architecture summary explaining feasibility, limitations, operations, deployment options, and trade-offs.
-- [ ] Avoid any FedRAMP overclaim; explicitly state production deployment would require authorization, identity, logging, retention, and security review.
-
-### P1 Jenny Park / Dave Morrison Supporting Gaps
-
-Jenny and Dave fill in practical reviewer behavior: exact warning checks, non-perfect images, and tolerance for harmless formatting differences.
-
-- [ ] Improve missing-warning handling so the app distinguishes missing, unreadable, wrong text, wrong capitalization, and typography review.
-- [ ] Add explicit image-quality diagnostics for blur, low resolution, glare/contrast, or hard-to-read photos where feasible.
-- [ ] Keep warning boldness conservative, but improve the reviewer-facing typography explanation and evidence.
-- [ ] Extend Dave-style fuzzy matching philosophy to alcohol-content, class/type, net contents, country origin, and bottler/address formatting differences.
-- [ ] Add tests for harmless formatting variants such as `45% Alc./Vol.`, `45% alcohol by volume`, and `90 Proof`.
-
-### P2 Documentation And Submission Gaps
-
-- [ ] Update README narrative so the product thesis is application-data-to-label-artwork verification.
-- [ ] Update `DEMO_SCRIPT.md` around a COLA-style application data file plus label artwork workflow.
-- [ ] Update `ARCHITECTURE.md` with COLA-shaped standalone input and Azure portability.
-- [ ] Update `PRD.md` so Sarah and Marcus's hidden requirements are explicitly tracked.
-- [ ] Update `docs/performance.md` with measured public VM timings.
-- [ ] Add or update `docs/security.md` / privacy language around restricted networks, uploads, retention, and non-production limits.
-- [ ] Add test data documentation explaining synthetic COLA-style application data, fixture OCR, and why confidential rejected applications are not used.
-
-### Implementation Order
-
-Build in this order so every change reinforces the agency workflow:
-
-1. Finish the local data path contract and keep `data/work/` gitignored.
-2. Investigate and document the COLAs Online data structure.
-3. Build the local public COLA ETL/SQLite workspace before touching AWS.
-4. Export a small curated official public COLA fixture set with source HTML, label images, parsed application JSON, expected results, and provenance.
-5. Expand `ColaApplication` and `ManifestItem` into a COLA-style application record.
-6. Regenerate fixtures/manifests with application IDs and bottler/producer fields.
-7. Create a Phase 1 fixture coverage matrix where every item in `PHASE1_REJECTION.md` has application data, image data, expected results, and provenance.
-8. Add field-by-field rules for alcohol content, class/type, net contents, bottler/producer, and fanciful name.
-9. Update result detail pages and CSV export into field-level mismatch reports.
-10. Add OCR evaluation split manifests, tune preprocessing on train/dev only, and report held-out accuracy/confusion metrics.
-11. Add OCR benchmarking/preprocessing for real phone photos and document p50/p95 timings.
-12. Add 200-300 row synthetic batch proof and tests.
-13. Update README, PRD, ARCHITECTURE, DEMO_SCRIPT, performance docs, security docs, and optional Azure deployment docs.
-14. Redeploy AWS and rerun public smoke/demo checks.
+1. Pause further TTB registry requests until connection resets stop.
+2. Keep the existing 810 parsed official public COLA applications as the initial evaluation corpus.
+3. Retry valid label attachment downloads only after the TTB endpoint stabilizes.
+4. Run the OCR evaluation runner on a capped subset with valid raster images.
+5. Produce first field-level OCR/matching metrics on that capped subset.
+6. Expand to the full local corpus after the first subset proves the data path.
+7. If the public registry stabilizes, collect the final 200 non-overlapping applications to reach 1,000.
+8. Export 10-25 curated official public fixtures for committed demo/test use.
+9. Build synthetic negative coverage for the highest-risk mismatch cases.
+10. Update README, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the measurement story.
+11. Redeploy only after local OCR/evaluation changes pass.
 
 ---
 
 ## Deployment Checklist
 
-The first public deployment was completed on AWS Lightsail. Keep this checklist for redeploys or host rebuilds.
+The public deployment is already live. Keep this checklist for redeploys or host rebuilds.
 
-- [x] Launch or confirm AWS Lightsail/EC2 Ubuntu instance.
-- [x] Attach or confirm static public IP.
+- [x] Launch AWS Lightsail/Ubuntu instance.
+- [x] Attach static public IP.
 - [x] Confirm firewall allows `80` and `443` publicly and `22` for SSH.
-- [x] Point DNS A records:
+- [x] Point DNS:
   - [x] `www.labelsontap.ai` -> static public IP.
   - [x] `labelsontap.ai` -> static public IP.
-- [x] SSH to server.
 - [x] Install Docker and Git.
 - [x] Clone `https://github.com/AaronNHorvitz/Labels-On-Tap`.
 - [x] Run `cp .env.example .env`.
@@ -307,91 +274,9 @@ The first public deployment was completed on AWS Lightsail. Keep this checklist 
 - [x] Run `docker compose up -d`.
 - [x] Run public smoke: `curl https://www.labelsontap.ai/health`.
 - [x] Confirm apex redirect: `curl -I https://labelsontap.ai`.
-- [ ] Open browser and run demo script.
-- [ ] Update `docs/performance.md` with Docker/public measurements.
-
----
-
-## Completed Deployment Hardening
-
-- [x] Commit `TASKS.md`.
-- [x] Fix README stale command: `docker compose logs web` → `docker compose logs app`.
-- [x] Commit root `TRADEOFFS.md`.
-- [x] Add root `DEMO_SCRIPT.md`.
-- [x] Add `docs/deployment.md` if missing.
-- [x] Add upload max-size enforcement.
-- [x] Randomize saved upload filenames.
-- [x] Preserve original upload filename as metadata only.
-- [x] Validate uploaded images with Pillow after signature check.
-- [x] Add upload preflight tests.
-- [x] Run `pytest -q` after the upload hardening changes.
-- [x] Run `docker compose build` on the deployed AWS host.
-- [x] Run local health smoke test.
-
-Acceptance commands:
-
-```bash
-python -m py_compile scripts/bootstrap_legal_corpus.py scripts/validate_legal_corpus.py scripts/bootstrap_project.py scripts/seed_demo_fixtures.py $(rg --files app -g '*.py')
-python scripts/bootstrap_project.py --if-missing
-python scripts/validate_legal_corpus.py
-pytest -q
-docker compose build
-docker compose up -d
-curl -H "Host: www.labelsontap.ai" http://localhost/health
-docker compose down
-```
-
-Note: Docker is required for Docker checks. Docker is not available in the current local Codex workspace, so Docker verification runs on the AWS host.
-
----
-
-## Should Fix Before Submission
-
-- [x] CSV export test.
-- [x] Item detail page test.
-- [x] Show per-rule evidence text on the item detail page when `evidence_text` is available.
-- [x] `docs/accessibility.md`.
-- [ ] Update `docs/performance.md` with measured values from local Docker and public deployment.
-- [x] `docs/tradeoffs.md` exists.
-- [x] Add `imported_missing_country_review.*` fixture if time allows.
-- [x] Public smoke test: `https://www.labelsontap.ai/health`.
-- [ ] Public smoke test: clean demo returns Pass.
-- [ ] Public smoke test: warning demo returns Fail.
-- [ ] Public smoke test: ABV demo returns Fail.
-- [ ] Public smoke test: malt net contents demo returns Fail.
-- [ ] Public smoke test: country-of-origin demo returns Pass.
-- [ ] Public smoke test: batch demo returns multiple results.
-- [ ] Public smoke test: CSV export downloads.
-- [x] Public smoke test: apex redirects to `www`.
-
----
-
-## Completed Stretch Features
-
-These were previously time-permitting items and are now implemented.
-
-- [x] Manual multi-file batch upload using `manifest.csv` / `manifest.json` plus multiple `.jpg/.jpeg/.png` files.
-- [x] Manifest parser tests for missing image, unknown filename, malformed CSV, and happy path.
-- [x] CSV export coverage for batch jobs.
-- [x] Item detail page coverage for expected, observed, source refs, reviewer action, and per-rule evidence text.
-- [x] Add `brand_mismatch_fail.*` fixture.
-- [x] Add `conflicting_country_origin_fail.*` fixture.
-- [x] Add `warning_missing_block_review.*` fixture.
-- [x] Add a small upload-error page or friendly error template for rejected files.
-- [x] Add old-job cleanup command/script with conservative retention defaults.
-- [x] Add OCR warmup note or prewarm command for deployment.
-
----
-
-## Deferred Unless Interview Requirements Are Complete
-
-- [ ] ZIP upload with safe archive limits and ZIP-bomb protection.
-- [ ] Broad public COLA fixture curation beyond the first targeted official sample set.
-- [ ] Large OCR benchmark harness beyond the first train/test evaluation set.
-- [ ] Extra risk-rule demos beyond the current source-backed core.
-- [ ] Thumbnails/evidence/export folders if they are not used by the UI.
-- [ ] Database-backed job store.
-- [ ] Authentication and audit logging.
+- [ ] Redeploy after OCR evaluation workflow is implemented.
+- [ ] Run public demo script after redeploy.
+- [ ] Update `docs/performance.md` with public Docker measurements.
 
 ---
 
@@ -402,162 +287,59 @@ Keep this architecture stable:
 - FastAPI
 - Jinja2/HTMX
 - local CSS
-- docTR primary OCR adapter
+- docTR primary OCR adapter unless a faster local OCR adapter is added behind the same interface
 - fixture OCR fallback for deterministic demos/tests
 - filesystem job store
 - Docker + Caddy
 - no hosted OCR or hosted ML APIs at runtime
+- no private/authenticated COLAs Online scraping
 - no React/Vue/Angular
-- no ZIP upload for MVP
-- no brittle font-weight CV hard failure
+- no ZIP upload before the OCR proof is complete
+- no database-backed runtime job store before submission
 
 ---
 
-## Do Not Do Until Interview Requirements Are Covered
+## Data Safety Rules
 
-- [ ] Do not add ZIP upload.
-- [ ] Do not add React/Vue/Angular.
-- [ ] Do not scrape private or authenticated COLA data.
-- [ ] Do not replace the runtime filesystem job store with a database before interview requirements are covered.
-- [ ] Do not commit `data/work/`, local SQLite databases, raw registry pulls, or raw phone-photo benchmark data.
-- [ ] Do not add authentication.
-- [ ] Do not chase speculative rules before the Sarah/Marcus application-data workflow is complete.
-- [ ] Do not replace the fixture-backed demo path with live OCR-only behavior.
-
----
-
-## Deployment Runbook
-
-Current public host is AWS Lightsail:
-
-```text
-OS: Ubuntu Linux
-Instance: 8 GB RAM / 2 vCPU Lightsail general purpose
-Network: static public IPv4
-Firewall:
-  22 for SSH
-  80 from 0.0.0.0/0
-  443 from 0.0.0.0/0
-DNS:
-  www.labelsontap.ai A/CNAME path -> static public IP
-  labelsontap.ai A record -> static public IP
-Runtime:
-  Docker Compose
-  Caddy
-  FastAPI app container
-```
-
-The stack must remain portable to Azure VM or Azure Container Apps because Marcus stated current agency infrastructure is on Azure. Do not introduce AWS-only runtime dependencies.
-
-Server commands:
-
-```bash
-sudo apt update && sudo apt upgrade -y
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER
-sudo apt install -y git
-git clone https://github.com/AaronNHorvitz/Labels-On-Tap.git
-cd Labels-On-Tap
-cp .env.example .env
-docker compose build
-docker compose up -d
-docker compose logs -f app
-```
-
-Public smoke:
-
-```bash
-curl -I https://www.labelsontap.ai
-curl https://www.labelsontap.ai/health
-curl -I https://labelsontap.ai
-```
+- [ ] Do not commit `data/work/`.
+- [ ] Do not commit local SQLite databases.
+- [ ] Do not commit raw bulk public registry pulls unless explicitly curated into `data/fixtures/public-cola/`.
+- [ ] Do not commit raw iPhone/store photos.
+- [ ] Strip EXIF/location metadata from any local phone-photo benchmark files before derived use.
+- [ ] Do not scrape private/authenticated COLAs Online data.
+- [ ] Do not claim rejected/Needs Correction data is public.
+- [ ] Do not claim final OCR accuracy until held-out evaluation has actually run.
 
 ---
 
-## Known Constraints To Mention If Asked
+## Documentation Updates
 
-- Demo OCR uses fixture ground truth for deterministic evaluator behavior.
-- Real uploads use the local docTR adapter and route OCR failures or low confidence to Needs Review.
-- Fixture-backed batch demo and manual manifest-backed batch upload are implemented; batch processing is synchronous in the web process for the sprint prototype.
-- Typography boldness routes to Needs Review instead of brittle raster font-weight failure.
-- The app is a reviewer-support prototype, not a final legal approval/rejection system.
-- The project does not use hosted OCR or hosted ML APIs at runtime.
+- [ ] Update README first sentence so it clearly says the app triages COLAs Online-style applications and identifies labels that appear out of compliance.
+- [ ] Put the time-savings/business case near the top of README:
+  - TTB 2026 label applications received to date.
+  - Sarah's 5-10 minute simple-review estimate.
+  - Annualized reviewer-hour estimate.
+- [ ] Add the official public COLA sampling methodology to README if not already current.
+- [ ] Update `TRADEOFFS.md` with the simplified mission: OCR proof first, legal reasoning later.
+- [ ] Update `docs/performance.md` with OCR field-matching metrics and latency.
+- [ ] Update `DEMO_SCRIPT.md` around official COLA OCR proof and deterministic mismatch demos.
+- [ ] Keep Azure portability documented, but do not migrate hosting unless AWS becomes a blocker.
 
 ---
 
 ## Submission Artifacts
 
 - [ ] Screenshot home page.
+- [ ] Screenshot official COLA evaluation summary or field-match result.
 - [ ] Screenshot clean Pass result.
-- [ ] Screenshot government warning Fail result.
+- [ ] Screenshot mismatch / Needs Review or Fail result.
 - [ ] Screenshot batch result table.
-- [ ] Save final commit SHA. Current pushed SHA before requirements-gap update is `23e303d`.
+- [ ] Save final commit SHA.
 - [ ] Draft submission email.
 - [ ] Include GitHub URL.
 - [ ] Include deployed URL.
 - [ ] Include one-sentence local-first note.
-
----
-
-## Definition Of Done
-
-- [x] `https://www.labelsontap.ai` loads over HTTPS.
-- [x] `https://labelsontap.ai` redirects to `https://www.labelsontap.ai`.
-- [x] Home page has one-click demo buttons.
-- [x] Clean demo returns Pass.
-- [x] Government warning demo returns Fail.
-- [x] ABV demo returns Fail.
-- [x] Malt net contents demo returns Fail.
-- [x] Country-of-origin demo returns Pass.
-- [x] Batch demo returns multiple results.
-- [x] CSV export works.
-- [x] Result detail page shows expected, observed, evidence, source refs, and reviewer action.
-- [x] Single upload form exists.
-- [x] Manual manifest-backed batch upload form exists.
-- [x] Fixture-backed batch demo is clearly available.
-- [x] `pytest -q` passes.
-- [x] `docker compose build` passes on the AWS host.
-- [x] `docker compose up -d` runs on the AWS host.
-- [x] AWS Lightsail deployment is running.
-- [ ] COLA-style application data import is the central workflow.
-- [ ] Field-by-field application-to-label matching covers brand, alcohol content, class/type, net contents, country of origin, and bottler/producer.
-- [ ] CSV export is reviewer-ready and includes application IDs, expected values, observed values, verdicts, and reviewer actions.
-- [ ] Large synthetic batch proof covers Sarah's 200-300 application scenario.
-- [ ] Local public COLA ETL workspace exists and stays gitignored.
-- [ ] Public form parser extracts structured application fields and label attachment metadata into local SQLite.
-- [ ] Curated official public COLA fixtures are exported from local ETL data into committed fixture folders.
-- [ ] OCR evaluation has train/dev/test split manifests, held-out accuracy, and a verdict confusion matrix.
-- [ ] AWS deployment is updated after local parser/fixture/app changes are tested.
-- [ ] Azure deployment path is documented if time allows.
-- [ ] Restricted-network runtime posture is documented.
-- [ ] PII/document-retention prototype limits are documented.
-- [x] README has quick start and live demo instructions.
-- [x] PRD exists.
-- [x] ARCHITECTURE exists.
-- [x] TASKS exists and is committed.
-- [x] TRADEOFFS exists.
-- [x] DEMO_SCRIPT exists.
-- [x] Legal corpus exists.
-- [x] Source-backed criteria matrix exists.
-- [x] Fixture provenance exists.
-- [x] No secrets committed.
-- [x] No private/confidential rejected COLA data committed.
-- [x] No hosted OCR/ML API call exists in runtime code.
-- [ ] Final submission email sent.
-
----
-
-## Monday Submission Buffer
-
-Only light verification and submission should remain for Monday:
-
-- [ ] Open `https://www.labelsontap.ai`.
-- [ ] Run Clean Label Demo.
-- [ ] Run Batch Demo.
-- [ ] Confirm GitHub repo is public.
-- [ ] Confirm README loads.
-- [ ] Confirm latest commit is visible.
-- [ ] Send GitHub URL and deployed URL to Sam.
+- [ ] Include one-sentence statistical evaluation note.
 
 Submission URLs:
 
@@ -565,3 +347,22 @@ Submission URLs:
 Repository: https://github.com/AaronNHorvitz/Labels-On-Tap
 Deployed app: https://www.labelsontap.ai
 ```
+
+---
+
+## Definition Of Done For Monday
+
+- [x] Public app is live over HTTPS.
+- [x] Public health check passes.
+- [x] Existing demos work.
+- [x] Local public COLA corpus exists and stays gitignored.
+- [ ] OCR evaluation runner works on official public COLA records.
+- [ ] Field-level matching metrics are generated from official public COLA records.
+- [ ] README explains the business case and statistical methodology.
+- [ ] `docs/performance.md` reports measured OCR/matching results and latency.
+- [ ] Deterministic mismatch demo still works.
+- [ ] CSV export shows reviewer-ready expected/observed/evidence/verdict/action fields.
+- [ ] Tests pass.
+- [ ] Docker build passes on the deployment host after final changes.
+- [ ] `https://www.labelsontap.ai` is redeployed with the final version.
+- [ ] Final submission email sent.

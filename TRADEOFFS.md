@@ -176,7 +176,7 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 **Implication:** The resulting corpus is stronger than a hand-picked demo set, but it is still not a complete population study. It is a practical stratified cluster sample from public registry exports, not a simple random sample of every COLA application. It also cannot include confidential pending, denied, or Needs Correction applications.
 
-**Current local result:** Two non-overlapping seeded runs produced `800` unique public COLA applications and `800` parsed forms. Those runs discovered `1,418` label panels and downloaded `1,220` label images before repeated public attachment resets made it prudent to stop the second image pass and resume later. Bulk data remains under gitignored `data/work/`.
+**Current local result:** Two non-overlapping seeded runs produced `800` sampled public COLA applications, and the local workspace now contains `810` parsed public forms including earlier pilot records. Those runs discovered `1,433` label-panel attachment records. A May 2 audit found that the previously saved attachment files were HTML error pages rather than valid raster images, so those attachment rows were marked pending for future redownload. Bulk data remains under gitignored `data/work/`, and the downloader now validates image bytes before accepting a panel as OCR-ready.
 
 ---
 

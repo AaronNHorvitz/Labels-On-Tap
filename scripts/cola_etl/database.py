@@ -296,8 +296,10 @@ def pending_attachments(
         clauses.append(f"ttb_id IN ({placeholders})")
         params.extend(ids)
     if missing_only:
-        clauses.append("(raw_image_path IS NULL OR raw_image_path = '')")
-        clauses.append("http_status IS NULL")
+        clauses.append(
+            "((raw_image_path IS NULL OR raw_image_path = '') "
+            "OR http_status IS NULL OR http_status != 200)"
+        )
 
     where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     limit_sql = "LIMIT ?" if limit else ""

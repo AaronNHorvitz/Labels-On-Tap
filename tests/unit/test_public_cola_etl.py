@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 
+from PIL import Image
+
 from scripts.cola_etl.csv_import import read_registry_csv
+from scripts.cola_etl.database import connect, pending_attachments, record_attachment_download, replace_attachments
+from scripts.cola_etl.images import InvalidImageDownload, is_valid_image_path, validate_image_bytes
 from scripts.cola_etl.parser import parse_public_cola_form
 
 
@@ -159,3 +164,59 @@ def test_read_registry_csv_normalizes_ttb_export_headers(tmp_path: Path) -> None
             "class_type_desc": "STRAIGHT BOURBON WHISKY",
         }
     ]
+
+
+def test_validate_image_bytes_rejects_ttb_html_error_page() -> None:
+    html = b"<html><title>TTB Online</title><p>Unable to render attachment.</p></html>"
+
+    try:
+        validate_image_bytes(html, content_type="text/html")
+    except InvalidImageDownload as exc:
+        assert "content type" in str(exc) or "HTML" in str(exc)
+    else:  # pragma: no cover - explicit failure path for readability.
+        raise AssertionError("expected HTML attachment response to be rejected")
+
+
+def test_is_valid_image_path_accepts_real_png(tmp_path: Path) -> None:
+    image = Image.new("RGB", (10, 10), "white")
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    path = tmp_path / "label.png"
+    path.write_bytes(buffer.getvalue())
+
+    assert is_valid_image_path(path) is True
+
+
+def test_pending_attachments_includes_invalid_download_attempts(tmp_path: Path) -> None:
+    connection = connect(tmp_path / "registry.sqlite")
+    replace_attachments(
+        connection,
+        ttb_id="25337001000464",
+        attachments=[
+            {
+                "panel_order": 1,
+                "filename": "front label.jpg",
+                "source_url": "https://example.test/front.jpg",
+                "image_type": "Brand",
+                "width_inches": 3.5,
+                "height_inches": 4.0,
+                "alt_text": "Label Image",
+            }
+        ],
+    )
+    connection.commit()
+
+    initial = pending_attachments(connection)
+    assert len(initial) == 1
+
+    record_attachment_download(
+        connection,
+        attachment_id=initial[0]["id"],
+        raw_image_path=None,
+        http_status=0,
+    )
+    connection.commit()
+
+    retryable = pending_attachments(connection)
+    assert len(retryable) == 1
+    assert retryable[0]["http_status"] == 0

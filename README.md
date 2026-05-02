@@ -65,10 +65,10 @@ The current local evaluation corpus was created as two non-overlapping seeded ru
 
 | Run | Seed | Target | Exclusion | Result |
 |---|---:|---:|---|---|
-| Pilot corpus | `20260502` | `300` applications | none | `300` parsed forms, `557` downloaded label panels |
-| Expanded corpus | `20260503` | `500` applications | prior `300` IDs | `500` parsed forms, `663` downloaded label panels so far |
+| Pilot corpus | `20260502` | `300` applications | none | `300` parsed forms, `557` discovered label panels |
+| Expanded corpus | `20260503` | `500` applications | prior `300` IDs | `500` parsed forms, `663` discovered label panels in that run |
 
-Together, the local workspace currently has `800` unique public COLA applications, `800` parsed forms, `1,418` discovered label panels, and `1,220` downloaded label images. The second image-download pass stopped politely after the public attachment endpoint began returning repeated connection resets; `179` panels remain resumable and `19` failed panel downloads are recorded for later retry. Bulk forms, images, SQLite data, and OCR outputs remain under gitignored `data/work/`.
+Together, the local workspace currently has `810` parsed public COLA forms and `1,433` discovered label-panel attachment records. A May 2 audit found that the previously saved attachment files were HTML "Unable to render attachment" error pages rather than valid raster images, so the validated public-label image count is currently `0` until the attachment endpoint is reachable and those pending downloads are retried. The downloader now warms the public form session, validates attachment bytes with Pillow, and refuses to mark HTML error pages as label images. Bulk forms, image attempts, SQLite data, and OCR outputs remain under gitignored `data/work/`.
 
 This design gives the project a cleaner evidence story than hand-picked examples:
 
@@ -77,7 +77,7 @@ This design gives the project a cleaner evidence story than hand-picked examples
 - stratified by month to reduce simple recency bias,
 - post-stratified by product/source buckets to improve coverage,
 - sampled without replacement to avoid duplicated applications,
-- honest about public-registry limits and transient attachment failures.
+- honest about public-registry limits, transient attachment failures, and validated-image counts.
 ```
 
 Limitations remain. This is not a simple random sample of all COLA applications; it is a practical stratified cluster sample from public registry exports. It excludes confidential pending, denied, and Needs Correction applications. Synthetic negative fixtures are still required to test rejection cases that are not publicly available as a clean corpus.

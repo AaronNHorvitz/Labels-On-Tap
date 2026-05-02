@@ -4,7 +4,10 @@ beautifulsoup4
 uvicorn[standard]
 jinja2
 python-multipart
-python-doctr[torch]
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.11.0+cpu
+torchvision==0.26.0+cpu
+python-doctr==1.0.1
 opencv-python-headless
 pillow
 rapidfuzz
