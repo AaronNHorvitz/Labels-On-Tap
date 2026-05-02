@@ -15,6 +15,23 @@ TTB public registry search CSV
   -> curated fixture export
 ```
 
+When TTBOnline.gov is unavailable, the COLA Cloud sample pack can be imported
+as a development-only fallback corpus:
+
+```text
+COLA Cloud sample pack ZIP
+  -> local SQLite registry index
+  -> parsed application JSON
+  -> CloudFront label image download
+  -> local PNG conversion
+  -> local OCR evaluation
+```
+
+This fallback is for local development and OCR measurement only. The deployed
+application must not depend on COLA Cloud or any hosted data API at runtime.
+COLA Cloud's OCR fields are third-party silver labels, not Labels On Tap ground
+truth.
+
 ## Local Workspace
 
 Bulk ETL artifacts are gitignored:
@@ -133,6 +150,21 @@ For ambiguous or renamed browser downloads, create a CSV with
 python scripts/import_manual_public_cola_images.py ~/Downloads \
   --manifest data/work/public-cola/sampling/manual-image-map.csv
 ```
+
+Import the COLA Cloud sample pack when TTBOnline.gov is down:
+
+```bash
+python scripts/import_colacloud_sample_pack.py \
+  ~/Downloads/cola-sample-pack-v1.zip \
+  --limit 100 \
+  --download-images \
+  --image-limit 250
+```
+
+The importer reads `cola.csv` and `cola_image.csv`, creates parsed application
+JSON files, downloads CloudFront WebP label images, validates them with Pillow,
+converts them to PNG, and records the image paths in the local SQLite index.
+All artifacts remain under gitignored `data/work/public-cola/`.
 
 Evaluate OCR field matching against downloaded public COLA records:
 

@@ -113,3 +113,29 @@ Measured locally with Podman on port `8001` after rebuilding
 
 This verifies the local container shape before any AWS redeploy. It is not a
 public latency benchmark.
+
+## May 2 COLA Cloud Sample OCR Smoke
+
+TTBOnline.gov remained unavailable/resetting during the weekend sprint, so the
+COLA Cloud sample pack was used as a development-only fallback corpus. The
+sample pack includes public COLA metadata plus CloudFront-hosted label image
+URLs. The importer downloaded and converted 8 real label images for 5 COLA
+applications, then the local docTR evaluator ran inside the Podman app image.
+
+Tiny-sample result:
+
+| Metric | Result |
+|---|---:|
+| Applications evaluated | 5 |
+| Label images OCR'd | 8 |
+| Mean latency per application | 1,784 ms |
+| Max latency per application | 3,860 ms |
+| Brand-name match rate | 80% |
+| Fanciful-name match rate | 80% |
+| Country-origin match rate | 100% of 3 attempted |
+| Class/type match rate | 0% |
+
+This is only a smoke result, not final accuracy. It proves the end-to-end path
+from commercial public-data sample pack to local OCR to field-level evidence.
+It also shows the next tuning target: class/type matching needs more tolerant
+normalization and/or product-class synonym handling.

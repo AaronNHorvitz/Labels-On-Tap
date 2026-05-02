@@ -51,7 +51,10 @@ def validate_image_bytes(content: bytes, *, content_type: str = "") -> bytes:
         raise InvalidImageDownload("empty attachment response")
 
     media_type = content_type.split(";", 1)[0].strip().lower()
-    if media_type and not media_type.startswith("image/") and media_type != "application/octet-stream":
+    if media_type and not media_type.startswith("image/") and media_type not in {
+        "application/octet-stream",
+        "binary/octet-stream",
+    }:
         raise InvalidImageDownload(f"unexpected attachment content type: {content_type}")
     if content_looks_like_html(content):
         raise InvalidImageDownload("attachment endpoint returned HTML instead of an image")

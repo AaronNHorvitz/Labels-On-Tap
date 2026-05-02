@@ -52,6 +52,9 @@ The sprint priority is now:
 - [x] The downloader now warms the public form session before requesting attachment URLs.
 - [x] The OCR evaluator now skips invalid image files instead of treating HTML error pages as OCR failures.
 - [ ] Current valid downloaded public label raster count is **0** until the TTB attachment endpoint is reachable and pending downloads are retried.
+- [x] COLA Cloud sample pack importer exists as a development-only fallback when TTBOnline.gov is unavailable.
+- [x] COLA Cloud smoke imported 5 applications and 8 real label images locally.
+- [x] COLA Cloud smoke OCR ran through local docTR in the Podman app image.
 - [x] Existing public sampling used deterministic seeds and sampling without replacement.
 - [x] Existing public sampling produced two non-overlapping samples: 300 applications and 500 applications.
 - [x] TTB's public processing-time page reports **57,636 label applications received in 2026 as of May 1, 2026**.
@@ -116,6 +119,7 @@ Use accepted public COLA applications as positive ground truth. The goal is not 
 - [ ] Pause additional TTB registry fetching while the public endpoint is resetting.
 - [ ] When the endpoint stabilizes, collect up to 200 more non-overlapping official public COLAs to reach `n = 1,000`.
 - [ ] Retry pending public label image downloads with session warming, Pillow validation, and polite delay/retry settings.
+- [ ] Use COLA Cloud sample pack only as development/silver-label fallback; do not make it a runtime dependency.
 - [ ] Export 10-25 curated official public COLA fixtures into `data/fixtures/public-cola/`.
 - [ ] Each curated fixture must include source/provenance, parsed application JSON, label image metadata, and expected field checks.
 - [ ] Keep official public records separate from synthetic negative records.
