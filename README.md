@@ -474,6 +474,15 @@ The **Run Batch Demo** button uses the same generated fixture set to demonstrate
 
 ## Architecture
 
+Operational handoff and experiment tracking:
+
+| File | Purpose |
+|---|---|
+| [HANDOFF.md](HANDOFF.md) | Restart guide for a fresh coding session. |
+| [MODEL_LOG.md](MODEL_LOG.md) | OCR and graph-evidence experiment ledger. |
+| [TASKS.md](TASKS.md) | Final sprint command center. |
+| [docs/performance.md](docs/performance.md) | Measured timings, OCR calibration results, and model metrics. |
+
 ```text
 Browser
   -> FastAPI routes

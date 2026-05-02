@@ -68,6 +68,8 @@ The sprint priority is now:
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
 - [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the 100-application calibration test split.
+- [x] `MODEL_LOG.md` records OCR/model experiments and caveats.
+- [x] `HANDOFF.md` records current state, GPU setup, data paths, and restart steps.
 - [x] Existing public sampling used deterministic seeds and sampling without replacement.
 - [x] Existing public sampling produced two non-overlapping samples: 300 applications and 500 applications.
 - [x] TTB's public processing-time page reports **57,636 label applications received in 2026 as of May 1, 2026**.
