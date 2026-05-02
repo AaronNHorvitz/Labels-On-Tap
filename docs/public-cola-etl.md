@@ -107,6 +107,33 @@ retry them later:
 python scripts/audit_public_cola_images.py --mark-invalid
 ```
 
+When the TTB image endpoint works in a browser but not through automated HTTP,
+export a browser-download manifest:
+
+```bash
+python scripts/export_public_cola_attachment_links.py \
+  --ttb-id 25337001000464 \
+  --output data/work/public-cola/sampling/manual-attachment-links.csv
+```
+
+Open the parent form first, then download each attachment link in the same
+browser session. After the image files are saved locally, import and validate
+them:
+
+```bash
+python scripts/import_manual_public_cola_images.py ~/Downloads \
+  --ttb-id 25337001000464 \
+  --recursive
+```
+
+For ambiguous or renamed browser downloads, create a CSV with
+`ttb_id,panel_order,path` and import it explicitly:
+
+```bash
+python scripts/import_manual_public_cola_images.py ~/Downloads \
+  --manifest data/work/public-cola/sampling/manual-image-map.csv
+```
+
 Evaluate OCR field matching against downloaded public COLA records:
 
 ```bash
