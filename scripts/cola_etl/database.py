@@ -59,6 +59,21 @@ CREATE TABLE IF NOT EXISTS attachments (
     http_status INTEGER,
     UNIQUE (ttb_id, panel_order)
 );
+
+CREATE INDEX IF NOT EXISTS idx_registry_records_completed_date
+ON registry_records(completed_date);
+
+CREATE INDEX IF NOT EXISTS idx_registry_records_origin_desc
+ON registry_records(origin_desc);
+
+CREATE INDEX IF NOT EXISTS idx_registry_records_class_type_desc
+ON registry_records(class_type_desc);
+
+CREATE INDEX IF NOT EXISTS idx_form_fetches_parse_status
+ON form_fetches(parse_status);
+
+CREATE INDEX IF NOT EXISTS idx_attachments_ttb_id
+ON attachments(ttb_id);
 """
 
 

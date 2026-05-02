@@ -28,6 +28,17 @@ def normalize_header(value: str) -> str:
     return HEADER_MAP.get(cleaned, cleaned.replace(" ", "_").replace("/", "_"))
 
 
+def normalize_value(value: str | None) -> str:
+    """Normalize a CSV field value from the public registry export."""
+
+    cleaned = (value or "").strip()
+    if cleaned.startswith("'") and cleaned.endswith("'") and cleaned[1:-1].isdigit():
+        return cleaned[1:-1]
+    if cleaned.startswith("'") and cleaned[1:].isdigit():
+        return cleaned[1:]
+    return cleaned
+
+
 def read_registry_csv(path: Path) -> list[dict[str, str]]:
     """Read a TTB registry search-results CSV into normalized dictionaries."""
 
@@ -40,7 +51,7 @@ def read_registry_csv(path: Path) -> list[dict[str, str]]:
         for raw_row in reader:
             normalized: dict[str, str] = {}
             for original, normalized_name in zip(reader.fieldnames, fieldnames, strict=True):
-                normalized[normalized_name] = (raw_row.get(original) or "").strip()
+                normalized[normalized_name] = normalize_value(raw_row.get(original))
             if normalized.get("ttb_id"):
                 rows.append(normalized)
         return rows

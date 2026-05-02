@@ -19,6 +19,7 @@ RAW_FORMS_DIR = PUBLIC_COLA_WORK_DIR / "raw" / "forms"
 RAW_IMAGES_DIR = PUBLIC_COLA_WORK_DIR / "raw" / "images"
 PARSED_APPLICATIONS_DIR = PUBLIC_COLA_WORK_DIR / "parsed" / "applications"
 PARSED_OCR_DIR = PUBLIC_COLA_WORK_DIR / "parsed" / "ocr"
+SAMPLING_DIR = PUBLIC_COLA_WORK_DIR / "sampling"
 PUBLIC_COLA_DB_PATH = PUBLIC_COLA_WORK_DIR / "registry.sqlite"
 
 PUBLIC_COLA_FIXTURE_DIR = REPO_ROOT / "data" / "fixtures" / "public-cola"
@@ -33,6 +34,7 @@ def ensure_public_cola_work_dirs() -> None:
         RAW_IMAGES_DIR,
         PARSED_APPLICATIONS_DIR,
         PARSED_OCR_DIR,
+        SAMPLING_DIR,
         PUBLIC_COLA_FIXTURE_DIR,
     ):
         path.mkdir(parents=True, exist_ok=True)

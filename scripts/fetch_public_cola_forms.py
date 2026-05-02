@@ -8,8 +8,10 @@ developing, inspect raw files, then parse and export curated fixtures.
 from __future__ import annotations
 
 import argparse
+import time
 from pathlib import Path
 
+from cola_etl.csv_import import normalize_value
 from cola_etl.database import connect, list_ttb_ids, record_form_fetch
 from cola_etl.http import make_client, polite_sleep
 from cola_etl.paths import RAW_FORMS_DIR, ensure_public_cola_work_dirs
@@ -26,6 +28,7 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ttb-id", action="append", default=[], help="TTB ID to fetch")
+    parser.add_argument("--ttb-id-file", help="File containing one TTB ID per line")
     parser.add_argument("--limit", type=int, default=None, help="Maximum forms to fetch")
     parser.add_argument(
         "--missing-only",
@@ -37,11 +40,34 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jitter", type=float, default=1.0, help="Random extra delay seconds")
     parser.add_argument("--timeout", type=float, default=30.0, help="HTTP timeout seconds")
     parser.add_argument(
+        "--time-budget-seconds",
+        type=float,
+        default=None,
+        help="Stop cleanly once this many seconds have elapsed in the current run",
+    )
+    parser.add_argument(
         "--insecure",
         action="store_true",
         help="Disable TLS verification for public TTB registry fetches when local CA validation fails",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Alias for the default skip-existing behavior; useful for orchestration scripts",
+    )
     return parser.parse_args()
+
+
+def read_ttb_ids_from_file(path: str | None) -> list[str]:
+    """Read one TTB ID per line from a text file."""
+
+    if not path:
+        return []
+    return [
+        normalize_value(line.strip())
+        for line in Path(path).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def main() -> None:
@@ -49,10 +75,16 @@ def main() -> None:
 
     args = parse_args()
     ensure_public_cola_work_dirs()
+    deadline = (
+        time.monotonic() + args.time_budget_seconds
+        if args.time_budget_seconds is not None
+        else None
+    )
     with connect() as connection:
+        explicit_ids = args.ttb_id + read_ttb_ids_from_file(args.ttb_id_file)
         ttb_ids = list_ttb_ids(
             connection,
-            explicit_ids=args.ttb_id,
+            explicit_ids=explicit_ids,
             missing_forms_only=args.missing_only,
             limit=args.limit,
         )
@@ -62,6 +94,9 @@ def main() -> None:
 
         with make_client(timeout=args.timeout, verify=not args.insecure) as client:
             for index, ttb_id in enumerate(ttb_ids, start=1):
+                if deadline is not None and time.monotonic() >= deadline:
+                    print("Time budget reached before next form fetch.")
+                    break
                 url = FORM_URL_TEMPLATE.format(ttb_id=ttb_id)
                 output_path = RAW_FORMS_DIR / f"{ttb_id}.html"
                 if output_path.exists() and not args.force:

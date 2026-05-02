@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import time
 from pathlib import Path
 
+from cola_etl.csv_import import normalize_value
 from cola_etl.database import connect, record_parsed_form, replace_attachments
 from cola_etl.parser import parse_public_cola_form
 from cola_etl.paths import PARSED_APPLICATIONS_DIR, RAW_FORMS_DIR, ensure_public_cola_work_dirs
@@ -18,9 +20,33 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ttb-id", action="append", default=[], help="TTB ID to parse")
+    parser.add_argument("--ttb-id-file", help="File containing one TTB ID per line")
     parser.add_argument("--limit", type=int, default=None, help="Maximum forms to parse")
     parser.add_argument("--force", action="store_true", help="Reparse existing JSON files")
+    parser.add_argument(
+        "--time-budget-seconds",
+        type=float,
+        default=None,
+        help="Stop cleanly once this many seconds have elapsed in the current run",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Alias for the default skip-existing behavior; useful for orchestration scripts",
+    )
     return parser.parse_args()
+
+
+def read_ttb_ids_from_file(path: str | None) -> list[str]:
+    """Read one TTB ID per line from a text file."""
+
+    if not path:
+        return []
+    return [
+        normalize_value(line.strip())
+        for line in Path(path).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def form_paths(ttb_ids: list[str], limit: int | None) -> list[Path]:
@@ -48,7 +74,12 @@ def main() -> None:
 
     args = parse_args()
     ensure_public_cola_work_dirs()
-    paths = form_paths(args.ttb_id, args.limit)
+    deadline = (
+        time.monotonic() + args.time_budget_seconds
+        if args.time_budget_seconds is not None
+        else None
+    )
+    paths = form_paths(args.ttb_id + read_ttb_ids_from_file(args.ttb_id_file), args.limit)
     if not paths:
         print(f"No saved form HTML found in {RAW_FORMS_DIR}")
         return
@@ -56,6 +87,9 @@ def main() -> None:
     with connect() as connection:
         parsed_count = 0
         for path in paths:
+            if deadline is not None and time.monotonic() >= deadline:
+                print("Time budget reached before next parse step.")
+                break
             ttb_id = path.stem
             output_path = PARSED_APPLICATIONS_DIR / f"{ttb_id}.json"
             if output_path.exists() and not args.force:
