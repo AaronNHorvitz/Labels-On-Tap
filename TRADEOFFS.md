@@ -166,7 +166,21 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 ---
 
-### 4.3 Legal Corpus as Provenance, Not Runtime Burden
+### 4.3 Deterministic Stratified Sampling Instead of Ad Hoc Examples
+
+**Decision:** Public COLA evaluation records are selected with a deterministic, two-stage stratified sampling procedure rather than by hand-picking labels that look convenient.
+
+**Method:** The sampling frame is the public TTB COLA Registry over a fixed date range. Stage 1 selects business-day clusters within each month using a fixed pseudo-random seed. Stage 2 samples applications without replacement from the imported daily search-result pool, balancing across month, broad product family, and imported/domestic source buckets where those fields are available.
+
+**Why:** A take-home prototype needs enough official examples to prove the OCR/form-matching workflow without pretending to be a production statistical study. Seeded sampling makes the corpus reproducible. Monthly strata reduce simple recency bias. Secondary strata improve coverage across product/source types. Sampling without replacement prevents duplicated applications from inflating evaluation confidence.
+
+**Implication:** The resulting corpus is stronger than a hand-picked demo set, but it is still not a complete population study. It is a practical stratified cluster sample from public registry exports, not a simple random sample of every COLA application. It also cannot include confidential pending, denied, or Needs Correction applications.
+
+**Current local result:** Two non-overlapping seeded runs produced `800` unique public COLA applications and `800` parsed forms. Those runs discovered `1,418` label panels and downloaded `1,220` label images before repeated public attachment resets made it prudent to stop the second image pass and resume later. Bulk data remains under gitignored `data/work/`.
+
+---
+
+### 4.4 Legal Corpus as Provenance, Not Runtime Burden
 
 **Decision:** The repository includes a `research/legal-corpus/` directory and source-backed criteria matrix.
 

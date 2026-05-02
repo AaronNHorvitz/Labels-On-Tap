@@ -38,9 +38,49 @@ The evaluation language follows that product posture:
 | Field extraction accuracy | How often OCR found the right brand, class/type, ABV, net contents, country of origin, or warning text? |
 | Per-label latency | Whether useful feedback returns near the stakeholder target of about five seconds per label after warmup. |
 
-Any sprint metrics should be read as prototype validation, not production certification. The current public-data work uses recent public COLA registry records as a realistic, safe proxy for COLAs Online application data and uploaded label images. If the sample is drawn from April 1-May 1, 2026, it should be described as a **recent, limited, non-random public-record sample** unless a random or stratified sampling plan is explicitly used.
+Any sprint metrics should be read as prototype validation, not production certification. The current public-data work uses public COLA registry records as a realistic, safe proxy for COLAs Online application data and uploaded label images.
 
 A production-grade evaluation would use a larger random or stratified holdout set across product types, statuses, dates, form versions, and known regulatory/form-change boundaries. For this take-home, the practical goal is narrower: prove that public COLA application data and label images can be parsed, OCR'd, compared, and evaluated with conservative human-review routing.
+
+---
+
+## Public COLA Sampling Methodology
+
+The public COLA evaluation corpus is built with a deterministic, two-stage stratified sampling procedure. The goal is not to claim production statistical certification. The goal is to avoid cherry-picking while creating a reproducible official-data corpus large enough to test OCR/form matching.
+
+Sampling frame:
+
+```text
+Public source: TTB Public COLA Registry
+Date range: 2025-05-01 through 2026-05-01
+Primary strata: month completed
+Secondary strata: product family and imported/domestic source bucket
+Randomness: seeded pseudo-random sampling
+Replacement: without replacement
+```
+
+Stage 1 uses seeded cluster sampling by date: the script chooses business days within each month using a fixed seed, then imports all public registry rows for those days. Stage 2 samples applications without replacement from that imported pool, using a deterministic round-robin across secondary strata such as broad product family and imported/domestic source bucket. Train/dev/test splits are assigned deterministically within month buckets so the holdout set is not concentrated in one time period.
+
+The current local evaluation corpus was created as two non-overlapping seeded runs:
+
+| Run | Seed | Target | Exclusion | Result |
+|---|---:|---:|---|---|
+| Pilot corpus | `20260502` | `300` applications | none | `300` parsed forms, `557` downloaded label panels |
+| Expanded corpus | `20260503` | `500` applications | prior `300` IDs | `500` parsed forms, `663` downloaded label panels so far |
+
+Together, the local workspace currently has `800` unique public COLA applications, `800` parsed forms, `1,418` discovered label panels, and `1,220` downloaded label images. The second image-download pass stopped politely after the public attachment endpoint began returning repeated connection resets; `179` panels remain resumable and `19` failed panel downloads are recorded for later retry. Bulk forms, images, SQLite data, and OCR outputs remain under gitignored `data/work/`.
+
+This design gives the project a cleaner evidence story than hand-picked examples:
+
+```text
+- reproducible because seeds and date ranges are recorded,
+- stratified by month to reduce simple recency bias,
+- post-stratified by product/source buckets to improve coverage,
+- sampled without replacement to avoid duplicated applications,
+- honest about public-registry limits and transient attachment failures.
+```
+
+Limitations remain. This is not a simple random sample of all COLA applications; it is a practical stratified cluster sample from public registry exports. It excludes confidential pending, denied, and Needs Correction applications. Synthetic negative fixtures are still required to test rejection cases that are not publicly available as a clean corpus.
 
 ---
 
@@ -660,6 +700,7 @@ python scripts/fetch_public_cola_forms.py --missing-only --limit 5 --delay 3 --j
 python scripts/parse_public_cola_forms.py --limit 5
 python scripts/download_public_cola_images.py --limit 10 --delay 2 --jitter 1
 python scripts/export_public_cola_fixtures.py --ttb-id 03235001000005
+python scripts/run_public_cola_sampling_job.py --seed 20260503 --target-total 500 --exclude-ttb-id-file data/work/public-cola/sampling/exclusions/seed-20260502-300.txt --resume
 ```
 
 Bulk ETL data stays in gitignored `data/work/public-cola/`. Reviewed fixtures can be exported to `data/fixtures/public-cola/`. See [docs/public-cola-etl.md](docs/public-cola-etl.md).
