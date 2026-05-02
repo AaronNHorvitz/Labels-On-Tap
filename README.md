@@ -13,6 +13,37 @@
 
 ---
 
+## Model Posture: Conservative Triage
+
+Labels On Tap is designed as a reviewer-support triage assistant, not as an automatic legal approver.
+
+The highest-risk failure is a **false clear**: a problematic label incorrectly marked as `Pass`. The prototype therefore favors catching possible problems over automatically clearing borderline cases:
+
+```text
+clear evidence matches       -> Pass
+clear source-backed problem  -> Fail
+uncertain OCR/rule evidence  -> Needs Review
+```
+
+In plain terms: the tool should quickly clear obvious matches, flag obvious problems, and send ambiguous cases to a human reviewer with the evidence attached. Extra human review is acceptable; accidentally passing a bad label is not.
+
+The evaluation language follows that product posture:
+
+| Metric | Plain-English Meaning |
+|---|---|
+| Bad-label catch rate | Of known bad or intentionally mutated examples, how many were routed to `Fail` or `Needs Review`? |
+| False-clear rate | Of known bad examples, how many were incorrectly marked `Pass`? This is the primary safety metric. |
+| Reviewer-escalation rate | How often does the tool choose `Needs Review` instead of pretending it is certain? |
+| Clean-label pass rate | Of known clean examples, how many were correctly cleared? |
+| Field extraction accuracy | How often OCR found the right brand, class/type, ABV, net contents, country of origin, or warning text? |
+| Per-label latency | Whether useful feedback returns near the stakeholder target of about five seconds per label after warmup. |
+
+Any sprint metrics should be read as prototype validation, not production certification. The current public-data work uses recent public COLA registry records as a realistic, safe proxy for COLAs Online application data and uploaded label images. If the sample is drawn from April 1-May 1, 2026, it should be described as a **recent, limited, non-random public-record sample** unless a random or stratified sampling plan is explicitly used.
+
+A production-grade evaluation would use a larger random or stratified holdout set across product types, statuses, dates, form versions, and known regulatory/form-change boundaries. For this take-home, the practical goal is narrower: prove that public COLA application data and label images can be parsed, OCR'd, compared, and evaluated with conservative human-review routing.
+
+---
+
 ## Executive Summary
 
 Labels On Tap is a local-first prototype for beverage-alcohol label preflight review. It compares label artwork against Form 5100.31-style application fields, runs local OCR or deterministic fixture OCR, applies source-backed validation rules, and returns:
