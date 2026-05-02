@@ -273,8 +273,6 @@ def main() -> None:
         str(args.form_jitter),
         "--timeout",
         str(args.timeout),
-        "--retries",
-        str(args.image_retries),
         "--time-budget-seconds",
         str(remaining_seconds(deadline)),
     ]
@@ -307,6 +305,8 @@ def main() -> None:
         str(args.image_jitter),
         "--timeout",
         str(args.timeout),
+        "--retries",
+        str(args.image_retries),
         "--time-budget-seconds",
         str(remaining_seconds(deadline)),
     ]
