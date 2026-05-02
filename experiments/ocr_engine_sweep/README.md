@@ -41,7 +41,7 @@ python -m pip install -r requirements.txt
 Install optional engines only inside that environment:
 
 ```bash
-python -m pip install paddleocr
+python -m pip install paddlepaddle==3.2.0 paddleocr==3.3.3
 ```
 
 Then run a small smoke benchmark:
@@ -63,6 +63,24 @@ python experiments/ocr_engine_sweep/benchmark_ocr_engines.py \
 ```
 
 Outputs are written under gitignored `data/work/ocr-engine-sweep/`.
+
+## PaddleOCR Version Notes
+
+The first working CPU smoke used:
+
+```text
+paddlepaddle==3.2.0
+paddleocr==3.3.3
+```
+
+PaddleOCR 3.5.0 and PaddlePaddle 3.3.1 installed, but CPU inference hit a
+oneDNN/PIR runtime error in this container. Disabling MKLDNN allowed that newer
+stack to run, but it averaged roughly five seconds per image on the first
+10-image smoke. The pinned 3.3.3/3.2.0 stack completed the 30-image smoke with
+mean latency near 1.10 seconds per image.
+
+The benchmark writes both compact CSV metrics and normalized OCR JSON artifacts
+for later field-level comparison.
 
 ## Notes
 

@@ -12,6 +12,7 @@ import argparse
 import csv
 import glob
 import json
+import re
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -63,6 +64,8 @@ class SmokeRow:
         Character length of the full OCR text.
     error:
         Error message for failed calls.
+    ocr_json_path:
+        Relative path to the normalized OCR JSON artifact when available.
     """
 
     engine: str
@@ -73,6 +76,7 @@ class SmokeRow:
     block_count: int
     text_chars: int
     error: str = ""
+    ocr_json_path: str = ""
 
 
 class DoctrSmokeEngine:
@@ -121,7 +125,7 @@ class PaddleOCRSmokeEngine:
             try:
                 self._engine = PaddleOCR(**kwargs)
                 return
-            except TypeError as exc:
+            except (TypeError, ValueError) as exc:
                 last_error = exc
         raise RuntimeError(f"Could not initialize PaddleOCR: {last_error}")
 
@@ -161,10 +165,43 @@ class PaddleOCRSmokeEngine:
         """Extract text/confidence/box dictionaries from PaddleOCR output."""
 
         blocks: list[dict] = []
+        for result in raw if isinstance(raw, list) else [raw]:
+            payload = getattr(result, "json", None)
+            if payload is not None:
+                blocks.extend(self._parse_json_payload(payload))
+            elif isinstance(result, dict) and "res" in result:
+                blocks.extend(self._parse_json_payload(result))
+        if blocks:
+            return blocks
+
         for item in self._flatten(raw):
             parsed = self._parse_item(item)
             if parsed is not None:
                 blocks.append(parsed)
+        return blocks
+
+    def _parse_json_payload(self, payload: dict) -> list[dict]:
+        """Parse PaddleOCR 3.x ``OCRResult.json`` payloads.
+
+        Notes
+        -----
+        PaddleOCR 3.x returns a dict-like result object whose ``json`` property
+        stores arrays such as ``rec_texts``, ``rec_scores``, and ``dt_polys``
+        under a ``res`` key. That is different from older PaddleOCR versions
+        that returned ``[box, (text, confidence)]`` rows.
+        """
+
+        result = payload.get("res", payload)
+        texts = result.get("rec_texts") or result.get("texts") or []
+        scores = result.get("rec_scores") or result.get("scores") or []
+        boxes = result.get("rec_polys") or result.get("dt_polys") or result.get("boxes") or []
+        blocks: list[dict] = []
+        for index, text in enumerate(texts):
+            if not text:
+                continue
+            confidence = scores[index] if index < len(scores) else 0.0
+            bbox = boxes[index] if index < len(boxes) else None
+            blocks.append({"text": str(text), "confidence": float(confidence), "bbox": bbox})
         return blocks
 
     def _flatten(self, value):
@@ -269,7 +306,7 @@ def relative_path(path: Path) -> str:
         return str(path)
 
 
-def run_engine(engine: SmokeEngine, image_paths: list[Path]) -> list[SmokeRow]:
+def run_engine(engine: SmokeEngine, image_paths: list[Path], output_dir: Path) -> list[SmokeRow]:
     """Run one engine across all images."""
 
     rows: list[SmokeRow] = []
@@ -278,6 +315,7 @@ def run_engine(engine: SmokeEngine, image_paths: list[Path]) -> list[SmokeRow]:
         started = perf_counter()
         try:
             result = engine.run(image_path)
+            ocr_json_path = write_ocr_json(output_dir, engine.name, image_path, result)
             rows.append(
                 SmokeRow(
                     engine=engine.name,
@@ -287,6 +325,7 @@ def run_engine(engine: SmokeEngine, image_paths: list[Path]) -> list[SmokeRow]:
                     avg_confidence=result.avg_confidence,
                     block_count=len(result.blocks),
                     text_chars=len(result.full_text),
+                    ocr_json_path=relative_path(ocr_json_path),
                 )
             )
         except Exception as exc:
@@ -304,6 +343,27 @@ def run_engine(engine: SmokeEngine, image_paths: list[Path]) -> list[SmokeRow]:
             )
             print(f"  error: {exc}")
     return rows
+
+
+def safe_artifact_stem(image_path: Path) -> str:
+    """Return a filesystem-safe artifact stem for an image path."""
+
+    relative = relative_path(image_path)
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", relative).strip("._")
+
+
+def write_ocr_json(output_dir: Path, engine_name: str, image_path: Path, result: OCRResult) -> Path:
+    """Write normalized OCR JSON for later text/field inspection."""
+
+    ocr_dir = output_dir / "ocr" / engine_name
+    ocr_dir.mkdir(parents=True, exist_ok=True)
+    path = ocr_dir / f"{safe_artifact_stem(image_path)}.json"
+    try:
+        payload = result.model_dump(mode="json")
+    except Exception:
+        payload = result.model_dump() if hasattr(result, "model_dump") else result.dict()
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return path
 
 
 def summarize(rows: list[SmokeRow]) -> dict:
@@ -353,12 +413,12 @@ def main() -> None:
     if not image_paths:
         raise SystemExit("No images found. Pass --image or --image-glob.")
 
+    output_dir = args.output_dir / args.run_name
     all_rows: list[SmokeRow] = []
     for engine_name in args.engine:
         engine = make_engine(engine_name)
-        all_rows.extend(run_engine(engine, image_paths))
+        all_rows.extend(run_engine(engine, image_paths, output_dir))
 
-    output_dir = args.output_dir / args.run_name
     summary = write_outputs(output_dir, all_rows)
     print()
     print(f"Wrote OCR engine smoke outputs to {output_dir}")

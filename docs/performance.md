@@ -174,6 +174,59 @@ The graph scorer improved support detection for brand name, fanciful name, and
 net contents while lowering false clears on shuffled negative examples. This is
 an experimental calibration result, not a locked-holdout production claim.
 
+## May 2 PaddleOCR CPU Smoke Benchmark
+
+The curved-text OCR research brief suggested that a mature pre-trained OCR
+engine may be more practical than training a custom curved-text model before
+the submission deadline. To test that hypothesis without touching the deployed
+runtime path, an isolated PaddleOCR smoke benchmark was run in a Python 3.11
+container against real public COLA label images that already had cached docTR
+OCR output.
+
+The first modern stack installed but was not usable as-is:
+
+| Stack | Result |
+|---|---|
+| PaddleOCR 3.5.0 + PaddlePaddle 3.3.1 | Installed, but CPU inference hit a oneDNN/PIR runtime error. |
+| PaddleOCR 3.5.0 + PaddlePaddle 3.3.1 with MKLDNN disabled | Ran successfully, but averaged about 5 seconds per image. |
+| PaddleOCR 3.3.3 + PaddlePaddle 3.2.0 | Ran successfully with usable CPU latency. |
+
+Successful 30-image smoke result:
+
+| Metric | Result |
+|---|---:|
+| Images processed | 30 |
+| Error count | 0 |
+| Mean latency | 1,105.00 ms/image |
+| Median latency | 1,096.50 ms/image |
+| Worst latency | 1,544 ms/image |
+| Images under 1.5 seconds | 29 / 30 |
+| Mean confidence | 0.9346 |
+| Mean text blocks | 20.8 |
+| Mean extracted characters | 431.67 |
+
+Cached docTR comparison on the same 30 images:
+
+| Metric | docTR Cached Baseline | PaddleOCR Smoke |
+|---|---:|---:|
+| Mean latency | 800.53 ms/image | 1,105.00 ms/image |
+| Median latency | 804.50 ms/image | 1,096.50 ms/image |
+| Worst latency | 1,592 ms/image | 1,544 ms/image |
+| Mean extracted characters | 436.00 | 431.67 |
+| Mean text blocks | 79.3 | 20.8 |
+| Images where engine extracted more characters | 21 / 30 | 9 / 30 |
+
+Initial interpretation:
+
+- PaddleOCR is viable enough to continue testing because 29 of 30 images were
+  under the 1.5-second local CPU target.
+- PaddleOCR did not clearly beat docTR on raw extracted-character count.
+- Character count is only a crude proxy. PaddleOCR produced fewer text blocks,
+  which may mean cleaner line grouping, so the next comparison should be
+  field-level matching rather than extraction length alone.
+- PaddleOCR should remain experimental until it improves field-level match
+  rates or provides complementary evidence when combined with docTR.
+
 ## May 2 COLA Cloud Stratified Calibration
 
 After the sample-pack smoke test, a bounded COLA Cloud API sampling workflow

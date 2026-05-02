@@ -35,6 +35,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | COLA Cloud API | Development-only bridge for public label rasters | No | `1,500` selected records from `7,788` candidates |
 | Cached docTR OCR | Baseline OCR box/text output | No | `100` applications, `169` label images |
 | Local graph scorer | Experimental post-OCR evidence model | No | Best POC run improved F1 and false-clear rate |
+| PaddleOCR sweep | Experimental alternate local OCR candidate | No | 30-image smoke met latency target but did not clearly beat docTR extraction length |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -198,6 +199,62 @@ Decision:
 - Weaker than E004.
 - Keep E004 as the current best POC.
 
+### E006 - PaddleOCR CPU Smoke Benchmark
+
+**Date:** May 2, 2026
+**Run output:** `data/work/ocr-engine-sweep/paddleocr-333-paddle-320-smoke-30-json/`
+**Input:** 30 real public COLA label images with matching cached docTR OCR
+**Purpose:** Test whether PaddleOCR is a viable alternate local OCR engine for latency and extraction coverage before changing runtime architecture.
+
+Environment:
+
+```text
+container: python:3.11-slim
+paddlepaddle: 3.2.0
+paddleocr: 3.3.3
+models: PP-OCRv5 server detector + English mobile recognizer
+runtime: CPU
+```
+
+Notes:
+
+- The host Python is 3.14, so the smoke run used an isolated Python 3.11 container.
+- PaddleOCR 3.5.0 with PaddlePaddle 3.3.1 installed but hit a known CPU oneDNN/PIR runtime error.
+- Disabling MKLDNN allowed PaddleOCR 3.5.0 to run, but latency averaged about five seconds per image.
+- Pinning to PaddleOCR 3.3.3 and PaddlePaddle 3.2.0 restored usable CPU latency.
+
+Successful 30-image smoke result:
+
+| Metric | PaddleOCR 3.3.3 / PaddlePaddle 3.2.0 |
+|---|---:|
+| Images processed | 30 |
+| Error count | 0 |
+| Mean latency | 1,105.00 ms/image |
+| Median latency | 1,096.50 ms/image |
+| Worst latency | 1,544 ms/image |
+| Images under 1.5s | 29 / 30 |
+| Mean confidence | 0.9346 |
+| Mean text blocks | 20.8 |
+| Mean extracted chars | 431.67 |
+
+Cached docTR comparison on the same 30 images:
+
+| Metric | docTR Cached Baseline | PaddleOCR Smoke |
+|---|---:|---:|
+| Mean latency | 800.53 ms/image | 1,105.00 ms/image |
+| Median latency | 804.50 ms/image | 1,096.50 ms/image |
+| Worst latency | 1,592 ms/image | 1,544 ms/image |
+| Mean extracted chars | 436.00 | 431.67 |
+| Mean text blocks | 79.3 | 20.8 |
+| Images with more chars than other engine | 21 / 30 | 9 / 30 |
+
+Decision:
+
+- PaddleOCR is viable enough to keep testing; it nearly meets the 1.5-second local CPU target on this small smoke sample.
+- PaddleOCR did not clearly extract more text than docTR by simple character count.
+- Do not promote PaddleOCR to runtime default yet.
+- Next step is field-level comparison, because fewer blocks may still produce cleaner text even when total character count is similar.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:
@@ -234,4 +291,3 @@ This result does not support a production claim:
 3. Add PaddleOCR as an alternate OCR engine and compare baseline docTR vs PaddleOCR vs combined OCR boxes.
 4. Add field-specific class/type taxonomy features to attack the weakest measured field.
 5. Preserve the full HO-GNN/TPS/SVTR roadmap as a future research path after post-OCR graph scoring is fully measured.
-

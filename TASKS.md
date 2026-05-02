@@ -246,7 +246,9 @@ Experimental candidates:
 
 - [x] Keep docTR as the measured baseline and rollback path.
 - [x] Add a PaddleOCR / PP-OCR smoke benchmark wrapper under the experiment scaffold.
-- [ ] Promote PaddleOCR into a fuller experimental adapter only if the smoke benchmark installs and normalizes output cleanly.
+- [x] Run PaddleOCR 3.3.3 / PaddlePaddle 3.2.0 30-image CPU smoke benchmark.
+- [x] Document that PaddleOCR 3.5.0 / PaddlePaddle 3.3.1 hit a CPU oneDNN/PIR runtime issue.
+- [ ] Promote PaddleOCR into a fuller experimental adapter only if field-level comparison beats or complements docTR.
 - [ ] Add an OpenOCR / SVTRv2 experimental adapter if PaddleOCR is insufficient or install risk is acceptable.
 - [ ] Keep the graph-aware scorer as a post-OCR evidence layer, not an OCR replacement.
 - [ ] Keep the full custom HO-GNN/TPS/SVTR model as documented future research unless a mature pre-trained shortcut fails and time remains.
@@ -254,7 +256,7 @@ Experimental candidates:
 Isolation and dependency safety:
 
 - [x] Put engine-sweep code under `experiments/ocr_engine_sweep/` or an equivalent non-runtime experiment path.
-- [ ] Use an isolated local environment for heavy OCR candidates; do not add heavyweight dependencies to production `requirements.txt` until an engine wins.
+- [x] Use an isolated container environment for heavy OCR candidates; do not add heavyweight dependencies to production `requirements.txt` until an engine wins.
 - [ ] Do not change the deployed default OCR engine until benchmarks and tests justify it.
 - [ ] Do not send images to hosted OCR or hosted ML APIs.
 - [ ] Do not commit downloaded models, OCR caches, raw public data, or benchmark image outputs.
@@ -263,17 +265,18 @@ Normalized output contract:
 
 - [x] Normalize the current docTR/PaddleOCR smoke wrappers to the existing `OCRResult` shape.
 - [ ] Normalize any future OpenOCR wrapper to the existing `OCRResult` shape.
-- [ ] Preserve `source` as `local docTR`, `local PaddleOCR`, `local OpenOCR`, or equivalent.
-- [ ] Preserve per-block text.
-- [ ] Preserve per-block confidence when available.
-- [ ] Preserve per-block geometry/boxes when available.
-- [ ] Capture `preprocessing_ms`, `ocr_ms`, and `total_ms`.
+- [x] Preserve `source` as `local docTR`, `local PaddleOCR`, `local OpenOCR`, or equivalent.
+- [x] Preserve per-block text.
+- [x] Preserve per-block confidence when available.
+- [x] Preserve per-block geometry/boxes when available.
+- [x] Capture `preprocessing_ms`, `ocr_ms`, and `total_ms`.
 - [ ] Record engine version, model name, CPU/GPU mode, image size, and host details in benchmark summaries.
 
 Benchmark stages:
 
-- [ ] Run a 1-image smoke test for import/runtime sanity.
-- [ ] Run a 10-image mixed-shape smoke benchmark before any larger run.
+- [x] Run a 1-image smoke test for import/runtime sanity.
+- [x] Run a 10-image mixed-shape smoke benchmark before any larger run.
+- [x] Run a 30-image mixed-shape smoke benchmark after the 10-image run.
 - [ ] Run the same 100-application / 169-image public COLA calibration set used by docTR.
 - [ ] Compare against docTR using identical field-matching logic.
 - [ ] If a candidate wins on the 100-application set, run it on the 1,500-record calibration split.
@@ -290,7 +293,7 @@ Metrics to compare:
 - [ ] Applicant/producer visibility rate if practical.
 - [ ] Application-level Pass / Needs Review distribution on accepted public records.
 - [ ] False-clear rate on synthetic known-bad fixtures.
-- [ ] Per-image latency: p50, p95, worst-case.
+- [x] Initial per-image latency smoke: 30-image PaddleOCR mean 1,105.00 ms, median 1,096.50 ms, worst 1,544 ms.
 - [ ] Per-application latency across all associated label panels.
 - [ ] OCR failure modes: curved text, rotated text, small warning text, glare, low contrast, multi-panel ambiguity.
 
@@ -302,7 +305,7 @@ Promotion gates:
 - [ ] Candidate must keep per-label latency near Sarah's five-second target after warmup.
 - [ ] Candidate must fail safely to Needs Review or docTR fallback when unavailable.
 - [ ] Candidate must have a clean Docker/deployment path before becoming the default.
-- [ ] Candidate results must be recorded in `MODEL_LOG.md` and `docs/performance.md`.
+- [x] Candidate smoke results are recorded in `MODEL_LOG.md` and `docs/performance.md`.
 
 OpenVINO / EC2 m7i path:
 
@@ -316,8 +319,8 @@ Documentation deliverables:
 
 - [x] Add OCR experimentation strategy to `README.md`.
 - [x] Add OCR engine sweep and OpenVINO trade-offs to `TRADEOFFS.md`.
-- [ ] Add each serious run to `MODEL_LOG.md`.
-- [ ] Add final timing and accuracy tables to `docs/performance.md`.
+- [x] Add each serious run to `MODEL_LOG.md`.
+- [x] Add initial PaddleOCR smoke timing and extraction tables to `docs/performance.md`.
 - [ ] Update `DEMO_SCRIPT.md` only if the deployed app's OCR behavior changes.
 
 ---
