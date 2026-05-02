@@ -33,6 +33,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jitter", type=float, default=0.75, help="Random extra delay seconds")
     parser.add_argument("--timeout", type=float, default=30.0, help="HTTP timeout seconds")
     parser.add_argument(
+        "--retries",
+        type=int,
+        default=2,
+        help="Retry transient attachment download failures before marking the panel failed",
+    )
+    parser.add_argument(
         "--time-budget-seconds",
         type=float,
         default=None,
@@ -61,6 +67,28 @@ def read_ttb_ids_from_file(path: str | None) -> list[str]:
         for line in Path(path).read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
+
+
+def download_attachment_with_retries(
+    client,
+    source_url: str,
+    *,
+    retries: int,
+    delay: float,
+    jitter: float,
+):
+    """Download one attachment response with bounded retry attempts."""
+
+    for attempt in range(1, retries + 2):
+        try:
+            response = client.get(source_url)
+            response.raise_for_status()
+            return response
+        except Exception as exc:  # noqa: BLE001 - ETL should continue.
+            if attempt > retries:
+                raise
+            print(f"  transient image error on attempt {attempt}; retrying: {exc}")
+            polite_sleep(delay, jitter)
 
 
 def main() -> None:
@@ -97,8 +125,13 @@ def main() -> None:
                 output_path = RAW_IMAGES_DIR / ttb_id / f"{row['panel_order']:02d}_{filename}"
                 print(f"[{index}/{len(rows)}] download {ttb_id} panel {row['panel_order']}")
                 try:
-                    response = client.get(row["source_url"])
-                    response.raise_for_status()
+                    response = download_attachment_with_retries(
+                        client,
+                        row["source_url"],
+                        retries=args.retries,
+                        delay=args.delay,
+                        jitter=args.jitter,
+                    )
                     output_path.parent.mkdir(parents=True, exist_ok=True)
                     output_path.write_bytes(response.content)
                     record_attachment_download(
@@ -112,7 +145,7 @@ def main() -> None:
                         connection,
                         attachment_id=row["id"],
                         raw_image_path=None,
-                        http_status=getattr(getattr(exc, "response", None), "status_code", None),
+                        http_status=getattr(getattr(exc, "response", None), "status_code", None) or 0,
                     )
                     print(f"  error: {exc}")
                 connection.commit()

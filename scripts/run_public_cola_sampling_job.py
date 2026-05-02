@@ -38,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--image-jitter", type=float, default=0.75)
     parser.add_argument("--timeout", type=float, default=30.0)
     parser.add_argument("--search-retries", type=int, default=3)
+    parser.add_argument("--image-retries", type=int, default=2)
     parser.add_argument(
         "--exclude-ttb-id-file",
         help="Optional newline or CSV file of TTB IDs to exclude from selection.",
@@ -161,12 +162,23 @@ def db_counts(ttb_ids: list[str]) -> dict[str, int]:
             """,
             ttb_ids,
         ).fetchone()[0]
+        failed_image_downloads = connection.execute(
+            f"""
+            SELECT COUNT(*)
+            FROM attachments
+            WHERE ttb_id IN ({placeholders})
+              AND (raw_image_path IS NULL OR raw_image_path = '')
+              AND http_status IS NOT NULL
+            """,
+            ttb_ids,
+        ).fetchone()[0]
     return {
         "selected_applications": len(ttb_ids),
         "fetched_forms": fetched_forms,
         "parsed_forms": parsed_forms,
         "attachments_found": attachments_found,
         "images_downloaded": images_downloaded,
+        "failed_image_downloads": failed_image_downloads,
     }
 
 
@@ -261,6 +273,8 @@ def main() -> None:
         str(args.form_jitter),
         "--timeout",
         str(args.timeout),
+        "--retries",
+        str(args.image_retries),
         "--time-budget-seconds",
         str(remaining_seconds(deadline)),
     ]
