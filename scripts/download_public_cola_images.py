@@ -29,6 +29,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--delay", type=float, default=2.0, help="Seconds between requests")
     parser.add_argument("--jitter", type=float, default=0.75, help="Random extra delay seconds")
     parser.add_argument("--timeout", type=float, default=30.0, help="HTTP timeout seconds")
+    parser.add_argument(
+        "--insecure",
+        action="store_true",
+        help="Disable TLS verification for public TTB registry fetches when local CA validation fails",
+    )
     return parser.parse_args()
 
 
@@ -48,7 +53,7 @@ def main() -> None:
             print("No pending attachments. Parse forms first, or use --force.")
             return
 
-        with make_client(timeout=args.timeout) as client:
+        with make_client(timeout=args.timeout, verify=not args.insecure) as client:
             for index, row in enumerate(rows, start=1):
                 ttb_id = row["ttb_id"]
                 filename = safe_filename(

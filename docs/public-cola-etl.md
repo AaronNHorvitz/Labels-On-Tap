@@ -70,6 +70,12 @@ Or fetch a known TTB ID:
 python scripts/fetch_public_cola_forms.py --ttb-id 03235001000005 --delay 3 --jitter 1
 ```
 
+If the local machine cannot validate the TTB certificate chain, keep the run local and add `--insecure` for the ETL fetch only:
+
+```bash
+python scripts/fetch_public_cola_forms.py --ttb-id 03235001000005 --delay 3 --jitter 1 --insecure
+```
+
 Parse saved form HTML into structured JSON and attachment metadata:
 
 ```bash

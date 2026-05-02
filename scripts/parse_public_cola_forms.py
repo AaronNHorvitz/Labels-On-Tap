@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 from cola_etl.database import connect, record_parsed_form, replace_attachments
@@ -32,6 +33,16 @@ def form_paths(ttb_ids: list[str], limit: int | None) -> list[Path]:
     return paths[:limit] if limit else paths
 
 
+def read_declared_html(path: Path) -> str:
+    """Read a saved public form using its declared legacy charset when present."""
+
+    raw = path.read_bytes()
+    head = raw[:2048].decode("ascii", errors="ignore")
+    match = re.search(r"charset=([A-Za-z0-9_-]+)", head, re.IGNORECASE)
+    encoding = match.group(1) if match else "utf-8"
+    return raw.decode(encoding, errors="replace")
+
+
 def main() -> None:
     """Parse saved form HTML into structured JSON."""
 
@@ -52,7 +63,7 @@ def main() -> None:
                 continue
             try:
                 parsed = parse_public_cola_form(
-                    path.read_text(encoding="utf-8", errors="replace"),
+                    read_declared_html(path),
                     source_url=(
                         "https://ttbonline.gov/colasonline/viewColaDetails.do"
                         f"?action=publicFormDisplay&ttbid={ttb_id}"

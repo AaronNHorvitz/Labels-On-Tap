@@ -23,10 +23,15 @@ def polite_sleep(delay_seconds: float, jitter_seconds: float) -> None:
         time.sleep(total)
 
 
-def make_client(timeout: float = 30.0) -> httpx.Client:
+def make_client(timeout: float = 30.0, verify: bool = True) -> httpx.Client:
     """Create a configured HTTP client for public registry fetches."""
 
-    return httpx.Client(headers=DEFAULT_HEADERS, timeout=timeout, follow_redirects=True)
+    return httpx.Client(
+        headers=DEFAULT_HEADERS,
+        timeout=timeout,
+        follow_redirects=True,
+        verify=verify,
+    )
 
 
 def write_response_bytes(path: Path, response: httpx.Response) -> None:

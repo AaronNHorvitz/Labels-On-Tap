@@ -127,7 +127,8 @@ def _special_wording(soup: BeautifulSoup) -> str:
         if not isinstance(div, Tag) or not _has_class(div, "data"):
             continue
         text = normalize_lines(div.get_text("\n"))
-        if "19. SHOW ANY WORDING" not in text:
+        text_upper = text.upper()
+        if "SHOW ANY WORDING" not in text_upper and "SHOW ANY INFORMATION" not in text_upper:
             continue
         match = re.search(r"APPEARING ON LABELS\.\s*(.*)", text, re.IGNORECASE | re.DOTALL)
         if match:

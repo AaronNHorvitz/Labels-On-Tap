@@ -36,6 +36,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--delay", type=float, default=3.0, help="Seconds between requests")
     parser.add_argument("--jitter", type=float, default=1.0, help="Random extra delay seconds")
     parser.add_argument("--timeout", type=float, default=30.0, help="HTTP timeout seconds")
+    parser.add_argument(
+        "--insecure",
+        action="store_true",
+        help="Disable TLS verification for public TTB registry fetches when local CA validation fails",
+    )
     return parser.parse_args()
 
 
@@ -55,7 +60,7 @@ def main() -> None:
             print("No TTB IDs to fetch. Import a search-result CSV or pass --ttb-id.")
             return
 
-        with make_client(timeout=args.timeout) as client:
+        with make_client(timeout=args.timeout, verify=not args.insecure) as client:
             for index, ttb_id in enumerate(ttb_ids, start=1):
                 url = FORM_URL_TEMPLATE.format(ttb_id=ttb_id)
                 output_path = RAW_FORMS_DIR / f"{ttb_id}.html"
