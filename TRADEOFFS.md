@@ -180,7 +180,55 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 ---
 
-### 4.4 Legal Corpus as Provenance, Not Runtime Burden
+### 4.4 Commercial Public-COLA Data as Development Fallback
+
+**Decision:** COLA Cloud may be used as a paid, development-only public-data source for building a local OCR evaluation corpus when `TTBOnline.gov` / the Public COLA Registry is unavailable or unstable.
+
+**Why:** The project needs real label images to evaluate local OCR and field matching. During the sprint, the public TTB registry and attachment endpoints became unavailable/resetting, while COLA Cloud offers access to public COLA records and label images derived from the same public registry. The cost of the Pro tier is small relative to the take-home risk, and the spend avoids continued automated requests against an unstable government system.
+
+**Provider context:** COLA Cloud documents public COLA data coverage, label images, API access, and a bulk-data schema. Its pricing page lists a Pro tier at `$99/month` with higher list/detail quotas. COLA Cloud also documents that its own OCR enrichment uses Google Vision, so provider OCR text is treated as third-party reference data, not as Labels On Tap's local OCR result.
+
+**Allowed use:**
+
+```text
+- local development corpus creation,
+- local OCR smoke tests and benchmark runs,
+- comparison of our local OCR output against application fields,
+- manual/automated download of public label images into gitignored data/work/,
+- optional use of provider OCR text as a silver-label diagnostic reference.
+```
+
+**Not allowed use:**
+
+```text
+- deployed runtime dependency,
+- hosted OCR dependency,
+- replacing local docTR/fixture OCR,
+- treating COLA Cloud OCR as our model's measured accuracy,
+- committing bulk purchased data or API keys,
+- sending candidate/user uploads to COLA Cloud.
+```
+
+**Security posture:** API keys must live only in `.env` or local shell environment variables and must never be committed. Bulk downloads, cached API responses, images, and evaluation outputs stay under gitignored `data/work/`. If an API pull is used, it should be logged with source, timestamp, query parameters, counts, and provider plan so the sample can be reproduced or explained.
+
+**Data governance posture:** COLA Cloud is a pragmatic fallback over a weekend outage, not the product architecture. The README and submission notes should state that the deployed prototype remains local-first and can run without COLA Cloud; the commercial data source was used only to obtain public example records/images for OCR evaluation when TTBOnline.gov was unavailable.
+
+**Migration plan after paid access:**
+
+```text
+1. Archive current raw TTB pull artifacts under data/work/public-cola/archive/.
+2. Keep synthetic fixtures under data/fixtures/demo/ and official/commercial public corpus under data/work/.
+3. Add COLA Cloud API credentials to .env only.
+4. Pull a bounded evaluation subset with logged query parameters and no runtime coupling.
+5. Download/validate images, then run local OCR through the existing evaluator.
+6. Export only a tiny, reviewed fixture subset if needed; never commit bulk purchased data.
+```
+
+**Implication:** This path protects the sprint from government-site downtime while preserving the assignment's core architectural promise: Labels On Tap runs its own OCR and deterministic validation locally.
+
+---
+
+### 4.5 Legal Corpus as Provenance, Not Runtime Burden
 
 **Decision:** The repository includes a `research/legal-corpus/` directory and source-backed criteria matrix.
 
