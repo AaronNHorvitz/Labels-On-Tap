@@ -97,6 +97,59 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 ---
 
+### 3.2.1 Measured OCR Engine Sweep Before Runtime Promotion
+
+**Decision:** Alternate OCR engines such as PaddleOCR and OpenOCR/SVTRv2 should be evaluated as experimental local adapters before they are allowed to replace docTR in the deployed app.
+
+**Why:** The curved-text research strongly suggests that modern pre-trained OCR systems may handle cylindrical, circular, rotated, and irregular label text better than the current baseline. However, the assignment rewards a working, reliable prototype. A promising model should not become the production path until it wins on the same public COLA calibration data and stays inside the latency budget.
+
+**Candidate order:**
+
+```text
+1. docTR baseline
+2. PaddleOCR / PP-OCR local adapter
+3. OpenOCR / SVTRv2 local adapter
+4. Combined OCR evidence, if two engines find complementary text
+```
+
+**Promotion gate:**
+
+```text
+- local/self-hosted inference only,
+- normalized OCR output with text, boxes, confidence, source, and timing,
+- better field-match rates on the calibration set,
+- no worse false-clear behavior on synthetic known-bad fixtures,
+- measured p50/p95/worst-case latency,
+- clean dependency and deployment story,
+- rollback to docTR if the engine fails or is too slow.
+```
+
+**Implication:** The app can pursue better OCR aggressively without destabilizing the deployed demo. Until a candidate wins, docTR remains the safe runtime baseline.
+
+---
+
+### 3.2.2 Graph Scorer as Post-OCR Evidence, Not OCR Replacement
+
+**Decision:** The graph-aware experiment remains a post-OCR evidence scorer. It does not replace the image-to-text OCR engine.
+
+**Why:** OCR engines and graph scorers solve different problems. PaddleOCR/OpenOCR can improve what text is read from a label image. The graph scorer can improve how OCR fragments are assembled and matched to expected application fields. These layers can stack, but they should be measured independently.
+
+**Current evidence:** The first safety-weighted graph scorer improved F1 from `0.7714` to `0.8714` and lowered false-clear rate from `0.0439` to `0.0132` on the initial 100-application calibration test split with shuffled negative examples.
+
+**Implication:** The graph scorer is promising but remains experimental until it is tested on a larger calibration split and then a locked holdout. It should not be wired into the deployed default path without a CPU latency and false-clear check.
+
+---
+
+### 3.2.3 OpenVINO / EC2 m7i Optimization Is a Future Path
+
+**Decision:** ONNX/OpenVINO/INT8 optimization should be documented as a future deployment path, not claimed as current live performance.
+
+**Why:** The research brief identifies a plausible CPU acceleration path on Intel Sapphire Rapids / AWS `m7i` hardware using OpenVINO and low-precision inference. The current public demo runs on AWS Lightsail, not a guaranteed `m7i` instance with Intel AMX exposure. Therefore, sub-second CPU OCR claims are hypotheses until measured on the actual target hardware.
+
+**Implication:** If PaddleOCR or OpenOCR wins the local calibration benchmark but is too slow on the current VM, the next infrastructure step is an EC2 `m7i` test with ONNX/OpenVINO export and latency measurement. That path should be considered production hardening, not Monday's default runtime.
+
+---
+
 ### 3.3 No Large Vision-Language Models
 
 **Decision:** The prototype avoids large VLMs.

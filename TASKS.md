@@ -68,6 +68,11 @@ The sprint priority is now:
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
 - [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the 100-application calibration test split.
+- [x] Curved-text OCR research changed the next experiment: evaluate mature pre-trained local OCR engines before attempting a custom HO-GNN/TPS/SVTR vision model.
+- [x] PaddleOCR / PP-OCR is the first alternate OCR engine candidate to benchmark against docTR.
+- [x] OpenOCR / SVTRv2 is the second alternate OCR engine candidate if PaddleOCR does not sufficiently improve curved/irregular label text.
+- [x] OpenVINO/ONNX/INT8 on EC2 `m7i` is a future CPU optimization path, not a current Lightsail performance claim.
+- [x] OCR engine sweep scaffold exists under `experiments/ocr_engine_sweep/`.
 - [x] `MODEL_LOG.md` records OCR/model experiments and caveats.
 - [x] `HANDOFF.md` records current state, GPU setup, data paths, and restart steps.
 - [x] Existing public sampling used deterministic seeds and sampling without replacement.
@@ -223,6 +228,100 @@ Reviewer-ready output requirements:
 
 ---
 
+## Layer 2A - Alternate OCR Engine Sweep
+
+**Priority:** P0 support track for the OCR proof
+
+The goal is not to replace the stable deployed app blindly. The goal is to determine whether a mature pre-trained local OCR system improves curved/irregular alcohol-label text enough to justify promotion.
+
+Core principle:
+
+```text
+Better OCR engine -> better extracted text
+Graph evidence scorer -> better field-support assembly
+Deterministic rules -> final Pass / Needs Review / Fail decision
+```
+
+Experimental candidates:
+
+- [x] Keep docTR as the measured baseline and rollback path.
+- [x] Add a PaddleOCR / PP-OCR smoke benchmark wrapper under the experiment scaffold.
+- [ ] Promote PaddleOCR into a fuller experimental adapter only if the smoke benchmark installs and normalizes output cleanly.
+- [ ] Add an OpenOCR / SVTRv2 experimental adapter if PaddleOCR is insufficient or install risk is acceptable.
+- [ ] Keep the graph-aware scorer as a post-OCR evidence layer, not an OCR replacement.
+- [ ] Keep the full custom HO-GNN/TPS/SVTR model as documented future research unless a mature pre-trained shortcut fails and time remains.
+
+Isolation and dependency safety:
+
+- [x] Put engine-sweep code under `experiments/ocr_engine_sweep/` or an equivalent non-runtime experiment path.
+- [ ] Use an isolated local environment for heavy OCR candidates; do not add heavyweight dependencies to production `requirements.txt` until an engine wins.
+- [ ] Do not change the deployed default OCR engine until benchmarks and tests justify it.
+- [ ] Do not send images to hosted OCR or hosted ML APIs.
+- [ ] Do not commit downloaded models, OCR caches, raw public data, or benchmark image outputs.
+
+Normalized output contract:
+
+- [x] Normalize the current docTR/PaddleOCR smoke wrappers to the existing `OCRResult` shape.
+- [ ] Normalize any future OpenOCR wrapper to the existing `OCRResult` shape.
+- [ ] Preserve `source` as `local docTR`, `local PaddleOCR`, `local OpenOCR`, or equivalent.
+- [ ] Preserve per-block text.
+- [ ] Preserve per-block confidence when available.
+- [ ] Preserve per-block geometry/boxes when available.
+- [ ] Capture `preprocessing_ms`, `ocr_ms`, and `total_ms`.
+- [ ] Record engine version, model name, CPU/GPU mode, image size, and host details in benchmark summaries.
+
+Benchmark stages:
+
+- [ ] Run a 1-image smoke test for import/runtime sanity.
+- [ ] Run a 10-image mixed-shape smoke benchmark before any larger run.
+- [ ] Run the same 100-application / 169-image public COLA calibration set used by docTR.
+- [ ] Compare against docTR using identical field-matching logic.
+- [ ] If a candidate wins on the 100-application set, run it on the 1,500-record calibration split.
+- [ ] Freeze preprocessing, thresholds, and engine choice before evaluating the 1,500-record locked holdout.
+
+Metrics to compare:
+
+- [ ] Brand-name match rate.
+- [ ] Fanciful-name match rate.
+- [ ] Class/type match rate.
+- [ ] Alcohol-content match rate.
+- [ ] Net-contents match rate.
+- [ ] Country-of-origin match rate.
+- [ ] Applicant/producer visibility rate if practical.
+- [ ] Application-level Pass / Needs Review distribution on accepted public records.
+- [ ] False-clear rate on synthetic known-bad fixtures.
+- [ ] Per-image latency: p50, p95, worst-case.
+- [ ] Per-application latency across all associated label panels.
+- [ ] OCR failure modes: curved text, rotated text, small warning text, glare, low contrast, multi-panel ambiguity.
+
+Promotion gates:
+
+- [ ] Candidate must be local/self-hosted at runtime.
+- [ ] Candidate must improve one or more weak fields, especially class/type, brand, or fanciful name.
+- [ ] Candidate must not increase false clears on known-bad synthetic fixtures.
+- [ ] Candidate must keep per-label latency near Sarah's five-second target after warmup.
+- [ ] Candidate must fail safely to Needs Review or docTR fallback when unavailable.
+- [ ] Candidate must have a clean Docker/deployment path before becoming the default.
+- [ ] Candidate results must be recorded in `MODEL_LOG.md` and `docs/performance.md`.
+
+OpenVINO / EC2 m7i path:
+
+- [ ] Treat OpenVINO/ONNX/INT8 as an optimization path after a candidate wins, not as a current runtime claim.
+- [ ] If CPU latency is too slow on Lightsail, benchmark on EC2 `m7i.xlarge` or similar Intel AMX-capable instance.
+- [ ] Export candidate model to ONNX only if the engine's native path wins first.
+- [ ] Try OpenVINO conversion and INT8 post-training quantization only after baseline candidate metrics are known.
+- [ ] Report OpenVINO numbers separately from current deployed Lightsail numbers.
+
+Documentation deliverables:
+
+- [x] Add OCR experimentation strategy to `README.md`.
+- [x] Add OCR engine sweep and OpenVINO trade-offs to `TRADEOFFS.md`.
+- [ ] Add each serious run to `MODEL_LOG.md`.
+- [ ] Add final timing and accuracy tables to `docs/performance.md`.
+- [ ] Update `DEMO_SCRIPT.md` only if the deployed app's OCR behavior changes.
+
+---
+
 ## Layer 3 - Deterministic Mismatch Detection
 
 **Priority:** P1 after OCR proof
@@ -272,15 +371,17 @@ Legal guidance is valuable, but it should explain deterministic findings rather 
 
 1. Keep pausing further direct TTB registry requests until connection resets stop.
 2. Use the COLA Cloud public-data bridge only for local development/OCR evaluation, not runtime.
-3. Build the full 3,000-record public-data plan with exact 1,500 calibration / 1,500 holdout splits.
-4. Fetch/details/images for the calibration split first and tune only on that split.
-5. Freeze OCR preprocessing, field-normalization, and pass/review thresholds.
-6. Evaluate the locked 1,500-record holdout and report field-level match rates, latency, and limitations.
-7. Reconcile a small subset back to direct TTB printable forms if the public endpoint stabilizes.
-8. Export 10-25 curated official public fixtures for committed demo/test use.
-9. Build synthetic negative coverage for the highest-risk mismatch cases.
-10. Update README, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the final measurement story.
-11. Redeploy only after local OCR/evaluation changes pass.
+3. Run an alternate OCR engine sweep on the existing 100-application / 169-image calibration cache before scaling.
+4. Keep docTR as the deployed default unless PaddleOCR/OpenOCR wins the measured comparison.
+5. Build the full 3,000-record public-data plan with exact 1,500 calibration / 1,500 holdout splits.
+6. Fetch/details/images for the calibration split first and tune only on that split.
+7. Freeze OCR engine choice, OCR preprocessing, field-normalization, and pass/review thresholds.
+8. Evaluate the locked 1,500-record holdout and report field-level match rates, latency, and limitations.
+9. Reconcile a small subset back to direct TTB printable forms if the public endpoint stabilizes.
+10. Export 10-25 curated official public fixtures for committed demo/test use.
+11. Build synthetic negative coverage for the highest-risk mismatch cases.
+12. Update README, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the final measurement story.
+13. Redeploy only after local OCR/evaluation changes pass.
 
 ---
 
@@ -341,13 +442,15 @@ Keep this architecture stable:
 
 ## Documentation Updates
 
-- [ ] Update README first sentence so it clearly says the app triages COLAs Online-style applications and identifies labels that appear out of compliance.
+- [x] Update README first sentence so it clearly says the app triages COLAs Online-style applications and identifies labels that appear out of compliance.
 - [ ] Put the time-savings/business case near the top of README:
   - TTB 2026 label applications received to date.
   - Sarah's 5-10 minute simple-review estimate.
   - Annualized reviewer-hour estimate.
 - [ ] Add the official public COLA sampling methodology to README if not already current.
-- [ ] Update `TRADEOFFS.md` with the simplified mission: OCR proof first, legal reasoning later.
+- [x] Add OCR experimentation strategy to README.
+- [x] Update `TRADEOFFS.md` with the simplified mission: OCR proof first, legal reasoning later.
+- [x] Update `TRADEOFFS.md` with the measured OCR engine sweep and OpenVINO/EC2 m7i future optimization path.
 - [ ] Update `docs/performance.md` with OCR field-matching metrics and latency.
 - [ ] Update `DEMO_SCRIPT.md` around official COLA OCR proof and deterministic mismatch demos.
 - [ ] Keep Azure portability documented, but do not migrate hosting unless AWS becomes a blocker.

@@ -107,6 +107,47 @@ Limitations remain. This is not a simple random sample of all COLA applications;
 
 ---
 
+## OCR Experimentation Strategy
+
+The OCR work is being evaluated in layers rather than treated as one all-or-nothing model choice. That matters because the review workflow has two different technical problems:
+
+```text
+Problem 1: read difficult label text from images
+Problem 2: decide whether the read text supports the application fields
+```
+
+Labels On Tap currently uses local docTR OCR as the baseline OCR engine and a fixture OCR fallback for deterministic demos. The next experiment is a measured local OCR engine sweep, not a risky replacement of the deployed app.
+
+| Layer | Role | Current Status | Promotion Gate |
+|---|---|---|---|
+| docTR | Current local OCR baseline with geometry/confidence output. | Implemented and measured on the first 100 public COLA calibration records. | Remains default unless another local engine clearly beats it. |
+| PaddleOCR / PP-OCR | Candidate local OCR engine with orientation, detection, and recognition support for irregular label imagery. | Next experiment. | Must improve field-match rates without increasing false-clear risk or missing the five-second per-label target. |
+| OpenOCR / SVTRv2 | Candidate zero-shot irregular-text OCR path, especially interesting for curved/cylindrical text. | Research-backed candidate; not yet integrated. | Must install cleanly, normalize output into the same OCR schema, and benchmark better than docTR/PaddleOCR on COLA images. |
+| Graph-aware evidence scorer | Post-OCR model that scores whether OCR fragments support a target field. | Experimental proof exists under `experiments/graph_ocr/`. | Can only be promoted if it improves matching while lowering or preserving the false-clear rate on held-out data. |
+| HO-GNN / TPS / SVTR custom vision model | Long-term curved-text research path. | Future state only. | Requires annotation strategy, training/evaluation plan, CPU inference proof, and deployment packaging. |
+
+This sequencing keeps the product disciplined. Better OCR engines can improve what text is read. The graph-aware scorer can improve how OCR fragments are assembled into field evidence. Deterministic validation rules still decide `Pass`, `Needs Review`, or `Fail`.
+
+The curved-text research brief changed the experimental priority in one practical way: the next serious attempt should start with mature pre-trained OCR systems such as PaddleOCR or OpenOCR rather than training a custom curved-text model from scratch. Modern OCR systems trained on large distorted-text corpora may provide useful zero-shot performance on alcohol labels, avoiding the immediate need for custom polygon-level annotation.
+
+Runtime claims remain measured, not assumed. OpenVINO/ONNX/INT8 optimization on an Intel `m7i`-class EC2 instance is a promising production path, especially because those CPUs can accelerate low-precision matrix operations. The live demo currently runs on AWS Lightsail, so OpenVINO/AMX performance is documented as a future optimization path until it is benchmarked on the actual deployment hardware.
+
+Before any OCR engine becomes the default runtime path, it must pass the same checklist:
+
+```text
+- local/self-hosted inference only,
+- no hosted OCR or hosted ML API dependency,
+- normalized OCRResult output with text, boxes, confidence, source, and timing,
+- 10-image smoke benchmark,
+- 100-application calibration benchmark,
+- field-level match-rate comparison against docTR,
+- p50/p95/worst-case latency measurement,
+- false-clear check on synthetic known-bad fixtures,
+- documented failure modes and rollback plan.
+```
+
+---
+
 ## Executive Summary
 
 Labels On Tap is a local-first prototype for beverage-alcohol label preflight review. It compares label artwork against Form 5100.31-style application fields, runs local OCR or deterministic fixture OCR, applies source-backed validation rules, and returns:
@@ -186,6 +227,8 @@ Relevant research and implementation links:
 | Area | Link | Why It Matters |
 |---|---|---|
 | PaddleOCR local OCR, orientation, and unwarping | [PaddleOCR OCR pipeline docs](https://www.paddleocr.ai/main/en/version3.x/pipeline_usage/OCR.html) | Candidate local OCR engine with document orientation/unwarping options. |
+| OpenOCR / SVTRv2 | [OpenOCR repository](https://github.com/Topdu/OpenOCR) | Candidate zero-shot irregular-text OCR engine to benchmark after PaddleOCR. |
+| OpenVINO optimization | [OpenVINO documentation](https://docs.openvino.ai/) | Future CPU optimization path if an alternate OCR engine wins and needs deployment acceleration. |
 | Irregular text detection with graph convolution | [Irregular Scene Text Detection Based on a Graph Convolutional Network](https://www.mdpi.com/1424-8220/23/3/1070) | Motivates graph reasoning for distant text components and irregular text shapes. |
 | Graph reasoning for scene text recognition | [GRNet: a graph reasoning network for enhanced multi-modal learning in scene text recognition](https://academic.oup.com/comjnl/article/67/12/3239/7760133) | Shows graph reasoning as a modern path for distorted, occluded, and irregular scene text. |
 | Arbitrary-shape recognition with self-attention | [On Recognizing Texts of Arbitrary Shapes with 2D Self-Attention](https://huggingface.co/papers/1910.04396) | Supports moving beyond simple left-to-right sequence recognition for irregular text. |
