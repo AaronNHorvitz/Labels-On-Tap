@@ -100,3 +100,5 @@ Labels On Tap does not rely on:
 - third-party data services as runtime dependencies.
 
 See `docs/fixture-generation.md` for the generated fixture contract.
+
+See `docs/public-cola-etl.md` for the local public registry ETL workflow.

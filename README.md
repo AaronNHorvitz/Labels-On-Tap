@@ -591,7 +591,8 @@ Data sources:
 | Runtime user upload | Real label/application review |
 | Synthetic fixtures | Deterministic demos and tests |
 | Legal corpus | Source-backed rule definitions |
-| Public approved COLA examples | Optional future OCR realism |
+| Public COLA ETL | Local-only official fixture curation |
+| Public approved COLA examples | OCR realism after curated export |
 
 Generated demo fixture set:
 
@@ -618,6 +619,19 @@ Each fixture has:
 {fixture_id}.ocr_text.json
 {fixture_id}.expected.json
 ```
+
+Official public COLA examples are collected separately through a local ETL workspace, not by live scraping in the web app:
+
+```bash
+python scripts/init_public_cola_workspace.py
+python scripts/import_public_cola_search_results.py path/to/search-results.csv --copy-raw
+python scripts/fetch_public_cola_forms.py --missing-only --limit 5 --delay 3 --jitter 1
+python scripts/parse_public_cola_forms.py --limit 5
+python scripts/download_public_cola_images.py --limit 10 --delay 2 --jitter 1
+python scripts/export_public_cola_fixtures.py --ttb-id 03235001000005
+```
+
+Bulk ETL data stays in gitignored `data/work/public-cola/`. Reviewed fixtures can be exported to `data/fixtures/public-cola/`. See [docs/public-cola-etl.md](docs/public-cola-etl.md).
 
 See [docs/fixture-generation.md](docs/fixture-generation.md).
 

@@ -1,5 +1,6 @@
 fastapi
 httpx
+beautifulsoup4
 uvicorn[standard]
 jinja2
 python-multipart

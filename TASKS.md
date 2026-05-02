@@ -48,6 +48,7 @@ Do not use the deadline or existing deployment as a reason to waive interview-de
 - [x] `docs/deployment.md` exists.
 - [x] `docs/performance.md` exists.
 - [x] `docs/tradeoffs.md` exists.
+- [x] `docs/public-cola-etl.md` exists.
 - [x] `TASKS.md` is committed.
 - [x] Root `TRADEOFFS.md` exists.
 - [x] Root `TRADEOFFS.md` is committed.
@@ -112,12 +113,12 @@ data/fixtures/public-cola/
     provenance.json
 ```
 
-- [ ] Add local ETL scripts for public registry search-result CSV imports, public form HTML fetches, form parsing, label image download, and curated fixture export.
+- [x] Add local ETL scripts for public registry search-result CSV imports, public form HTML fetches, form parsing, label image download, and curated fixture export.
 - [ ] Store bulk/raw public registry pulls, local OCR output, and SQLite data only under `data/work/`.
 - [ ] Store local phone-photo benchmark data only under `data/work/local-photo-benchmark/`.
-- [ ] Keep `data/work/` out of git.
-- [ ] Use SQLite for the local ETL/index database; do not store image blobs in SQLite.
-- [ ] Store image files on disk and image/application metadata in SQLite.
+- [x] Keep `data/work/` out of git.
+- [x] Use SQLite for the local ETL/index database; do not store image blobs in SQLite.
+- [x] Store image files on disk and image/application metadata in SQLite.
 - [ ] Export a small curated set of official public COLA fixtures into `data/fixtures/public-cola/` with provenance.
 - [ ] Runtime app and tests must use committed fixtures or user uploads, not live scraping.
 - [ ] Redeploy AWS only after local parser/fixture/test changes pass locally.
