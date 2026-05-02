@@ -148,6 +148,46 @@ The app can still run on a cloud VM. The important distinction is that the VM ru
 
 ---
 
+## Future State: Graph-Aware OCR
+
+The current prototype treats OCR as a local engine plus deterministic field matching. A strong future direction is to add a geometry-aware OCR layer for highly curved, circular, spherical, fragmented, or distorted label text.
+
+The core idea is to preserve OCR text boxes from engines such as PaddleOCR or docTR, then reason over those boxes as a graph:
+
+```text
+label panel image
+  -> local OCR text boxes
+  -> geometry-aware graph / hypergraph reassembly
+  -> field-aware text candidates
+  -> deterministic application-field comparison
+```
+
+This is especially relevant for alcohol labels because key regulatory text may appear on curved collars, circular keg labels, wraparound bottle panels, or multi-panel artwork. Standard OCR may detect individual fragments but lose reading order or fail to connect pieces that belong to the same warning statement, ABV statement, brand, or net-contents block.
+
+A practical version of this architecture would start with a deterministic graph layer rather than immediately training a custom model:
+
+- nodes: OCR text boxes, words, or line fragments,
+- edges: geometric proximity, baseline angle, reading-order direction, panel membership, and OCR confidence,
+- hyperedges: shared higher-order relationships such as same warning block, same curved baseline, same label panel, same candidate field, or same government-warning phrase,
+- output: reassembled text candidates with provenance back to the original panel and boxes.
+
+This could later become a Higher-Order Graph Neural Network or Hypergraph Neural Network research path. The near-term engineering value is that the graph layer can improve curved-text and fragmented-text reassembly while preserving the current conservative triage posture: it may improve evidence gathering, but deterministic rules still decide `Pass`, `Needs Review`, or `Fail`.
+
+Relevant research and implementation links:
+
+| Area | Link | Why It Matters |
+|---|---|---|
+| PaddleOCR local OCR, orientation, and unwarping | [PaddleOCR OCR pipeline docs](https://www.paddleocr.ai/main/en/version3.x/pipeline_usage/OCR.html) | Candidate local OCR engine with document orientation/unwarping options. |
+| Irregular text detection with graph convolution | [Irregular Scene Text Detection Based on a Graph Convolutional Network](https://www.mdpi.com/1424-8220/23/3/1070) | Motivates graph reasoning for distant text components and irregular text shapes. |
+| Graph reasoning for scene text recognition | [GRNet: a graph reasoning network for enhanced multi-modal learning in scene text recognition](https://academic.oup.com/comjnl/article/67/12/3239/7760133) | Shows graph reasoning as a modern path for distorted, occluded, and irregular scene text. |
+| Arbitrary-shape recognition with self-attention | [On Recognizing Texts of Arbitrary Shapes with 2D Self-Attention](https://huggingface.co/papers/1910.04396) | Supports moving beyond simple left-to-right sequence recognition for irregular text. |
+| Scene text rectification | [Robust Scene Text Recognition with Automatic Rectification](https://arxiv.org/abs/1603.03915) | Supports rectification before recognition for irregular text. |
+| Hypergraph neural network foundation | [Hypergraph Neural Networks](https://huggingface.co/papers/1809.09401) | General foundation for modeling higher-order relationships beyond pairwise graph edges. |
+
+This is not part of the current measured runtime claim. It is recorded as a future architecture because it directly targets the OCR failure mode most specific to alcohol labels: text that is legal/compliance-critical but physically curved, fragmented, or wrapped around the package.
+
+---
+
 ## What Is Implemented
 
 - FastAPI app with server-rendered Jinja2 templates and local HTMX.
