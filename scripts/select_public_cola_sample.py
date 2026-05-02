@@ -15,6 +15,7 @@ from cola_etl.sampling import (
     assign_splits,
     parse_registry_date,
     product_family,
+    read_excluded_ttb_ids,
     read_sample_days_csv,
     round_robin_sample,
     source_bucket,
@@ -36,6 +37,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--imported-days-csv",
         default=str(SAMPLING_DIR / "imported_days.csv"),
+    )
+    parser.add_argument(
+        "--exclude-ttb-id-file",
+        help=(
+            "Optional newline or CSV file of TTB IDs to exclude so separate "
+            "sampling runs are non-overlapping."
+        ),
     )
     parser.add_argument("--selected-ttbs-csv", default=str(SAMPLING_DIR / "selected_ttbs.csv"))
     parser.add_argument("--split-manifest-csv", default=str(SAMPLING_DIR / "split_manifest.csv"))
@@ -105,16 +113,21 @@ def main() -> None:
         print("No registry rows imported. Fetch search results first.")
         return
 
+    excluded_ttb_ids = read_excluded_ttb_ids(args.exclude_ttb_id_file)
     prepared: list[dict[str, str]] = []
     monthly_counts: dict[str, int] = {}
     by_month: dict[str, list[dict[str, str]]] = {}
     seen_ttb_ids: set[str] = set()
     skipped_invalid_date_rows = 0
+    skipped_excluded_rows = 0
     for row in rows:
         canonical_ttb_id = normalize_value(row["ttb_id"])
         if not canonical_ttb_id or canonical_ttb_id in seen_ttb_ids:
             continue
         seen_ttb_ids.add(canonical_ttb_id)
+        if canonical_ttb_id in excluded_ttb_ids:
+            skipped_excluded_rows += 1
+            continue
         try:
             completed = parse_registry_date(row["completed_date"])
         except ValueError:
@@ -191,6 +204,8 @@ def main() -> None:
             "target_total": args.target_total,
             "selected_total": len(selected),
             "source_csv_count": len(source_csv_paths),
+            "excluded_input_count": len(excluded_ttb_ids),
+            "skipped_excluded_rows": skipped_excluded_rows,
             "skipped_invalid_date_rows": skipped_invalid_date_rows,
             "monthly_allocation": allocation,
             "monthly_counts": by_month_selected,

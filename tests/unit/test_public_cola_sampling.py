@@ -5,7 +5,12 @@ from __future__ import annotations
 from datetime import date
 
 from scripts.cola_etl.csv_import import normalize_value
-from scripts.cola_etl.sampling import choose_sample_days, product_family, source_bucket
+from scripts.cola_etl.sampling import (
+    choose_sample_days,
+    product_family,
+    read_excluded_ttb_ids,
+    source_bucket,
+)
 
 
 def test_choose_sample_days_is_deterministic() -> None:
@@ -43,3 +48,13 @@ def test_normalize_value_strips_excel_style_ttb_prefix_quote() -> None:
     assert normalize_value("'25337001000464") == "25337001000464"
     assert normalize_value("'25337001000464'") == "25337001000464"
     assert normalize_value("CORAZÓN DE REY") == "CORAZÓN DE REY"
+
+
+def test_read_excluded_ttb_ids_accepts_plain_text(tmp_path) -> None:
+    exclude_path = tmp_path / "exclude.txt"
+    exclude_path.write_text("'25337001000464'\n26035001000229\n", encoding="utf-8")
+
+    assert read_excluded_ttb_ids(str(exclude_path)) == {
+        "25337001000464",
+        "26035001000229",
+    }

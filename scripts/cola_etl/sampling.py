@@ -11,6 +11,11 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+try:
+    from cola_etl.csv_import import normalize_value
+except ModuleNotFoundError:  # pragma: no cover - exercised by package-style test imports.
+    from scripts.cola_etl.csv_import import normalize_value
+
 
 US_DOMESTIC_ORIGINS = {
     "ALABAMA",
@@ -205,6 +210,38 @@ def read_sample_days_csv(path: Path) -> list[SampleDay]:
                 )
             )
     return days
+
+
+def read_excluded_ttb_ids(path: str | None) -> set[str]:
+    """Read TTB IDs that must not appear in the selected sample.
+
+    The helper accepts either a plain newline-delimited text file or a CSV file
+    with a ``ttb_id`` column. This keeps follow-on sampling runs reproducible
+    without requiring callers to hand-edit intermediate manifests.
+    """
+
+    if not path:
+        return set()
+
+    exclusion_path = Path(path)
+    if not exclusion_path.exists():
+        raise FileNotFoundError(f"Exclusion file not found: {exclusion_path}")
+
+    if exclusion_path.suffix.lower() == ".csv":
+        with exclusion_path.open(encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            if reader.fieldnames and "ttb_id" in reader.fieldnames:
+                return {
+                    normalize_value(row["ttb_id"])
+                    for row in reader
+                    if normalize_value(row.get("ttb_id"))
+                }
+
+    return {
+        normalize_value(line)
+        for line in exclusion_path.read_text(encoding="utf-8").splitlines()
+        if normalize_value(line)
+    }
 
 
 def product_family(class_type_desc: str) -> str:

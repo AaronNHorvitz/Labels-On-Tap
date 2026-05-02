@@ -37,6 +37,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--image-delay", type=float, default=2.0)
     parser.add_argument("--image-jitter", type=float, default=0.75)
     parser.add_argument("--timeout", type=float, default=30.0)
+    parser.add_argument(
+        "--exclude-ttb-id-file",
+        help="Optional newline or CSV file of TTB IDs to exclude from selection.",
+    )
     parser.add_argument("--insecure", action="store_true")
     parser.add_argument("--resume", action="store_true")
     return parser.parse_args()
@@ -222,17 +226,17 @@ def main() -> None:
         search_command.append("--resume")
     run_command(logger, search_command)
 
-    run_command(
-        logger,
-        [
-            "python",
-            "scripts/select_public_cola_sample.py",
-            "--target-total",
-            str(min(args.target_total, args.hard_cap)),
-            "--seed",
-            str(args.seed),
-        ],
-    )
+    select_command = [
+        "python",
+        "scripts/select_public_cola_sample.py",
+        "--target-total",
+        str(min(args.target_total, args.hard_cap)),
+        "--seed",
+        str(args.seed),
+    ]
+    if args.exclude_ttb_id_file:
+        select_command.extend(["--exclude-ttb-id-file", args.exclude_ttb_id_file])
+    run_command(logger, select_command)
 
     selected_ids = load_selected_ids(SAMPLING_DIR / "selected_ttbs.csv")
     if len(selected_ids) > args.hard_cap:
@@ -306,6 +310,7 @@ def main() -> None:
         "time_budget_hours": args.time_budget_hours,
         "elapsed_seconds": round(time.monotonic() - started, 2),
         "log_path": str(log_path),
+        "exclude_ttb_id_file": args.exclude_ttb_id_file,
         "selected_day_count": count_csv_rows(SAMPLING_DIR / "selected_days.csv"),
         "imported_day_count": count_csv_rows(SAMPLING_DIR / "imported_days.csv"),
     }
