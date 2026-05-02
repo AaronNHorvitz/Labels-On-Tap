@@ -87,6 +87,50 @@ def imported_flag(value: str) -> bool:
     return normalize_value(value).lower() == "imported"
 
 
+def format_decimal(value: str) -> str:
+    """Return compact decimal text for sample-pack numeric fields."""
+
+    try:
+        number = float(str(value).strip())
+    except (TypeError, ValueError):
+        return normalize_value(value)
+    return str(int(number)) if number.is_integer() else str(number).rstrip("0").rstrip(".")
+
+
+def format_abv(row: dict[str, str]) -> str:
+    """Return an application-style alcohol-content statement from sample-pack ABV."""
+
+    number = format_decimal(row.get("ABV", ""))
+    return f"{number}% ALC/VOL" if number else ""
+
+
+def format_net_contents(row: dict[str, str]) -> str:
+    """Return an application-style net-contents statement from sample-pack volume fields."""
+
+    volume = format_decimal(row.get("VOLUME", ""))
+    if not volume:
+        return ""
+    unit = normalize_value(row.get("VOLUME_UNIT", "")).lower()
+    unit_map = {
+        "milliliter": "mL",
+        "milliliters": "mL",
+        "ml": "mL",
+        "liter": "L",
+        "liters": "L",
+        "l": "L",
+        "fluid ounce": "fl oz",
+        "fluid ounces": "fl oz",
+        "fl oz": "fl oz",
+        "ounce": "oz",
+        "ounces": "oz",
+        "pint": "Pint",
+        "pints": "Pints",
+        "gallon": "gal",
+        "gallons": "gal",
+    }
+    return f"{volume} {unit_map.get(unit, normalize_value(row.get('VOLUME_UNIT', '')))}".strip()
+
+
 def cola_record_to_registry_row(row: dict[str, str]) -> dict[str, str]:
     """Map a COLA Cloud COLA row to the local registry row contract."""
 
@@ -109,6 +153,8 @@ def parsed_application_payload(row: dict[str, str], images: list[dict[str, str]]
 
     ttb_id = row.get("TTB_ID", "")
     imported = imported_flag(row.get("DOMESTIC_OR_IMPORTED", ""))
+    alcohol_content = format_abv(row)
+    net_contents = format_net_contents(row)
     application = {
         "fixture_id": ttb_id,
         "filename": f"{ttb_id}.json",
@@ -116,8 +162,8 @@ def parsed_application_payload(row: dict[str, str], images: list[dict[str, str]]
         "brand_name": normalize_value(row.get("BRAND_NAME", "")),
         "fanciful_name": normalize_value(row.get("PRODUCT_NAME", "")),
         "class_type": normalize_value(row.get("CLASS_NAME", "")),
-        "alcohol_content": "",
-        "net_contents": "",
+        "alcohol_content": alcohol_content,
+        "net_contents": net_contents,
         "country_of_origin": normalize_value(row.get("ORIGIN_NAME", "")) if imported else None,
         "imported": imported,
         "formula_id": normalize_value(row.get("FORMULA_CODE", "")),
@@ -134,8 +180,8 @@ def parsed_application_payload(row: dict[str, str], images: list[dict[str, str]]
         "fanciful_name": application["fanciful_name"],
         "applicant_name_address": normalize_value(row.get("PERMIT_NUMBER", "")),
         "formula_id": application["formula_id"],
-        "net_contents": "",
-        "alcohol_content": "",
+        "net_contents": net_contents,
+        "alcohol_content": alcohol_content,
         "type_of_application": normalize_value(row.get("APPLICATION_TYPE", "")),
         "date_of_application": normalize_value(row.get("APPLICATION_DATE", "")),
         "date_issued": normalize_value(row.get("APPROVAL_DATE", "")),

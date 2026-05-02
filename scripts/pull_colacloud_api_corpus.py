@@ -306,6 +306,60 @@ def imported(record: dict[str, Any]) -> bool:
     return bool(origin and origin not in domestic_origins)
 
 
+def format_decimal(value: Any) -> str:
+    """Return compact decimal text for API numeric fields.
+
+    Notes
+    -----
+    COLA Cloud serializes values such as ABV and volume as JSON numbers. For
+    comparison against OCR text, ``750`` is easier to match than ``750.0``,
+    while ``4.5`` must keep its decimal precision.
+    """
+
+    try:
+        number = float(str(value).strip())
+    except (TypeError, ValueError):
+        return normalize_value(value)
+    return str(int(number)) if number.is_integer() else str(number).rstrip("0").rstrip(".")
+
+
+def format_abv(record: dict[str, Any]) -> str:
+    """Return an application-style alcohol-content statement from API ABV."""
+
+    value = field(record, "abv")
+    number = format_decimal(value)
+    return f"{number}% ALC/VOL" if number else ""
+
+
+def format_net_contents(record: dict[str, Any]) -> str:
+    """Return an application-style net-contents statement from API volume fields."""
+
+    volume = format_decimal(field(record, "volume"))
+    if not volume:
+        return ""
+
+    unit = normalize_value(field(record, "volume_unit")).lower()
+    unit_map = {
+        "milliliter": "mL",
+        "milliliters": "mL",
+        "ml": "mL",
+        "liter": "L",
+        "liters": "L",
+        "l": "L",
+        "fluid ounce": "fl oz",
+        "fluid ounces": "fl oz",
+        "fl oz": "fl oz",
+        "ounce": "oz",
+        "ounces": "oz",
+        "pint": "Pint",
+        "pints": "Pints",
+        "gallon": "gal",
+        "gallons": "gal",
+    }
+    normalized_unit = unit_map.get(unit, normalize_value(field(record, "volume_unit")))
+    return f"{volume} {normalized_unit}".strip()
+
+
 def write_selected_ids(output_dir: Path, records: list[dict[str, Any]], filename: str) -> Path:
     """Write selected TTB IDs in evaluator-friendly text format."""
 
@@ -366,6 +420,8 @@ def parsed_payload(record: dict[str, Any]) -> dict[str, Any]:
     class_name = normalize_value(field(record, "class_name"))
     origin = normalize_value(field(record, "origin_name"))
     product_type = normalize_value(field(record, "product_type"))
+    alcohol_content = format_abv(record)
+    net_contents = format_net_contents(record)
     return {
         "source_type": "cola_cloud_api",
         "source_url": PUBLIC_FORM_URL.format(ttb_id=ident),
@@ -380,8 +436,8 @@ def parsed_payload(record: dict[str, Any]) -> dict[str, Any]:
             "fanciful_name": product_name,
             "applicant_name_address": normalize_value(field(record, "address_text", "permit_number")),
             "formula_id": normalize_value(field(record, "formula_code")),
-            "net_contents": "",
-            "alcohol_content": "",
+            "net_contents": net_contents,
+            "alcohol_content": alcohol_content,
             "type_of_application": normalize_value(field(record, "application_type")),
             "date_of_application": normalize_value(field(record, "application_date")),
             "date_issued": normalize_value(field(record, "approval_date")),
@@ -396,8 +452,8 @@ def parsed_payload(record: dict[str, Any]) -> dict[str, Any]:
             "brand_name": brand,
             "fanciful_name": product_name,
             "class_type": class_name,
-            "alcohol_content": "",
-            "net_contents": "",
+            "alcohol_content": alcohol_content,
+            "net_contents": net_contents,
             "country_of_origin": origin if is_imported else None,
             "imported": is_imported,
             "formula_id": normalize_value(field(record, "formula_code")),

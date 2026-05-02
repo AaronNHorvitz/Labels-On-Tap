@@ -345,6 +345,8 @@ def field_candidates(field_name: str, expected: str) -> list[str]:
             )
     elif field_name == "net_contents":
         candidates.extend(net_content_variants(expected))
+    elif field_name == "class_type":
+        candidates.extend(class_type_variants(expected))
     elif field_name == "country_of_origin":
         candidates.extend([f"Product of {expected}", f"Made in {expected}"])
 
@@ -353,6 +355,60 @@ def field_candidates(field_name: str, expected: str) -> list[str]:
         if candidate and candidate not in unique:
             unique.append(candidate)
     return unique
+
+
+def class_type_variants(value: str) -> list[str]:
+    """Return practical label-text variants for COLA class/type names.
+
+    Notes
+    -----
+    Public COLA metadata often stores formal class/type descriptions that are
+    more verbose than the label copy. These candidates are OCR-evaluation aids,
+    not substitute legal determinations. The compliance layer should still
+    route ambiguous class/type evidence to human review.
+    """
+
+    text = normalize_label_text(value)
+    if not text:
+        return []
+
+    variants: list[str] = []
+    if text.endswith(" fb"):
+        variants.append(text.removesuffix(" fb").strip())
+    variants.extend(part.strip() for part in re.split(r"\s+-\s+", text) if part.strip())
+
+    keyword_variants = {
+        "straight bourbon whisky": ["straight bourbon whiskey", "bourbon", "whisky", "whiskey"],
+        "straight bourbon whiskey": ["bourbon", "whisky", "whiskey"],
+        "bourbon": ["bourbon", "whisky", "whiskey"],
+        "london dry gin": ["london dry gin", "gin"],
+        "gin": ["gin"],
+        "vodka": ["vodka"],
+        "tequila": ["tequila"],
+        "mezcal": ["mezcal"],
+        "rum": ["rum"],
+        "brandy": ["brandy"],
+        "liqueur": ["liqueur", "cordial"],
+        "table red wine": ["table wine", "red wine"],
+        "table white wine": ["table wine", "white wine"],
+        "table wine": ["table wine"],
+        "red wine": ["red wine"],
+        "white wine": ["white wine"],
+        "rose wine": ["rose wine"],
+        "sparkling wine": ["sparkling wine"],
+        "malt beverage": ["malt beverage", "malt beverages", "beer"],
+        "malt beverages": ["malt beverage", "malt beverages", "beer"],
+        "beer": ["beer"],
+        "ale": ["ale"],
+        "porter": ["porter"],
+        "stout": ["stout"],
+        "hard cider": ["hard cider", "cider"],
+    }
+    for keyword, additions in keyword_variants.items():
+        if keyword in text:
+            variants.extend(additions)
+
+    return variants
 
 
 def first_number(value: str) -> str:
@@ -376,6 +432,19 @@ def net_content_variants(value: str) -> list[str]:
         variants.extend([f"{number} l", f"{number}l", f"{number} liter", f"{number} liters"])
     if "pint" in text:
         variants.extend([f"{number} pint", f"{number} pints"])
+    if "fluid ounce" in text or "fl oz" in text or re.search(r"\boz\b", text):
+        variants.extend(
+            [
+                f"{number} fl oz",
+                f"{number} fl. oz.",
+                f"{number} fluid ounce",
+                f"{number} fluid ounces",
+                f"{number} oz",
+                f"{number}oz",
+            ]
+        )
+    if "gallon" in text or "gal" in text:
+        variants.extend([f"{number} gal", f"{number} gallon", f"{number} gallons"])
     return variants
 
 

@@ -103,6 +103,13 @@ def test_expected_fields_uses_registry_origin_for_imported_applications() -> Non
 def test_field_candidates_adds_alcohol_and_net_contents_variants() -> None:
     assert "45.2% alc/vol" in field_candidates("alcohol_content", "45.2")
     assert "750 ml" in field_candidates("net_contents", "750 MILLILITERS")
+    assert "12 fl oz" in field_candidates("net_contents", "12 fluid ounces")
+
+
+def test_field_candidates_adds_class_type_variants() -> None:
+    assert "mezcal" in field_candidates("class_type", "MEZCAL FB")
+    assert "bourbon" in field_candidates("class_type", "STRAIGHT BOURBON WHISKY")
+    assert "beer" in field_candidates("class_type", "MALT BEVERAGES SPECIALITIES - FLAVORED")
 
 
 def test_resolve_work_path_remaps_host_absolute_paths() -> None:

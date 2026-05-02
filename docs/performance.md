@@ -164,13 +164,38 @@ with local docTR inside the Podman app image.
 | Brand-name match rate | 71% |
 | Fanciful-name match rate | 65% |
 | Country-origin match rate | 78.95% of 38 attempted |
-| Class/type match rate | 16% |
-| Alcohol/net-content match rate | Not measured; provider detail mapping not yet wired |
+| Class/type match rate | 49% |
+| Alcohol-content match rate | 91.49% of 94 attempted |
+| Net-contents match rate | 83.72% of 86 attempted |
 
 This is a calibration result, not final model accuracy. It proves that the
 bounded API corpus, image download, local OCR, and field-comparison pipeline all
 work on recent real public COLA label images within Sarah's 5-second usability
-target. It also shows the next engineering priorities before scaling the full
-1,500-record evaluation: map ABV/net-content fields from detail data where
-available, improve class/type synonym handling, and tune pass/review thresholds
-on train/dev before reporting held-out test performance.
+target.
+
+The first calibration pass exposed two mapping gaps: COLA Cloud detail records
+contained `abv`, `volume`, and `volume_unit`, but the importer was leaving
+`alcohol_content` and `net_contents` blank; class/type descriptions also needed
+basic synonym expansion such as `MEZCAL FB -> mezcal` and `STRAIGHT BOURBON
+WHISKY -> bourbon/whisky/whiskey`. After remapping and adding those evaluation
+candidates, ABV and net-contents became measurable fields and class/type
+matching improved from 16% to 49%.
+
+The next defensible measurement design is a 3,000-application corpus split into:
+
+| Split | Size | Purpose |
+|---|---:|---|
+| Calibration/tuning | 1,500 applications | Tune OCR preprocessing, field normalization, and pass/review thresholds. |
+| Locked holdout | 1,500 applications | Report final OCR/field-match rates after tuning decisions are frozen. |
+
+The sampler has been dry-run locally against the existing 7,788-record candidate
+pool and produced exact split counts of 1,500 calibration and 1,500 holdout
+applications without replacement.
+
+For a binary proportion measured on the 1,500-record holdout, the conservative
+95% margin of error is approximately `1.96 * sqrt(0.25 / 1500) = 2.53`
+percentage points before finite-population correction. With an annual COLA
+population around 150,000 applications, the finite-population correction changes
+that only slightly, to about 2.52 percentage points. This is the basis for the
+"about +/- 2.5 percentage points" claim. It is a margin of error for the locked
+holdout estimate, not a guarantee of production accuracy.

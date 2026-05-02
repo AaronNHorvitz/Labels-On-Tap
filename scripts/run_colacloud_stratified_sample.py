@@ -103,6 +103,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-name", default="official-sample-1500")
     parser.add_argument("--target", type=int, default=1500)
     parser.add_argument("--seed", type=int, default=20260502)
+    parser.add_argument(
+        "--split-mode",
+        choices=("train-dev-test", "calibration-holdout"),
+        default="train-dev-test",
+        help=(
+            "Use train/dev/test for threshold work, or calibration/holdout for "
+            "an exact 50/50 evaluation design."
+        ),
+    )
+    parser.add_argument(
+        "--calibration-size",
+        type=int,
+        default=None,
+        help="Exact calibration split size when --split-mode=calibration-holdout",
+    )
     parser.add_argument("--start-date", type=date.fromisoformat, default=DEFAULT_START)
     parser.add_argument("--end-date", type=date.fromisoformat, default=DEFAULT_END)
     parser.add_argument("--days-per-month", type=int, default=2)
@@ -449,12 +464,46 @@ def balanced_month_sample(rows: list[dict[str, Any]], target: int, *, seed: int)
     return selected
 
 
+def allocate_calibration_by_month(
+    by_month: dict[str, list[dict[str, Any]]],
+    calibration_size: int,
+) -> dict[str, int]:
+    """Allocate exact calibration counts across month buckets.
+
+    The largest-remainder allocation keeps the 50/50 split exact globally while
+    preserving each month's representation as closely as possible.
+    """
+
+    total = sum(len(bucket) for bucket in by_month.values())
+    if calibration_size < 0 or calibration_size > total:
+        raise ValueError(f"calibration_size must be between 0 and {total}")
+
+    allocation: dict[str, int] = {}
+    fractions: list[tuple[float, str]] = []
+    for month, bucket in by_month.items():
+        exact = calibration_size * (len(bucket) / total) if total else 0
+        count = int(exact)
+        allocation[month] = count
+        fractions.append((exact - count, month))
+
+    remaining = calibration_size - sum(allocation.values())
+    for _, month in sorted(fractions, reverse=True):
+        if remaining <= 0:
+            break
+        if allocation[month] < len(by_month[month]):
+            allocation[month] += 1
+            remaining -= 1
+    return allocation
+
+
 def assign_splits_and_fetch_order(
     selected: list[dict[str, Any]],
     *,
     seed: int,
+    split_mode: str,
+    calibration_size: int | None,
 ) -> list[dict[str, Any]]:
-    """Assign train/dev/test splits and a deterministic fetch order."""
+    """Assign deterministic evaluation splits and fetch order."""
 
     rows = [dict(row) for row in selected]
     by_month: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -462,9 +511,23 @@ def assign_splits_and_fetch_order(
         by_month[str(row["month_key"])].append(row)
 
     with_splits: list[dict[str, Any]] = []
+    calibration_allocation: dict[str, int] = {}
+    if split_mode == "calibration-holdout":
+        calibration_allocation = allocate_calibration_by_month(
+            by_month,
+            calibration_size if calibration_size is not None else len(rows) // 2,
+        )
+
     for month, bucket in sorted(by_month.items()):
         rng = random.Random(seed + int(month.replace("-", "")))
         rng.shuffle(bucket)
+        if split_mode == "calibration-holdout":
+            calibration_cut = calibration_allocation[month]
+            for index, row in enumerate(bucket):
+                row["split"] = "calibration" if index < calibration_cut else "holdout"
+                with_splits.append(row)
+            continue
+
         train_cut = int(len(bucket) * 0.60)
         dev_cut = train_cut + int(len(bucket) * 0.20)
         for index, row in enumerate(bucket):
@@ -505,7 +568,12 @@ def select_sample(candidates: list[dict[str, Any]], *, args: argparse.Namespace,
             )
         )
 
-    selected = assign_splits_and_fetch_order(selected, seed=args.seed)
+    selected = assign_splits_and_fetch_order(
+        selected,
+        seed=args.seed,
+        split_mode=args.split_mode,
+        calibration_size=args.calibration_size,
+    )
     write_csv(root / "sampling" / "selected_ttbs.csv", selected, SELECTED_FIELDS)
     selected_ids_text(root, selected, "selected-list-ttb-ids.txt")
 
@@ -529,6 +597,8 @@ def select_sample(candidates: list[dict[str, Any]], *, args: argparse.Namespace,
             "then without-replacement secondary balancing by product type, import bucket, "
             "and single/multi-panel image complexity."
         ),
+        "split_mode": args.split_mode,
+        "calibration_size": args.calibration_size,
         "month_allocation": allocation,
         "selected_by_month": dict(sorted(month_counts.items())),
         "split_counts": dict(sorted(split_counts.items())),

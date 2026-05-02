@@ -176,7 +176,7 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 **Implication:** The resulting corpus is stronger than a hand-picked demo set, but it is still not a complete population study. It is a practical stratified cluster sample from public registry exports, not a simple random sample of every COLA application. It also cannot include confidential pending, denied, or Needs Correction applications.
 
-**Current local result:** Two non-overlapping seeded runs produced `800` sampled public COLA applications, and the local workspace now contains `810` parsed public forms including earlier pilot records. Those runs discovered `1,433` label-panel attachment records. A May 2 audit found that the previously saved attachment files were HTML error pages rather than valid raster images, so those attachment rows were marked pending for future redownload. Bulk data remains under gitignored `data/work/`, and the downloader now validates image bytes before accepting a panel as OCR-ready.
+**Current local result:** Direct TTB registry exports produced `810` parsed public forms and `1,433` discovered label-panel attachment records. A May 2 audit found that the previously saved direct-registry attachment files were HTML error pages rather than valid raster images, so those attachment rows were marked pending for future redownload. While TTBOnline.gov was unavailable/resetting, the COLA Cloud development bridge produced a separate 1,500-record stratified plan from 7,788 candidates and a 100-record/169-image local docTR calibration set. Bulk data remains under gitignored `data/work/`, and all image paths are validated before being treated as OCR-ready.
 
 ---
 
@@ -212,6 +212,15 @@ The repository includes a large legal/research corpus and source-backed rule mat
 **Security posture:** API keys must live only in `.env` or local shell environment variables and must never be committed. Bulk downloads, cached API responses, images, and evaluation outputs stay under gitignored `data/work/`. If an API pull is used, it should be logged with source, timestamp, query parameters, counts, and provider plan so the sample can be reproduced or explained.
 
 **Data governance posture:** COLA Cloud is a pragmatic fallback over a weekend outage, not the product architecture. The README and submission notes should state that the deployed prototype remains local-first and can run without COLA Cloud; the commercial data source was used only to obtain public example records/images for OCR evaluation when TTBOnline.gov was unavailable.
+
+**Evaluation design:** The preferred final measurement corpus is 3,000 public
+COLA applications split into exactly 1,500 calibration/tuning records and 1,500
+locked holdout records. The calibration split is allowed to influence OCR
+preprocessing, field normalization, and pass/review thresholds. The holdout
+split is not used for tuning; it is reserved for the final field-match estimates.
+At `n = 1,500`, the conservative 95% margin of error for a binary proportion is
+about `+/- 2.5` percentage points. This is a sampling margin for the held-out
+evaluation, not a production guarantee.
 
 **Migration plan after paid access:**
 

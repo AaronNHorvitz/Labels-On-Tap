@@ -51,24 +51,47 @@ The public COLA evaluation corpus is built with a deterministic, two-stage strat
 Sampling frame:
 
 ```text
-Public source: TTB Public COLA Registry
-Date range: 2025-05-01 through 2026-05-01
-Primary strata: month completed
-Secondary strata: product family and imported/domestic source bucket
+Public source class: public COLA records and public label images
+Direct source: TTB Public COLA Registry when reachable
+Development bridge: COLA Cloud API when TTBOnline.gov is unavailable
+Date range: 2025-05-01 through 2026-04-30
+Primary strata: month approved/completed
+Secondary strata: product family, imported/domestic bucket, and single/multi-panel image complexity
 Randomness: seeded pseudo-random sampling
 Replacement: without replacement
 ```
 
-Stage 1 uses seeded cluster sampling by date: the script chooses business days within each month using a fixed seed, then imports all public registry rows for those days. Stage 2 samples applications without replacement from that imported pool, using a deterministic round-robin across secondary strata such as broad product family and imported/domestic source bucket. Train/dev/test splits are assigned deterministically within month buckets so the holdout set is not concentrated in one time period.
+Stage 1 uses seeded cluster sampling by date: the script chooses business days within each month using a fixed seed, then imports public records for those days. Stage 2 samples applications without replacement from that imported pool, using deterministic balancing across secondary strata such as broad product family, imported/domestic source bucket, and single-panel versus multi-panel label complexity.
 
-The current local evaluation corpus was created as two non-overlapping seeded runs:
+The current local data story has two branches:
 
-| Run | Seed | Target | Exclusion | Result |
-|---|---:|---:|---|---|
-| Pilot corpus | `20260502` | `300` applications | none | `300` parsed forms, `557` discovered label panels |
-| Expanded corpus | `20260503` | `500` applications | prior `300` IDs | `500` parsed forms, `663` discovered label panels in that run |
+| Branch | Purpose | Current Result |
+|---|---|---|
+| Direct TTB Public Registry ETL | Preserve the official printable-form path and parser. | `810` parsed public COLA forms and `1,433` discovered attachment records; attachment endpoint was returning HTML errors during the May 2 audit, so invalid files were marked pending rather than treated as images. |
+| COLA Cloud public-data bridge | Obtain validated public label rasters while TTBOnline.gov was unavailable/resetting. | `1,500` selected applications from `7,788` candidates, with the first `100` details and `169` label images evaluated by local docTR. |
 
-Together, the local workspace currently has `810` parsed public COLA forms and `1,433` discovered label-panel attachment records. A May 2 audit found that the previously saved attachment files were HTML "Unable to render attachment" error pages rather than valid raster images, so the validated public-label image count is currently `0` until the attachment endpoint is reachable and those pending downloads are retried. The downloader now warms the public form session, validates attachment bytes with Pillow, and refuses to mark HTML error pages as label images. Bulk forms, image attempts, SQLite data, and OCR outputs remain under gitignored `data/work/`.
+COLA Cloud is not a runtime dependency and its hosted OCR enrichment is not used as Labels On Tap's measured model output. It is a development-only source for public records/images. The deployed app still runs local OCR or deterministic fixture OCR. Bulk forms, API responses, image files, SQLite data, and OCR outputs remain under gitignored `data/work/`.
+
+The current 100-record calibration result is intentionally conservative: all applications route to `Needs Review` unless every attempted field is strongly supported. After fixing the COLA Cloud mapping for `abv`, `volume`, and `volume_unit`, the measured field results are:
+
+| Field | Attempted | Match Rate |
+|---|---:|---:|
+| Brand name | 100 | 71% |
+| Fanciful name | 100 | 65% |
+| Class/type | 100 | 49% |
+| Alcohol content | 94 | 91.49% |
+| Net contents | 86 | 83.72% |
+| Country of origin | 38 | 78.95% |
+
+The next statistical target is a `3,000`-application public-data corpus split into exactly `1,500` calibration/tuning records and `1,500` locked holdout records. A no-network plan-only check has already verified that the current candidate pool can produce this exact split without replacement. The calibration split is for OCR preprocessing, field-normalization, and threshold decisions. The holdout split is reserved for the final reported estimate after tuning is frozen.
+
+For a binary proportion on the `1,500`-record holdout, the conservative 95% margin of error is approximately:
+
+```text
+1.96 * sqrt(0.25 / 1500) = 0.0253
+```
+
+That is about `+/- 2.5 percentage points` before finite-population correction, and about the same after correction against an annual population near `150,000` COLA applications. This is a margin-of-error statement for the locked holdout estimate, not a claim that production accuracy is guaranteed.
 
 This design gives the project a cleaner evidence story than hand-picked examples:
 

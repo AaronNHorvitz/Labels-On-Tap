@@ -258,6 +258,29 @@ records/images. Use that calibration set to verify image validity, local OCR
 latency, field-match behavior, and provider field coverage before spending the
 remaining detail-view quota.
 
+For the final statistically defensible measurement run, use an exact
+calibration/holdout split:
+
+```bash
+python scripts/run_colacloud_stratified_sample.py \
+  --run-name official-sample-3000-balanced \
+  --target 3000 \
+  --split-mode calibration-holdout \
+  --calibration-size 1500 \
+  --start-date 2025-05-01 \
+  --end-date 2026-04-30 \
+  --days-per-month 8 \
+  --min-candidates-per-month 650 \
+  --fetch-limit 3000 \
+  --download-images \
+  --resume
+```
+
+The calibration split is for OCR preprocessing, field-normalization, and
+threshold tuning. The holdout split is reserved for final reporting. A
+1,500-record holdout gives a conservative 95% margin of error of about `+/- 2.5`
+percentage points for binary proportions such as field-match rates.
+
 Evaluate OCR field matching against downloaded public COLA records:
 
 ```bash

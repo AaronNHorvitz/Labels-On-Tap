@@ -11,6 +11,7 @@ from scripts.cola_etl.sampling import (
     read_excluded_ttb_ids,
     source_bucket,
 )
+from scripts.run_colacloud_stratified_sample import assign_splits_and_fetch_order
 
 
 def test_choose_sample_days_is_deterministic() -> None:
@@ -58,3 +59,29 @@ def test_read_excluded_ttb_ids_accepts_plain_text(tmp_path) -> None:
         "25337001000464",
         "26035001000229",
     }
+
+
+def test_calibration_holdout_split_is_exact_without_replacement() -> None:
+    rows = [
+        {
+            "ttb_id": f"25{index:012d}",
+            "month_key": "2026-01" if index < 7 else "2026-02",
+            "fetch_order": "",
+        }
+        for index in range(20)
+    ]
+
+    split_rows = assign_splits_and_fetch_order(
+        rows,
+        seed=20260502,
+        split_mode="calibration-holdout",
+        calibration_size=10,
+    )
+
+    split_counts = {"calibration": 0, "holdout": 0}
+    for row in split_rows:
+        split_counts[row["split"]] += 1
+
+    assert split_counts == {"calibration": 10, "holdout": 10}
+    assert len({row["ttb_id"] for row in split_rows}) == len(split_rows)
+    assert sorted(int(row["fetch_order"]) for row in split_rows) == list(range(1, 21))

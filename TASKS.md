@@ -59,7 +59,12 @@ The sprint priority is now:
 - [x] COLA Cloud smoke OCR ran through local docTR in the Podman app image.
 - [x] COLA Cloud balanced plan selected **1,500 applications** from **7,788 candidates** across May 1, 2025 through April 30, 2026.
 - [x] COLA Cloud balanced calibration fetched **100 detail records** and evaluated **169 label images** with local docTR.
+- [x] COLA Cloud field mapping now populates `alcohol_content` from `abv` and `net_contents` from `volume` + `volume_unit`.
+- [x] COLA Cloud field evaluation now includes initial class/type synonym expansion.
 - [x] Balanced calibration latency met Sarah's target: mean **1,413 ms/application**, max **3,620 ms/application**.
+- [x] Balanced calibration now measures ABV and net contents: alcohol-content match rate **91.49% of 94 attempted**, net-contents match rate **83.72% of 86 attempted**.
+- [x] Sampler supports an exact `calibration` / `holdout` split for the planned **1,500 / 1,500** design.
+- [x] No-network plan-only check produced a **3,000-record** selected sample with exact split counts: **1,500 calibration**, **1,500 holdout**.
 - [x] Existing public sampling used deterministic seeds and sampling without replacement.
 - [x] Existing public sampling produced two non-overlapping samples: 300 applications and 500 applications.
 - [x] TTB's public processing-time page reports **57,636 label applications received in 2026 as of May 1, 2026**.
@@ -99,7 +104,9 @@ Sample-size framing:
 
 - [x] Use `N ~= 150,000` annual COLA applications as the working population size.
 - [x] Current `n = 810` parsed official public COLAs gives about **+/- 3.4%** conservative 95% margin of error for a broad proportion estimate.
-- [ ] Target `n = 1,000` official public COLAs if the registry stabilizes; that gives about **+/- 3.1%** conservative 95% margin of error.
+- [ ] Target `n = 3,000` public COLA applications if quota/time allows, split into **1,500 calibration/tuning** and **1,500 locked holdout** records.
+- [x] A locked holdout of `n = 1,500` gives about **+/- 2.5 percentage points** conservative 95% margin of error for a binary proportion estimate.
+- [ ] Explain clearly that `+/- 2.5%` is a 95% margin of error on the final holdout estimate, not a guarantee of production accuracy.
 - [ ] Build 300-500 known-bad synthetic negative cases for false-clear testing.
 - [ ] Explain the "rule of three": zero false clears in 300 known-bad cases implies an approximate 95% upper bound of 1% on the false-clear rate.
 
@@ -122,13 +129,14 @@ Use accepted public COLA applications as positive ground truth. The goal is not 
 - [ ] Download valid public label raster images from those public records after the TTB endpoint stabilizes.
 - [x] Preserve deterministic sample provenance and exclusion files.
 - [ ] Pause additional TTB registry fetching while the public endpoint is resetting.
-- [ ] When the endpoint stabilizes, collect up to 200 more non-overlapping official public COLAs to reach `n = 1,000`.
+- [ ] When direct TTB endpoint stabilizes, reconcile a subset of COLA Cloud records back to printable public forms where possible.
 - [ ] Retry pending public label image downloads with session warming, Pillow validation, and polite delay/retry settings.
 - [ ] Use COLA Cloud sample pack/API only as development/silver-label fallback; do not make it a runtime dependency.
 - [ ] Pull a bounded COLA Cloud API corpus only after the API key is stored locally in `.env`.
 - [ ] Keep COLA Cloud API requests slow enough to respect the provider burst limit and detail-view quota.
-- [ ] Before scaling beyond the 100-record calibration set, map ABV/net-content fields from COLA Cloud details where available.
-- [ ] Before scaling beyond the 100-record calibration set, improve class/type synonym matching.
+- [x] Before scaling beyond the 100-record calibration set, map ABV/net-content fields from COLA Cloud details where available.
+- [x] Before scaling beyond the 100-record calibration set, add initial class/type synonym matching.
+- [ ] Before scaling beyond the full calibration set, inspect class/type misses and decide whether they are OCR failures, metadata/label mismatch, or expected absent label text.
 - [ ] Export 10-25 curated official public COLA fixtures into `data/fixtures/public-cola/`.
 - [ ] Each curated fixture must include source/provenance, parsed application JSON, label image metadata, and expected field checks.
 - [ ] Keep official public records separate from synthetic negative records.
@@ -179,18 +187,19 @@ This is the core AI-powered proof. Extract text from real accepted label images,
 - [x] OCR each label image separately and preserve panel-level text/evidence.
 - [x] Aggregate OCR text across front/back/neck/side panels for application-level comparison.
 - [x] Extract or normalize application fields from parsed public COLA forms.
-- [ ] Compare OCR text against application fields:
-  - [ ] Brand name.
-  - [ ] Fanciful name when present.
-  - [ ] Class/type.
-  - [ ] Alcohol content.
-  - [ ] Net contents.
-  - [ ] Country of origin / origin where applicable.
-  - [ ] Applicant, permittee, bottler, producer, or name/address when visible.
-- [ ] Report field-level expected value, observed OCR evidence, match verdict, OCR confidence, and reviewer action.
-- [ ] Split official public corpus into train/dev/tuning and held-out test manifests before tuning thresholds after valid images are available.
-- [ ] Tune OCR preprocessing and fuzzy-match thresholds only on train/dev.
-- [ ] Evaluate final OCR/comparison behavior on the held-out set.
+- [x] Compare OCR text against application fields:
+  - [x] Brand name.
+  - [x] Fanciful name when present.
+  - [x] Class/type.
+  - [x] Alcohol content.
+  - [x] Net contents.
+  - [x] Country of origin / origin where applicable.
+  - [x] Applicant, permittee, bottler, producer, or name/address when visible.
+- [x] Report field-level expected value, observed OCR evidence, match verdict, OCR confidence, and reviewer action.
+- [x] Add code support for exact calibration/holdout manifests.
+- [ ] Run the full 3,000-record split when enough quota/time is available.
+- [ ] Tune OCR preprocessing and fuzzy-match thresholds only on the 1,500-record calibration split.
+- [ ] Evaluate final OCR/comparison behavior on the 1,500-record locked holdout.
 - [x] Save OCR and evaluation outputs under `data/work/public-cola/parsed/ocr/`.
 - [ ] Summarize measured accuracy, coverage, latency, and limitations in `docs/performance.md`.
 - [ ] Add a README section that leads with time/money savings using TTB's 2026 application-volume page and Sarah's 5-10 minute review estimate.
@@ -256,16 +265,16 @@ Legal guidance is valuable, but it should explain deterministic findings rather 
 
 ## Immediate Execution Order
 
-1. Pause further TTB registry requests until connection resets stop.
-2. Keep the existing 810 parsed official public COLA applications as the initial evaluation corpus.
-3. Retry valid label attachment downloads only after the TTB endpoint stabilizes.
-4. Run the OCR evaluation runner on a capped subset with valid raster images.
-5. Produce first field-level OCR/matching metrics on that capped subset.
-6. Expand to the full local corpus after the first subset proves the data path.
-7. If the public registry stabilizes, collect the final 200 non-overlapping applications to reach 1,000.
+1. Keep pausing further direct TTB registry requests until connection resets stop.
+2. Use the COLA Cloud public-data bridge only for local development/OCR evaluation, not runtime.
+3. Build the full 3,000-record public-data plan with exact 1,500 calibration / 1,500 holdout splits.
+4. Fetch/details/images for the calibration split first and tune only on that split.
+5. Freeze OCR preprocessing, field-normalization, and pass/review thresholds.
+6. Evaluate the locked 1,500-record holdout and report field-level match rates, latency, and limitations.
+7. Reconcile a small subset back to direct TTB printable forms if the public endpoint stabilizes.
 8. Export 10-25 curated official public fixtures for committed demo/test use.
 9. Build synthetic negative coverage for the highest-risk mismatch cases.
-10. Update README, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the measurement story.
+10. Update README, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the final measurement story.
 11. Redeploy only after local OCR/evaluation changes pass.
 
 ---
