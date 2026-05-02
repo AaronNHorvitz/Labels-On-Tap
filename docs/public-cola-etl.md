@@ -166,6 +166,65 @@ JSON files, downloads CloudFront WebP label images, validates them with Pillow,
 converts them to PNG, and records the image paths in the local SQLite index.
 All artifacts remain under gitignored `data/work/public-cola/`.
 
+Pull a bounded COLA Cloud API corpus when the public TTB registry remains
+unavailable and a local OCR evaluation needs real public label images:
+
+```bash
+# Put the key in .env, never in git or shell history shared with others.
+COLACLOUD_API_KEY=cola_xxxxx
+
+python scripts/pull_colacloud_api_corpus.py \
+  --run-name colacloud-api-probe \
+  --limit 10 \
+  --per-page 10 \
+  --dry-run
+```
+
+After inspecting the saved raw probe response, fetch detail records and label
+images slowly. Detail calls count against COLA Cloud detail-view quota, so keep
+the first run small:
+
+```bash
+python scripts/pull_colacloud_api_corpus.py \
+  --run-name colacloud-api-ocr-25 \
+  --limit 25 \
+  --per-page 25 \
+  --include-details \
+  --detail-limit 25 \
+  --download-images \
+  --image-limit 75 \
+  --delay 6.5
+```
+
+The script stores raw API responses under:
+
+```text
+data/work/public-cola/raw/colacloud-api/<run-name>/
+```
+
+It also writes evaluator-friendly ID files:
+
+```text
+selected-list-ttb-ids.txt
+selected-detail-ttb-ids.txt
+```
+
+Use the detail ID file for a targeted OCR run:
+
+```bash
+podman run --rm \
+  -v "$PWD/data/work:/app/data/work:Z" \
+  -v "$PWD/data/work/model-cache:/root/.cache:Z" \
+  labels-on-tap-app:local \
+  python scripts/evaluate_public_cola_ocr.py \
+    --ttb-id-file data/work/public-cola/raw/colacloud-api/colacloud-api-ocr-25/selected-detail-ttb-ids.txt \
+    --run-name colacloud-api-ocr-25
+```
+
+This API path is still development-only. The deployed app does not call COLA
+Cloud at runtime, and provider OCR/enrichment fields are not counted as Labels
+On Tap OCR results.
+
 Evaluate OCR field matching against downloaded public COLA records:
 
 ```bash
