@@ -206,22 +206,36 @@ docTR + PaddleOCR + OpenOCR
   -> deterministic compliance
 ```
 
-Before running it overnight, use the armored conveyor:
+The armored conveyor is now built and smoke-tested. It preflights images, skips
+corrupt files, runs OCR chunks in subprocesses, records stdout/stderr per chunk,
+and resumes completed jobs.
+
+Completed conveyor checks:
+
+| Run | Result |
+|---|---|
+| `tri-engine-smoke-3` | 3 valid images; docTR, PaddleOCR, and OpenOCR all completed; 9 OCR rows; 0 row errors |
+| `tri-engine-smoke-8` | 8 valid images; all three engines completed; 24 OCR rows; 0 row errors |
+| `tri-engine-smoke-16` | 13 valid images; 3 invalid/corrupt images skipped by preflight; all three engines completed; 39 OCR rows; 0 row errors |
+| `tri-engine-train-val-v1-chunk16` dry run | 5,353 image rows; 5,179 valid images; 174 invalid/corrupt skipped; 975 planned jobs |
+
+Recommended next real run:
 
 ```bash
-python scripts/run_ocr_conveyor.py \
-  --split train \
-  --split validation \
-  --engine doctr \
-  --engine paddleocr \
-  --engine openocr \
-  --chunk-size 8 \
-  --timeout-seconds 900
+podman run --rm \
+  -e HF_HOME=/app/data/work/ocr-conveyor/model-cache/hf \
+  -e PADDLEOCR_HOME=/app/data/work/ocr-conveyor/model-cache/paddleocr \
+  -v "$PWD":/app:Z \
+  -w /app \
+  localhost/labels-on-tap-app:local \
+  bash -lc "python -m pip install paddlepaddle==3.2.0 paddleocr==3.3.3 openocr-python==0.1.5 >/tmp/tri-engine-pip.log && python scripts/run_ocr_conveyor.py --split train --split validation --engine doctr --engine paddleocr --engine openocr --chunk-size 16 --timeout-seconds 1200 --output-dir data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16"
 ```
 
-It preflights images, skips corrupt files, runs OCR chunks in subprocesses,
-records stdout/stderr per chunk, and resumes completed jobs. Outputs stay under
-gitignored `data/work/ocr-conveyor/tri-engine-v1/`.
+Estimated runtime for the full train/validation conveyor is roughly 10-12 hours,
+with PaddleOCR the slowest engine. Do not run holdout yet. Holdout OCR should
+remain sealed until preprocessing, OCR evidence attachment, DistilRoBERTa
+threshold, graph scorer, and deterministic compliance settings are frozen.
+Outputs stay under gitignored `data/work/ocr-conveyor/`.
 
 ## GPU Setup
 
@@ -337,7 +351,7 @@ not pixel-level OCR recognizers.
 
 1. Keep the deployed app stable.
 2. Use `MODEL_LOG.md` as the experiment ledger for all OCR/model runs.
-3. Run the OCR conveyor over train/validation for docTR, PaddleOCR, and OpenOCR.
+3. Run the full chunk-size 16 OCR conveyor over train/validation for docTR, PaddleOCR, and OpenOCR.
 4. Attach conveyor OCR evidence to the existing field-support pair manifests.
 5. Rerun DistilRoBERTa on OCR-backed candidate evidence.
 6. Compare them against deterministic ensemble and graph-aware evidence scorer.

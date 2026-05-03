@@ -74,6 +74,11 @@ The sprint priority is now:
 - [x] RoBERTa-base was trained/evaluated on the same field-support pair manifests as a capacity/control comparison.
 - [x] Current trained text-pair arbiter winner is DistilRoBERTa: holdout F1 **0.999872**, false-clear rate **0.000128**, CPU mean **15.76 ms/pair** on weak field-pair supervision.
 - [x] Armored OCR conveyor layer exists for subprocess-isolated tri-engine OCR runs.
+- [x] Armored OCR conveyor real tri-engine smoke passed at 3 images, 8 images, and 16 requested images.
+- [x] Latest chunk-size 16 smoke processed **13 valid images**, skipped **3 invalid/corrupt images** in preflight, and completed **39 OCR rows** across docTR, PaddleOCR, and OpenOCR with **0 row errors**.
+- [x] Full train/validation OCR conveyor dry run passed at chunk-size 16: **5,353 image rows**, **5,179 valid images**, **174 invalid/corrupt skipped**, **975 planned jobs**.
+- [ ] Full train/validation OCR conveyor still needs to run for real before OCR evidence attachment.
+- [ ] Locked holdout OCR conveyor has not been run and must remain sealed until preprocessing, model, and thresholds are frozen.
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
 - [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the COLA Cloud-derived 100-application calibration test split.
@@ -103,7 +108,7 @@ The sprint priority is now:
 - [x] Current month-stratified annual-volume estimate from local daily CSV exports is about **142,510 applications** for May 1, 2025 through April 30, 2026, with an approximate 95% CI of **132,011 to 153,009**.
 - [ ] Public COLA Registry access is currently fragile/resetting; pause further automated registry access until it cools down.
 - [ ] Deployment URL remains live through submission.
-- [x] TASKS.md is committed after the latest priority/OCR sweep updates.
+- [x] TASKS.md is committed after the latest OCR conveyor-state update.
 
 ---
 
@@ -468,8 +473,10 @@ Before running that over thousands of images, the conveyor protects the run from
 - [x] Run OCR chunks in subprocesses so native engine crashes cannot kill the parent run.
 - [x] Record stdout/stderr, return code, row counts, and status per chunk.
 - [x] Support resume by skipping completed chunks unless `--force` is passed.
-- [ ] Run a dry-run conveyor manifest for train/validation.
-- [ ] Run a small real smoke conveyor with all three engines.
+- [x] Run a dry-run conveyor manifest for train/validation.
+- [x] Run a small real smoke conveyor with all three engines.
+- [x] Run chunk-size 16 real smoke with all three engines: **13 valid images**, **3 invalid skipped**, **39 OCR rows**, **0 row errors**.
+- [x] Run chunk-size 16 full train/validation dry run: **5,353 image rows**, **5,179 valid**, **174 invalid skipped**, **975 planned jobs**.
 - [ ] Run full train/validation conveyor after smoke passes.
 - [ ] Attach conveyor OCR JSON to field-support pair manifests.
 - [ ] Run holdout conveyor only after preprocessing, model, and threshold choices are frozen.
@@ -575,7 +582,7 @@ Legal guidance is valuable, but it should explain deterministic findings rather 
 3. Keep docTR as the deployed default unless PaddleOCR/OpenOCR or an ensemble wins the measured comparison and fits the CPU SLA.
 4. Use the current 6,000-record public-data corpus without replacement.
 5. Use the current 2,000 train / 1,000 validation / 3,000 locked-holdout split.
-6. Run the armored OCR conveyor over train/validation before attaching OCR evidence.
+6. Run the full train/validation armored OCR conveyor with chunk-size 16 before attaching OCR evidence.
 7. Attach OCR evidence to the field-support manifests before retraining DistilRoBERTa or graph scorers.
 8. Freeze OCR engine choice, OCR preprocessing, field-normalization, model family, and pass/review thresholds.
 9. Evaluate the locked test split and report field-level match rates, false-clear rate, latency, and limitations.

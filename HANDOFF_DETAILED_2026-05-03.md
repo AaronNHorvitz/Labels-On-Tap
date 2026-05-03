@@ -670,6 +670,59 @@ and threshold policies, but not honest claims of fine-tuning OCR recognizers
 unless separate OCR annotations are created.
 ```
 
+### 7.2 Armored OCR Conveyor State
+
+The armored OCR conveyor is now built and smoke-tested. It is the mechanism that
+should run the full docTR + PaddleOCR + OpenOCR evidence extraction without
+letting corrupt images or native OCR crashes kill the parent job.
+
+What it does:
+
+```text
+image manifest
+  -> file signature preflight
+  -> Pillow decode validation
+  -> valid/invalid split
+  -> per-engine chunk jobs
+  -> subprocess-isolated OCR execution
+  -> per-job stdout/stderr/result JSON
+  -> resumable output under data/work/ocr-conveyor/
+```
+
+Completed checks:
+
+| Run | Output Path | Result |
+|---|---|---|
+| 3-image real smoke | `data/work/ocr-conveyor/tri-engine-smoke-3/` | 3 valid images; all three engines completed; 9 OCR rows; 0 row errors |
+| 8-image real smoke | `data/work/ocr-conveyor/tri-engine-smoke-8/` | 8 valid images; all three engines completed; 24 OCR rows; 0 row errors |
+| 16-request real smoke | `data/work/ocr-conveyor/tri-engine-smoke-16/` | 13 valid images; 3 invalid/corrupt skipped by preflight; all three engines completed; 39 OCR rows; 0 row errors |
+| Train/validation dry run | `data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16/` | 5,353 image rows; 5,179 valid images; 174 invalid/corrupt skipped; 975 planned jobs |
+
+Observed smoke timing:
+
+| Run | Engine | Images Processed | Elapsed |
+|---|---|---:|---:|
+| `tri-engine-smoke-8` | docTR | 8 | 16.636 s |
+| `tri-engine-smoke-8` | PaddleOCR | 8 | 50.295 s |
+| `tri-engine-smoke-8` | OpenOCR | 8 | 16.686 s |
+| `tri-engine-smoke-16` | docTR | 13 | 18.352 s |
+| `tri-engine-smoke-16` | PaddleOCR | 13 | 70.629 s |
+| `tri-engine-smoke-16` | OpenOCR | 13 | 15.861 s |
+
+Current recommendation:
+
+```text
+Run the full train/validation conveyor next at chunk-size 16.
+Do not run the holdout conveyor until the preprocessing, OCR-evidence
+attachment, DistilRoBERTa threshold, graph scorer, and deterministic compliance
+settings are frozen.
+```
+
+Estimated runtime for the full train/validation tri-engine run is roughly
+10-12 hours, with PaddleOCR the slowest engine. The run should use the container
+command in Section 9 so the heavy OCR dependencies stay out of the production
+Python environment.
+
 ---
 
 ## 8. COLA Cloud Quota And Pull Strategy
@@ -784,29 +837,29 @@ Regenerate the field-support target/pair manifests:
 python scripts/build_field_support_dataset.py --force
 ```
 
-Run the armored OCR conveyor for train/validation:
+Run the full armored OCR conveyor for train/validation:
 
 ```bash
-python scripts/run_ocr_conveyor.py \
-  --split train \
-  --split validation \
-  --engine doctr \
-  --engine paddleocr \
-  --engine openocr \
-  --chunk-size 8 \
-  --timeout-seconds 900
+podman run --rm \
+  -e HF_HOME=/app/data/work/ocr-conveyor/model-cache/hf \
+  -e PADDLEOCR_HOME=/app/data/work/ocr-conveyor/model-cache/paddleocr \
+  -v "$PWD":/app:Z \
+  -w /app \
+  localhost/labels-on-tap-app:local \
+  bash -lc "python -m pip install paddlepaddle==3.2.0 paddleocr==3.3.3 openocr-python==0.1.5 >/tmp/tri-engine-pip.log && python scripts/run_ocr_conveyor.py --split train --split validation --engine doctr --engine paddleocr --engine openocr --chunk-size 16 --timeout-seconds 1200 --output-dir data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16"
 ```
 
-Dry-run the holdout conveyor manifest only:
+Dry-run the holdout conveyor manifest only after train/validation is complete
+and the final settings are nearly frozen:
 
 ```bash
-python scripts/run_ocr_conveyor.py \
-  --split holdout \
-  --engine doctr \
-  --engine paddleocr \
-  --engine openocr \
-  --chunk-size 8 \
-  --dry-run
+podman run --rm \
+  -e HF_HOME=/app/data/work/ocr-conveyor/model-cache/hf \
+  -e PADDLEOCR_HOME=/app/data/work/ocr-conveyor/model-cache/paddleocr \
+  -v "$PWD":/app:Z \
+  -w /app \
+  localhost/labels-on-tap-app:local \
+  bash -lc "python -m pip install paddlepaddle==3.2.0 paddleocr==3.3.3 openocr-python==0.1.5 >/tmp/tri-engine-pip.log && python scripts/run_ocr_conveyor.py --split holdout --engine doctr --engine paddleocr --engine openocr --chunk-size 16 --dry-run --output-dir data/work/ocr-conveyor/tri-engine-holdout-dry-run"
 ```
 
 Do not run the holdout OCR/evaluation until OCR preprocessing, evidence
@@ -814,7 +867,7 @@ attachment, DistilRoBERTa threshold, and graph/compliance settings are frozen.
 The conveyor output is gitignored:
 
 ```text
-data/work/ocr-conveyor/tri-engine-v1/
+data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16/
   manifest/images.csv
   manifest/jobs.csv
   jobs/<job_id>/stdout.log
@@ -878,8 +931,8 @@ curl http://localhost:8000/health
 1. Keep the public deployment stable.
 2. Use `data/work/cola/evaluation-splits/field-support-v1/` as the canonical
    split source.
-3. Run the armored OCR conveyor over train/validation for docTR, PaddleOCR,
-   and OpenOCR.
+3. Run the full chunk-size 16 armored OCR conveyor over train/validation for
+   docTR, PaddleOCR, and OpenOCR.
 4. Attach conveyor OCR evidence to the generated field-support pair manifests.
 5. Rerun DistilRoBERTa on OCR-backed candidate evidence.
 6. Compare all serious candidates with identical statistics and latency tables.
