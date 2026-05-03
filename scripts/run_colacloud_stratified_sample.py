@@ -623,6 +623,14 @@ def fetch_detail(
         payload = json.loads(path.read_text(encoding="utf-8"))
         return response_detail(payload)
 
+    if resume:
+        for existing_path in sorted(COLA_WORK_ROOT.glob(f"*/api/details/{ident}.json")):
+            if root in existing_path.parents:
+                continue
+            payload = json.loads(existing_path.read_text(encoding="utf-8"))
+            save_json(path, payload)
+            return response_detail(payload)
+
     response = client.get(f"/colas/{ident}")
     response.raise_for_status()
     payload = response.json()
