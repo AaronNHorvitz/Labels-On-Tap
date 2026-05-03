@@ -77,6 +77,7 @@ https://www.labelsontap.ai
 - Manual upload option.
 - Pass / Needs Review / Fail vocabulary.
 - Planned reviewer-policy queues before final acceptance or rejection.
+- Future control board for unknown warning review, pass review, and fail review.
 - Local-first / no hosted ML runtime positioning.
 ```
 
@@ -86,7 +87,7 @@ https://www.labelsontap.ai
 
 Optional policy framing:
 
-> In a production pilot, the raw system verdict would feed configurable reviewer queues. The agency could require human approval before rejection, before acceptance, or both. My recommended default is review before rejection on, review before acceptance off, so routine clean matches can move quickly while adverse or uncertain cases remain human-confirmed.
+> In a production pilot, the raw system verdict would feed a simple reviewer-policy control board. The agency could choose whether unknown government-warning cases, candidate rejections, and candidate acceptances require human review. The default is no extra human review; however, if the warning is unknown and warning review is off, the item defaults to failure because the government warning is mandatory.
 
 Optional real-photo framing:
 

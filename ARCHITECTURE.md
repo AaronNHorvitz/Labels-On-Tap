@@ -79,17 +79,20 @@ Pass
   The label appears consistent with the supplied application fields and implemented rules.
 ```
 
-Planned final workflow routing is governed by two independent policy flags:
+Planned final workflow routing is governed by a simple reviewer-policy control
+board:
 
 ```text
+review_unknown_government_warning: bool
 require_review_before_rejection: bool
 require_review_before_acceptance: bool
 ```
 
-Recommended defaults:
+Default posture:
 
 ```text
-require_review_before_rejection = true
+review_unknown_government_warning = false
+require_review_before_rejection = false
 require_review_before_acceptance = false
 ```
 
@@ -98,14 +101,18 @@ Routing:
 ```text
 raw Pass + acceptance review off -> Ready to accept
 raw Pass + acceptance review on  -> Acceptance review
-raw Fail + rejection review on   -> Rejection review
 raw Fail + rejection review off  -> Ready to reject
+raw Fail + rejection review on   -> Rejection review
+warning unknown + warning review off -> Fail, then normal fail routing
+warning unknown + warning review on  -> Manual evidence review
 raw Needs Review                 -> Manual evidence review
 ```
 
 This keeps the system useful for 200-300 application batches without forcing a
 single policy posture. TTB can choose full human confirmation, rejection-only
-confirmation, or higher automation for low-risk pilots.
+confirmation, higher automation for low-risk pilots, or mandatory manual review
+for unknown government-warning cases. Without that warning-specific review
+gate, unverifiable mandatory warning evidence defaults to failure.
 
 ### 1.4 Source-backed rules, not invented heuristics
 
@@ -710,7 +717,8 @@ class LabelVerificationResult(BaseModel):
 
 ```python
 class ReviewPolicy(BaseModel):
-    require_review_before_rejection: bool = True
+    review_unknown_government_warning: bool = False
+    require_review_before_rejection: bool = False
     require_review_before_acceptance: bool = False
 
 class ReviewerDecision(BaseModel):

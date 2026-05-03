@@ -86,14 +86,16 @@ supporting Sarah's 200-300 application batch workflow.
 Planned settings:
 
 ```text
+Send unknown government-warning cases to human review: Yes / No
 Require reviewer approval before rejection: Yes / No
 Require reviewer approval before acceptance: Yes / No
 ```
 
-Recommended defaults:
+Default posture:
 
 ```text
-Before rejection: Yes
+Unknown government warning human review: No
+Before rejection: No
 Before acceptance: No
 ```
 
@@ -102,10 +104,17 @@ Routing:
 ```text
 Pass + acceptance review off -> Ready to accept
 Pass + acceptance review on  -> Acceptance review
-Fail + rejection review on   -> Rejection review
 Fail + rejection review off  -> Ready to reject
+Fail + rejection review on   -> Rejection review
+Warning unknown + warning review off -> Fail, then normal fail routing
+Warning unknown + warning review on  -> Manual evidence review
 Needs Review                 -> Manual evidence review
 ```
+
+Warning-unknown cases are special: if the reviewer does not enable human review
+for unknown/unverifiable government-warning evidence, the system should fail the
+label because the warning is mandatory and the applicant must provide readable
+evidence.
 
 Reviewer actions:
 

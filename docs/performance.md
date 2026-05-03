@@ -11,6 +11,11 @@ Review`, and `Fail` verdicts into queues such as `Ready to accept`,
 reject`. That queue layer does not change OCR latency, but it changes operational
 throughput and reviewer staffing assumptions for large batches.
 
+The planned control board also treats unknown government-warning evidence as a
+special case. If warning human review is off, unknown/unverifiable warning
+evidence defaults to failure; if it is on, the item routes to manual evidence
+review. This changes queue counts, not OCR engine latency.
+
 ## Local Non-Docker Smoke Measurements
 
 Measured on the development machine on 2026-05-01 with FastAPI `TestClient` and fixture OCR:

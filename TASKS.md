@@ -104,7 +104,7 @@ The sprint priority is now:
 - [x] Government-safe OCR ensemble smoke produced F1 **0.7416** with false-clear rate **0.0000** on the 20-application / 30-image smoke.
 - [x] Raw `Pass` / `Needs Review` / `Fail` triage vocabulary is documented.
 - [ ] Runtime reviewer-policy queues are not yet implemented; planned queues are `Ready to accept`, `Acceptance review`, `Manual evidence review`, `Rejection review`, and `Ready to reject`.
-- [ ] Planned reviewer-policy defaults are rejection review **on** and acceptance review **off**.
+- [ ] Planned reviewer-policy defaults are unknown government-warning review **off**, rejection review **off**, and acceptance review **off**.
 - [x] WineBERT/o domain-NER smoke benchmark exists and was run against combined docTR + PaddleOCR + OpenOCR text.
 - [x] WineBERT/o was evaluated for deployment and not promoted because it did not improve the government-safe ensemble, lacks ABV/net-contents coverage, is wine-specific, and has unknown public model licensing.
 - [x] OSA market-domain NER smoke benchmark exists and was run against combined docTR + PaddleOCR + OpenOCR text.
@@ -709,9 +709,11 @@ posture.
 
 Policy settings:
 
-- [ ] Add `require_review_before_rejection: bool`, default `true`.
+- [ ] Add `review_unknown_government_warning: bool`, default `false`.
+- [ ] Add `require_review_before_rejection: bool`, default `false`.
 - [ ] Add `require_review_before_acceptance: bool`, default `false`.
 - [ ] Document that these are workflow settings, not model thresholds.
+- [ ] Add a control-board note that an unknown/unverifiable mandatory government warning defaults to `Fail` unless warning human review is enabled.
 
 Routing contract:
 
@@ -719,6 +721,8 @@ Routing contract:
 - [ ] `Pass` + acceptance review on -> `Acceptance review`.
 - [ ] `Fail` + rejection review on -> `Rejection review`.
 - [ ] `Fail` + rejection review off -> `Ready to reject`.
+- [ ] `Government warning unknown` + warning review off -> `Fail`, then normal fail routing.
+- [ ] `Government warning unknown` + warning review on -> `Manual evidence review`.
 - [ ] `Needs Review` -> `Manual evidence review` regardless of the toggles.
 
 Reviewer action contract:

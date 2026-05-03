@@ -9,6 +9,10 @@ Labels On Tap is designed for quick review by non-technical users and older revi
 - Future reviewer-policy queues must also use visible text such as Ready to
   accept, Acceptance review, Manual evidence review, Rejection review, and Ready
   to reject, not color alone.
+- The future policy control board should use explicit labeled toggles for
+  unknown warning review, acceptance review, and rejection review. The warning
+  control must include visible helper text explaining that warning-unknown
+  cases fail by default when human review is off.
 - Large demo actions on the home page.
 - Linear page structure: demo/upload, results, detail.
 - Server-rendered pages that work without a frontend build step.

@@ -56,17 +56,19 @@ See [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) for the end-to-end diagrams.
 ### 2.2 Reviewer Policy Gates Before Acceptance Or Rejection
 
 **Decision:** Raw machine verdicts should remain separate from final workflow
-actions. The planned policy layer has two independent settings:
+actions. The planned policy layer has three independent control-board settings:
 
 ```text
+Send unknown government-warning cases to human review: Yes / No
 Require reviewer approval before rejection: Yes / No
 Require reviewer approval before acceptance: Yes / No
 ```
 
-Recommended defaults:
+Default posture:
 
 ```text
-Before rejection: Yes
+Unknown government warning human review: No
+Before rejection: No
 Before acceptance: No
 ```
 
@@ -75,18 +77,23 @@ approve/reject pipeline. Sarah needs batch triage for 200-300 application
 surges, Dave needs the ability to apply judgment, and Jenny's strict warning
 requirements still need a safe path when OCR or image quality is uncertain.
 
-**Implication:** A `Fail` result is a rejection candidate, not necessarily final
-agency action. A `Pass` result can be either `Ready to accept` or
-`Acceptance review`, depending on the pilot's policy posture. `Needs Review`
-always remains a manual evidence-review queue.
+**Implication:** A `Fail` result can be routed directly to `Ready to reject` or
+to `Rejection review`. A `Pass` result can be either `Ready to accept` or
+`Acceptance review`, depending on the pilot's policy posture. Unknown
+government-warning evidence is stricter: because the warning is mandatory, it
+defaults to failure when the warning-review gate is off. `Needs Review` always
+remains a manual evidence-review queue.
 
-| Raw system result | Rejection review required | Acceptance review required | Policy queue |
-|---|---:|---:|---|
-| Pass | n/a | No | Ready to accept |
-| Pass | n/a | Yes | Acceptance review |
-| Fail | Yes | n/a | Rejection review |
-| Fail | No | n/a | Ready to reject |
-| Needs Review | any | any | Manual evidence review |
+| Raw system result | Warning unknown review enabled | Rejection review required | Acceptance review required | Policy queue |
+|---|---:|---:|---:|---|
+| Pass | n/a | n/a | No | Ready to accept |
+| Pass | n/a | n/a | Yes | Acceptance review |
+| Fail | n/a | No | n/a | Ready to reject |
+| Fail | n/a | Yes | n/a | Rejection review |
+| Government warning unknown | No | No | n/a | Ready to reject |
+| Government warning unknown | No | Yes | n/a | Rejection review |
+| Government warning unknown | Yes | any | n/a | Manual evidence review |
+| Needs Review | n/a | any | any | Manual evidence review |
 
 This choice preserves the efficiency win while avoiding overclaiming automated
 adverse action. It also gives the agency a knob to tighten or loosen review

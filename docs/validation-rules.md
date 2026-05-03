@@ -14,6 +14,13 @@
         evidence review, Rejection review, or Ready to reject. This keeps rule
         evidence separate from final agency action.
 
+        The planned policy control board includes one warning-specific gate:
+        send unknown government-warning evidence to human review, yes or no.
+        The default is no extra review. If the required government warning is
+        unknown or unverifiable and that gate is off, the raw item should fail
+        because the applicant must provide readable evidence of the mandatory
+        warning.
+
         See:
 
         ```text

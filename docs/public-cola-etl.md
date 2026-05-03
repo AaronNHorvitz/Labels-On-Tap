@@ -396,6 +396,9 @@ coverage because confidential rejected applications are not public.
 The ETL produces evidence for raw Pass / Needs Review / Fail evaluation. It does
 not decide final acceptance or rejection. A separate reviewer-policy layer should
 map raw results into workflow queues when the app adds final-review controls.
+Unknown government-warning evidence should be handled explicitly by that policy
+layer: by default it fails the item because the warning is mandatory, but the
+control board can route it to human review instead.
 
 The first parser target is the public printable Form 5100.31 HTML exposed by:
 

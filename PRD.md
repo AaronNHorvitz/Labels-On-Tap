@@ -123,6 +123,13 @@ The correct product language is:
 **Pain:** Warning text and formatting are easy to miss manually, and applicants often alter wording, capitalization, size, or placement.
 **Product implication:** Government warning must be checked strictly for wording and capitalization; visual formatting such as boldness and legibility should be checked with best-effort CV heuristics and Needs Review fallbacks.
 
+The reviewer-policy control board should also support a warning-specific gate:
+unknown or unverifiable government-warning evidence can be sent to human review
+when the reviewer enables that setting. The default is no human review for this
+case; without that explicit review gate, an unknown government warning defaults
+to failure because the warning is mandatory and the applicant must provide
+readable label evidence.
+
 ### 5.5 Evaluator / Hiring Panel
 
 **Need:** Quickly evaluate whether the prototype works, why the technical choices were made, and how the candidate handled trade-offs.
@@ -175,22 +182,26 @@ Require reviewer approval before rejection: Yes / No
 Require reviewer approval before acceptance: Yes / No
 ```
 
-Recommended defaults:
+Default posture:
 
 ```text
-Before rejection: Yes
+Unknown government warning human review: No
+Before rejection: No
 Before acceptance: No
 ```
 
 Policy routing:
 
-| Raw system result | Rejection review required | Acceptance review required | Queue |
-|---|---|---|---|
-| Pass | n/a | No | Ready to accept |
-| Pass | n/a | Yes | Acceptance review |
-| Fail | Yes | n/a | Rejection review |
-| Fail | No | n/a | Ready to reject |
-| Needs Review | any | any | Manual evidence review |
+| Raw system result | Warning unknown review enabled | Rejection review required | Acceptance review required | Queue |
+|---|---|---|---|---|
+| Pass | n/a | n/a | No | Ready to accept |
+| Pass | n/a | n/a | Yes | Acceptance review |
+| Fail | n/a | No | n/a | Ready to reject |
+| Fail | n/a | Yes | n/a | Rejection review |
+| Government warning unknown | No | No | n/a | Ready to reject |
+| Government warning unknown | No | Yes | n/a | Rejection review |
+| Government warning unknown | Yes | any | n/a | Manual evidence review |
+| Needs Review | n/a | any | any | Manual evidence review |
 
 Reviewer actions:
 
@@ -542,7 +553,7 @@ Metrics:
 | FR-032 | App displays completed rows incrementally. | P0 |
 | FR-033 | App handles individual failures without failing the full batch. | P0 |
 | FR-034 | App exports batch results as CSV. | P0 |
-| FR-035 | App supports policy toggles for reviewer approval before rejection and before acceptance. | P1 |
+| FR-035 | App supports policy toggles for reviewer approval before rejection, before acceptance, and for unknown government-warning evidence. | P1 |
 | FR-036 | App maps raw verdicts into reviewer queues such as Ready to accept, Acceptance review, Rejection review, Manual evidence review, and Ready to reject. | P1 |
 | FR-037 | App records reviewer actions with decision, note, timestamp, and original evidence reference. | P1 |
 

@@ -45,10 +45,11 @@ raw system verdict != final agency action
 ```
 
 The planned human-review policy layer maps raw verdicts into reviewer queues.
-Recommended defaults are:
+Default posture is:
 
 ```text
-Require reviewer approval before rejection: Yes
+Send unknown government-warning cases to human review: No
+Require reviewer approval before rejection: No
 Require reviewer approval before acceptance: No
 ```
 
@@ -56,14 +57,16 @@ Default routing:
 
 ```text
 Pass         -> Ready to accept
-Fail         -> Rejection review
+Fail         -> Ready to reject
+Warning unknown -> Fail, then Ready to reject
 Needs Review -> Manual evidence review
 ```
 
-Conservative pilots can also require reviewer approval before acceptance, which
-turns raw `Pass` into `Acceptance review`. If the agency chooses to skip
-mandatory rejection review for a low-risk internal workflow, raw `Fail` can map
-to `Ready to reject`, but that should not be the default federal-facing posture.
+Conservative pilots can require reviewer approval before acceptance, before
+rejection, or for unknown government-warning evidence. Warning-unknown cases are
+special: if that review gate is off, the label defaults to failure because the
+government warning is mandatory and the applicant must provide readable
+evidence.
 
 ---
 

@@ -78,18 +78,20 @@ flowchart TD
 ### 2.1 Human-Review Policy Layer
 
 The model stack should not collapse evidence scoring and final agency action
-into one decision. The planned review-policy layer applies two independent
-agency settings after the raw verdict is computed:
+into one decision. The planned review-policy layer applies a simple control
+board after the raw verdict is computed:
 
 ```text
+Send unknown government-warning cases to human review: Yes / No
 Require reviewer approval before rejection: Yes / No
 Require reviewer approval before acceptance: Yes / No
 ```
 
-Recommended defaults:
+Default posture:
 
 ```text
-Before rejection: Yes
+Unknown government warning human review: No
+Before rejection: No
 Before acceptance: No
 ```
 
@@ -99,9 +101,16 @@ Routing:
 |---|---|
 | Pass + acceptance review off | Ready to accept |
 | Pass + acceptance review on | Acceptance review |
-| Fail + rejection review on | Rejection review |
 | Fail + rejection review off | Ready to reject |
+| Fail + rejection review on | Rejection review |
+| Government warning unknown + warning review off | Fail, then normal fail routing |
+| Government warning unknown + warning review on | Manual evidence review |
 | Needs Review | Manual evidence review |
+
+Unknown government-warning evidence is treated specially because the warning is
+mandatory. If the reviewer does not opt into human review for that unknown
+state, the system should default to failure instead of silently clearing the
+label.
 
 Reviewer actions remain separate from model outputs:
 

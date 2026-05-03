@@ -31,42 +31,54 @@ In plain terms: the tool should quickly clear obvious matches, flag obvious prob
 
 The reviewer workflow should be configurable because TTB may not want the same
 automation posture for every pilot, product line, or batch. The planned policy
-layer adds two independent controls:
+layer should be exposed as a simple control board with three independent
+settings:
 
 ```text
+Send unknown government-warning cases to human review: Yes / No
 Require reviewer approval before rejection: Yes / No
 Require reviewer approval before acceptance: Yes / No
 ```
 
-Recommended defaults:
+Default posture:
 
 ```text
-Before rejection: Yes
+Unknown government warning human review: No
+Before rejection: No
 Before acceptance: No
 ```
 
-That keeps the high-volume value Sarah needs while preserving Dave's concern
-that final adverse actions still require judgment. With those defaults, clean
-routine matches can be marked ready to accept, while clear failures become
-rejection candidates that a reviewer can confirm. Conservative pilots can turn
-both toggles on.
+The warning-specific note matters: if the system cannot verify the mandatory
+government warning and the user has not enabled human review for unknown
+warning cases, the item should default to `Fail`. The applicant bears the
+burden of providing readable label artwork with the required warning. Turning
+that control on routes warning-unknown cases to `Manual evidence review`
+instead.
+
+Those defaults maximize Sarah's high-volume batch value. Dave's concern about
+judgment is handled by turning on review before rejection, review before
+acceptance, or the warning-unknown review gate for stricter pilots.
 
 Policy-aware routing:
 
-| Raw system result | Rejection review required | Acceptance review required | Queue |
-|---|---|---|---|
-| Pass | n/a | No | Ready to accept |
-| Pass | n/a | Yes | Acceptance review |
-| Fail | Yes | n/a | Rejection review |
-| Fail | No | n/a | Ready to reject |
-| Needs Review | any | any | Manual evidence review |
+| Raw system result | Warning unknown review enabled | Rejection review required | Acceptance review required | Queue |
+|---|---|---|---|---|
+| Pass | n/a | n/a | No | Ready to accept |
+| Pass | n/a | n/a | Yes | Acceptance review |
+| Fail | n/a | No | n/a | Ready to reject |
+| Fail | n/a | Yes | n/a | Rejection review |
+| Government warning unknown | No | No | n/a | Ready to reject |
+| Government warning unknown | No | Yes | n/a | Rejection review |
+| Government warning unknown | Yes | any | n/a | Manual evidence review |
+| Needs Review | n/a | any | any | Manual evidence review |
 
 For a 300-application importer batch, the goal is a reviewer queue summary like:
 
 ```text
 Ready to accept: 198
 Acceptance review: 42
-Rejection review: 37
+Ready to reject: 28
+Rejection review: 9
 Manual evidence review: 23
 ```
 
@@ -82,8 +94,8 @@ Escalate
 
 This is a policy layer on top of the rule engine, not a replacement for the
 source-backed checks. The current deployed prototype reports evidence-backed
-`Pass`, `Needs Review`, and `Fail` outcomes; the policy queue layer is the next
-step for making batch review operationally realistic.
+`Pass`, `Needs Review`, and `Fail` outcomes; the policy control board is the
+next step for making batch review operationally realistic.
 
 The evaluation language follows that product posture:
 
@@ -317,8 +329,10 @@ Labels On Tap is a local-first prototype for beverage-alcohol label preflight re
 | **Fail** | A deterministic source-backed mismatch was found with adequate evidence. |
 
 The next review-policy layer turns those raw verdicts into queues such as
-`Ready to accept`, `Acceptance review`, `Rejection review`, `Manual evidence
-review`, or `Ready to reject` depending on agency policy toggles.
+`Ready to accept`, `Acceptance review`, `Ready to reject`, `Rejection review`,
+or `Manual evidence review` depending on agency policy toggles. Unknown
+government-warning evidence is a special control-board setting: if no human
+review is selected, it defaults to failure because the warning is mandatory.
 
 The core design principle is simple:
 
@@ -1176,7 +1190,7 @@ Performance goals for the deployed prototype:
 | Fixture-backed demo processing | Fast enough for live interview walkthrough |
 | Real OCR upload | Approximately 5 seconds per label after OCR warmup, dependent on VM CPU/RAM and image complexity |
 | Batch UX | Show a job/results page immediately and let reviewers inspect completed results |
-| Review policy | Next layer: route pass/fail candidates through optional reviewer approval before final acceptance or rejection |
+| Review policy | Next layer: route pass/fail candidates and unknown government-warning cases through optional reviewer approval before final disposition |
 
 The repository does not claim measured production OCR latency yet. Final measured values should be recorded in [docs/performance.md](docs/performance.md) after local Docker and public VM smoke testing.
 
