@@ -346,6 +346,21 @@ reducing false clears and routing uncertainty to review. The ensemble is still
 fast enough for a single typography crop, but it remains experimental until it
 is thresholded and validated against real warning-heading crops.
 
+A larger geometry-stress run then multiplied the corrected data by five and
+rotated/bent half of the crops. That run used `40,000` training crops,
+`8,000` internal calibration crops, and a `10,000` crop test set. The result
+was more nuanced:
+
+| Task | Best Raw-F1 Policy | Test F1 | Test False-Clear | Safest Policy | Test F1 | Test False-Clear | P95 ms |
+|---|---|---:|---:|---|---:|---:|---:|
+| Visual font decision | CatBoost stacker | 0.9878 | 0.0080 | Strict-veto ensemble | 0.9440 | 0.0024 | 2.4952 |
+| Header text decision | CatBoost stacker | 0.9020 | 0.0857 | XGBoost reject threshold | 0.6131 | 0.0027 | 3.0246 |
+
+The practical conclusion did not change: visual boldness has a credible future
+reviewer-assist path, but header text correctness and boldness remain
+human-review defaults in the deployed app until real COLA warning-heading crops
+validate the same false-clear posture.
+
 The safe runtime posture is:
 
 | Typography Evidence | Runtime Action |

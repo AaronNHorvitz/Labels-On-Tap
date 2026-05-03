@@ -333,7 +333,8 @@ The isolated OpenCV typography preflight is now implemented and measured:
 ```text
 warning heading crop
   -> OpenCV stroke/shape features
-  -> CPU-only SVM / XGBoost / CatBoost comparison
+  -> CPU-only SVM / LightGBM / Logistic Regression / MLP comparison
+  -> strict-veto or learned stacker/reject-threshold ensemble
   -> bold / non-bold / uncertain preflight
   -> deterministic compliance layer
 ```
@@ -476,12 +477,61 @@ That is acceptable for a government pilot posture, but still not runtime
 authority until tested on real warning-heading crops.
 ```
 
+Large 5x geometry-stress comparison:
+
+```text
+script: experiments/typography_preflight/compare_large_ensemble_models.py
+run_output: data/work/typography-preflight/model-comparison-large-geometry-v1/
+base_train: 32,000 crops
+calibration: 8,000 crops
+full_train: 40,000 crops
+test: 10,000 crops
+geometry: 50% normal, 50% rotated/bent
+```
+
+Models and policies:
+
+```text
+base models:
+  SVM
+  LightGBM
+  Logistic Regression
+  MLP
+
+ensembles:
+  strict-veto ensemble
+  calibrated logistic-regression stacker
+  LightGBM reject-threshold stacker
+  XGBoost reject-threshold stacker
+  CatBoost stacker
+```
+
+Headline test metrics:
+
+| Task | Policy | Test F1 | False-Clear Rate | P95 ms |
+|---|---|---:|---:|---:|
+| Visual font decision | Strict-veto ensemble | 0.9440 | 0.0024 | 2.4952 |
+| Visual font decision | CatBoost stacker | 0.9878 | 0.0080 | 3.0394 |
+| Header text decision | XGBoost reject threshold | 0.6131 | 0.0027 | 3.0246 |
+| Header text decision | CatBoost stacker | 0.9020 | 0.0857 | 3.8643 |
+
+Interpretation:
+
+```text
+Visual boldness has a credible future reviewer-assist path.
+Strict-veto is the visual safety winner.
+CatBoost is the visual raw-F1 winner.
+Header text correctness still false-clears too often for autonomous clearance
+unless a reject-threshold policy sends many cases to review.
+All learned stacker latency is end-to-end from raw engineered features.
+```
+
 Decision:
 
 ```text
 Do not promote any typography classifier to runtime authority yet. Treat SVM
-and XGBoost as viable candidates for a later thresholded preflight. Keep
-GOV_WARNING_HEADER_BOLD_REVIEW as Needs Review for submission.
+and ensemble policies as viable candidates for a later thresholded preflight.
+Keep GOV_WARNING_HEADER_BOLD_REVIEW as Needs Review for submission.
 ```
 
 Reference framing:
@@ -611,7 +661,8 @@ not pixel-level OCR recognizers.
 1. Keep the deployed app stable.
 2. Use `MODEL_LOG.md` as the experiment ledger for all OCR/model runs.
 3. Run the full chunk-size 16 OCR conveyor over train/validation for docTR, PaddleOCR, and OpenOCR.
-4. Completed: isolated OpenCV/SVM typography-preflight experiment.
+4. Completed: isolated OpenCV typography-preflight experiments, including the
+   large 5x geometry-stress ensemble comparison.
 5. Attach conveyor OCR evidence to the existing field-support pair manifests.
 6. Rerun DistilRoBERTa on OCR-backed candidate evidence.
 7. Compare them against deterministic ensemble and graph-aware evidence scorer.

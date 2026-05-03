@@ -694,3 +694,55 @@ Interpretation:
   to `0.0038`, and header false-clear rate fell to `0.0360`.
 - The ensemble lowers raw F1 by sending more cases to review. That is an
   intentional government-safety trade-off, not an implementation failure.
+
+## May 3 Large Typography Geometry-Stress Ensemble Comparison
+
+The latest typography run multiplied the corrected dataset by five and applied
+rotation plus sinusoidal bending to half of the crops.
+
+```text
+run output: data/work/typography-preflight/model-comparison-large-geometry-v1/
+base train:  32,000 crops
+calibration: 8,000 crops
+full train:  40,000 crops
+test:        10,000 crops
+geometry:    50% normal, 50% rotated/bent
+```
+
+Base-model test metrics:
+
+| Task | Model | Accuracy | Macro F1 | False-Clear Rate | Single ms | P95 ms |
+|---|---|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9595 | 0.9593 | 0.0188 | 0.0768 | 0.0803 |
+| Visual font decision | LightGBM | 0.9834 | 0.9834 | 0.0186 | 1.9093 | 2.0387 |
+| Visual font decision | Logistic Regression | 0.9717 | 0.9717 | 0.0141 | 0.0820 | 0.1183 |
+| Visual font decision | MLP | 0.9729 | 0.9729 | 0.0144 | 0.1458 | 0.1570 |
+| Header text decision | SVM | 0.8658 | 0.8648 | 0.0993 | 0.0770 | 0.0799 |
+| Header text decision | LightGBM | 0.8937 | 0.8931 | 0.1199 | 1.8445 | 2.0318 |
+| Header text decision | Logistic Regression | 0.8793 | 0.8794 | 0.1046 | 0.0786 | 0.0822 |
+| Header text decision | MLP | 0.8848 | 0.8850 | 0.0830 | 0.1444 | 0.1530 |
+
+Ensemble test metrics:
+
+| Task | Model | Accuracy | Macro F1 | False-Clear Rate | Single ms | P95 ms |
+|---|---|---:|---:|---:|---:|---:|
+| Visual font decision | Strict-veto ensemble | 0.9433 | 0.9440 | 0.0024 | 2.3431 | 2.4952 |
+| Visual font decision | Calibrated logistic stacker | 0.9862 | 0.9862 | 0.0087 | 2.3690 | 2.5141 |
+| Visual font decision | LightGBM reject threshold | 0.9867 | 0.9867 | 0.0083 | 2.6037 | 3.0201 |
+| Visual font decision | XGBoost reject threshold | 0.9876 | 0.9876 | 0.0086 | 2.5687 | 2.8528 |
+| Visual font decision | CatBoost stacker | 0.9878 | 0.9878 | 0.0080 | 2.6713 | 3.0394 |
+| Header text decision | Strict-veto ensemble | 0.7796 | 0.7794 | 0.0462 | 2.3791 | 2.4831 |
+| Header text decision | Calibrated logistic stacker | 0.9007 | 0.9007 | 0.0819 | 2.4700 | 2.7285 |
+| Header text decision | LightGBM reject threshold | 0.7428 | 0.7226 | 0.0164 | 2.6253 | 2.8409 |
+| Header text decision | XGBoost reject threshold | 0.6656 | 0.6131 | 0.0027 | 2.6884 | 3.0246 |
+| Header text decision | CatBoost stacker | 0.9020 | 0.9020 | 0.0857 | 2.7073 | 3.8643 |
+
+Interpretation:
+
+- Visual-font detection is promising as reviewer-assist evidence. CatBoost
+  stacker has the best raw F1; strict-veto has the lowest false-clear rate.
+- Header text correctness is not safe for autonomous clearance under the
+  current synthetic stress test. The safer reject-threshold models trade large
+  review volume for lower false-clear rates.
+- All stacker latencies are end-to-end and include base-model prediction plus
+  stacker or reject-threshold policy.

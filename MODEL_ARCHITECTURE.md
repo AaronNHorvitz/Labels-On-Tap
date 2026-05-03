@@ -618,6 +618,38 @@ The ensemble's value is not maximum F1. Its value is a conservative reviewer
 queue: fewer false clears, more manual review. That is a better fit for a
 government preflight tool than an aggressive single-model argmax.
 
+Large geometry-stress ensemble run:
+
+```text
+output:      data/work/typography-preflight/model-comparison-large-geometry-v1/
+base train: 32,000 crops
+calibrate:  8,000 crops
+test:       10,000 crops
+geometry:   50% normal, 50% rotated/bent
+```
+
+| Task | Policy | Test F1 | False-Clear Rate | P95 ms |
+|---|---|---:|---:|---:|
+| Visual font decision | Strict-veto ensemble | 0.9440 | 0.0024 | 2.4952 |
+| Visual font decision | Calibrated logistic stacker | 0.9862 | 0.0087 | 2.5141 |
+| Visual font decision | LightGBM reject threshold | 0.9867 | 0.0083 | 3.0201 |
+| Visual font decision | XGBoost reject threshold | 0.9876 | 0.0086 | 2.8528 |
+| Visual font decision | CatBoost stacker | 0.9878 | 0.0080 | 3.0394 |
+| Header text decision | Strict-veto ensemble | 0.7794 | 0.0462 | 2.4831 |
+| Header text decision | Calibrated logistic stacker | 0.9007 | 0.0819 | 2.7285 |
+| Header text decision | LightGBM reject threshold | 0.7226 | 0.0164 | 2.8409 |
+| Header text decision | XGBoost reject threshold | 0.6131 | 0.0027 | 3.0246 |
+| Header text decision | CatBoost stacker | 0.9020 | 0.0857 | 3.8643 |
+
+The architecture decision is now sharper:
+
+- Visual boldness can support a future reviewer-assist preflight. Strict-veto is
+  safest; CatBoost is the raw-F1 winner.
+- Header text correctness remains review-first unless a reject-threshold policy
+  is acceptable, because the high-F1 stackers still false-clear too often.
+- All stacker latency numbers are end-to-end: base models plus stacker/reject
+  policy from raw engineered crop features.
+
 Reference:
 
 ```text

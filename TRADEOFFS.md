@@ -813,6 +813,74 @@ Regression/MLP.
 | Header text decision | MLP | 0.8840 | 0.8841 | 0.0803 | 0.0071 | 0.1466 |
 | Header text decision | Strict-veto ensemble | 0.7505 | 0.7510 | 0.0360 | 0.0338 | 2.7161 |
 
+**Large 5x geometry-stress comparison:** A third run multiplied the corrected
+dataset size by five and added rotation plus sinusoidal bending to half of the
+synthetic crops. This was designed to answer a harder question than the earlier
+smoke tests: do the cheap statistical typography models still behave under
+curved-label stress, and which ensemble policy is least dangerous?
+
+```text
+run output: data/work/typography-preflight/model-comparison-large-geometry-v1/
+base train:  32,000 crops
+calibration: 8,000 crops
+full train:  40,000 crops
+test:        10,000 crops
+geometry:    50% normal, 50% rotated/bent
+latency:     end-to-end raw-feature prediction for every stacker
+```
+
+Base model results:
+
+| Task | Model | Train Acc | Train F1 | Train False-Clear | Test Acc | Test F1 | Test False-Clear | Train s | Single ms | P95 ms |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9823 | 0.9823 | 0.0101 | 0.9595 | 0.9593 | 0.0188 | 93.7 | 0.0768 | 0.0803 |
+| Visual font decision | LightGBM | 0.9978 | 0.9978 | 0.0020 | 0.9834 | 0.9834 | 0.0186 | 75.6 | 1.9093 | 2.0387 |
+| Visual font decision | Logistic Regression | 0.9939 | 0.9939 | 0.0058 | 0.9717 | 0.9717 | 0.0141 | 274.8 | 0.0820 | 0.1183 |
+| Visual font decision | MLP | 0.9948 | 0.9948 | 0.0043 | 0.9729 | 0.9729 | 0.0144 | 12.6 | 0.1458 | 0.1570 |
+| Header text decision | SVM | 0.8981 | 0.8975 | 0.0833 | 0.8658 | 0.8648 | 0.0993 | 157.0 | 0.0770 | 0.0799 |
+| Header text decision | LightGBM | 0.9430 | 0.9427 | 0.0765 | 0.8937 | 0.8931 | 0.1199 | 74.2 | 1.8445 | 2.0318 |
+| Header text decision | Logistic Regression | 0.9120 | 0.9119 | 0.0871 | 0.8793 | 0.8794 | 0.1046 | 270.7 | 0.0786 | 0.0822 |
+| Header text decision | MLP | 0.9581 | 0.9581 | 0.0414 | 0.8848 | 0.8850 | 0.0830 | 7.2 | 0.1444 | 0.1530 |
+
+Ensemble results:
+
+| Task | Model | Train Acc | Train F1 | Train False-Clear | Test Acc | Test F1 | Test False-Clear | Train s | Single ms | P95 ms |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Visual font decision | Strict-veto ensemble | 0.9792 | 0.9794 | 0.0003 | 0.9433 | 0.9440 | 0.0024 | 0.0 | 2.3431 | 2.4952 |
+| Visual font decision | Calibrated logistic stacker | 0.9983 | 0.9983 | 0.0014 | 0.9862 | 0.9862 | 0.0087 | 0.0 | 2.3690 | 2.5141 |
+| Visual font decision | LightGBM reject threshold | 0.9999 | 0.9999 | 0.0001 | 0.9867 | 0.9867 | 0.0083 | 0.2 | 2.6037 | 3.0201 |
+| Visual font decision | XGBoost reject threshold | 0.9990 | 0.9990 | 0.0009 | 0.9876 | 0.9876 | 0.0086 | 0.2 | 2.5687 | 2.8528 |
+| Visual font decision | CatBoost stacker | 0.9987 | 0.9987 | 0.0011 | 0.9878 | 0.9878 | 0.0080 | 0.2 | 2.6713 | 3.0394 |
+| Header text decision | Strict-veto ensemble | 0.8584 | 0.8596 | 0.0231 | 0.7796 | 0.7794 | 0.0462 | 0.0 | 2.3791 | 2.4831 |
+| Header text decision | Calibrated logistic stacker | 0.9667 | 0.9667 | 0.0378 | 0.9007 | 0.9007 | 0.0819 | 0.0 | 2.4700 | 2.7285 |
+| Header text decision | LightGBM reject threshold | 0.8533 | 0.8511 | 0.0021 | 0.7428 | 0.7226 | 0.0164 | 0.2 | 2.6253 | 2.8409 |
+| Header text decision | XGBoost reject threshold | 0.7571 | 0.7364 | 0.0008 | 0.6656 | 0.6131 | 0.0027 | 0.1 | 2.6884 | 3.0246 |
+| Header text decision | CatBoost stacker | 0.9662 | 0.9662 | 0.0399 | 0.9020 | 0.9020 | 0.0857 | 0.2 | 2.7073 | 3.8643 |
+
+Interpretation:
+
+- For visual boldness, the learned stackers have the best raw F1, with
+  CatBoost reaching `0.9878` test macro F1. The strict-veto ensemble is the
+  safety winner, lowering visual false-clear rate to `0.0024` while staying
+  under `2.5 ms` p95 per crop.
+- For header text correctness, CatBoost and calibrated logistic stackers have
+  the best raw F1 (`0.9020` and `0.9007`), but their false-clear rates remain
+  too high for unattended clearance.
+- XGBoost with a reject threshold is the most conservative header-text option
+  (`0.0027` false-clear), but it does so by sending many cases to review and
+  dropping test macro F1 to `0.6131`.
+- LightGBM with a reject threshold gives a less extreme safety/F1 compromise
+  for header text (`0.0164` false-clear, `0.7226` macro F1).
+- All ensemble prediction timings include the four base models plus the
+  stacker or reject policy; the comparison is end-to-end from raw engineered
+  crop features.
+
+The result is not “promote typography automation.” The result is narrower and
+more useful: an optional reviewer-assist typography preflight can be built with
+millisecond CPU latency, but the deployed compliance rule should still route
+government-warning boldness to human review unless and until real COLA warning
+heading crops validate the same false-clear posture.
+
 The strict-veto ensemble is intentionally conservative:
 
 ```text

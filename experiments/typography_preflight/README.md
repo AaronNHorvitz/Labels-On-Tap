@@ -110,7 +110,7 @@ Install experiment dependencies into a gitignored venv:
 ```bash
 python -m venv data/work/typography-preflight/.venv
 data/work/typography-preflight/.venv/bin/python -m pip install --upgrade pip
-data/work/typography-preflight/.venv/bin/python -m pip install numpy pillow opencv-python-headless scikit-learn joblib xgboost catboost
+data/work/typography-preflight/.venv/bin/python -m pip install numpy pillow opencv-python-headless scikit-learn joblib xgboost catboost lightgbm
 ```
 
 Run CPU-only:
@@ -270,6 +270,74 @@ Interpretation:
 - Strict veto still fits comfortably inside the five-second per-label target
   for a single typography crop, but it should remain a preflight support signal
   rather than final compliance authority.
+
+## Large 5x Geometry-Stress Ensemble Comparison
+
+The larger comparison is implemented in:
+
+```text
+experiments/typography_preflight/compare_large_ensemble_models.py
+```
+
+It multiplies the corrected corpus by five, uses an 80/20 train/test split,
+keeps an internal calibration slice for stacker/reject-threshold tuning, and
+applies rotation plus sinusoidal bending to half of the crops.
+
+Run:
+
+```bash
+OMP_NUM_THREADS=2 \
+OPENBLAS_NUM_THREADS=2 \
+MKL_NUM_THREADS=2 \
+NUMEXPR_NUM_THREADS=2 \
+nice -n 15 ionice -c3 \
+data/work/typography-preflight/.venv/bin/python \
+  -m experiments.typography_preflight.compare_large_ensemble_models \
+  --output-dir data/work/typography-preflight/model-comparison-large-geometry-v1 \
+  --total-samples 50000 \
+  --latency-rows 1000 \
+  --sample-crop-limit 240 \
+  --tree-iterations 120 \
+  --stacker-iterations 120 \
+  --svm-max-iter 2000 \
+  --logistic-max-iter 350 \
+  --mlp-max-iter 90
+```
+
+Output:
+
+```text
+data/work/typography-preflight/model-comparison-large-geometry-v1/
+  metrics/summary.json
+  metrics/report.md
+  models/*.joblib
+```
+
+The May 3 large comparison used:
+
+```text
+base train:  32,000 crops
+calibration: 8,000 crops
+full train:  40,000 crops
+test:        10,000 crops
+geometry:    50% normal, 50% rotated/bent
+```
+
+Headline test metrics:
+
+| Task | Policy | Test F1 | False-Clear Rate | P95 ms |
+|---|---|---:|---:|---:|
+| Visual font decision | Strict-veto ensemble | 0.9440 | 0.0024 | 2.4952 |
+| Visual font decision | CatBoost stacker | 0.9878 | 0.0080 | 3.0394 |
+| Header text decision | XGBoost reject threshold | 0.6131 | 0.0027 | 3.0246 |
+| Header text decision | CatBoost stacker | 0.9020 | 0.0857 | 3.8643 |
+
+Interpretation:
+
+- Visual boldness has a credible future reviewer-assist path.
+- Header text correctness still needs a review-first or reject-threshold policy.
+- Learned stacker latency is measured end-to-end from raw features, including
+  base model predictions plus the stacker/reject policy.
 
 ## Citation
 

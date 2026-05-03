@@ -1215,6 +1215,74 @@ Decision:
   docTR/PaddleOCR/OpenOCR evidence as `candidate_text` and rerun the same
   train/validation/locked-holdout evaluation.
 
+### E018 - Large Typography Geometry-Stress Ensemble Sweep
+
+**Date:** May 3, 2026
+**Run output:**
+
+```text
+data/work/typography-preflight/model-comparison-large-geometry-v1/
+```
+
+**Purpose:** Multiply the corrected typography data by five, rotate and bend
+half of the crops, retrain SVM/LightGBM/Logistic Regression/MLP, and compare
+five ensemble policies:
+
+```text
+strict-veto ensemble
+calibrated logistic-regression stacker
+LightGBM stacker with reject threshold
+XGBoost stacker with reject threshold
+CatBoost stacker
+```
+
+Split design:
+
+| Split | Crops |
+|---|---:|
+| Base train | 32,000 |
+| Calibration | 8,000 |
+| Full train | 40,000 |
+| Test | 10,000 |
+
+Half of every split uses normal crops and half uses rotation plus sinusoidal
+bending. Learned stacker latency is measured end-to-end from raw engineered
+crop features, including all base-model predictions plus the stacker.
+
+Test results:
+
+| Task | Model | Test Acc | Test F1 | Test False-Clear | Single ms | P95 ms |
+|---|---|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9595 | 0.9593 | 0.0188 | 0.0768 | 0.0803 |
+| Visual font decision | LightGBM | 0.9834 | 0.9834 | 0.0186 | 1.9093 | 2.0387 |
+| Visual font decision | Logistic Regression | 0.9717 | 0.9717 | 0.0141 | 0.0820 | 0.1183 |
+| Visual font decision | MLP | 0.9729 | 0.9729 | 0.0144 | 0.1458 | 0.1570 |
+| Visual font decision | Strict-veto ensemble | 0.9433 | 0.9440 | 0.0024 | 2.3431 | 2.4952 |
+| Visual font decision | Calibrated logistic stacker | 0.9862 | 0.9862 | 0.0087 | 2.3690 | 2.5141 |
+| Visual font decision | LightGBM reject threshold | 0.9867 | 0.9867 | 0.0083 | 2.6037 | 3.0201 |
+| Visual font decision | XGBoost reject threshold | 0.9876 | 0.9876 | 0.0086 | 2.5687 | 2.8528 |
+| Visual font decision | CatBoost stacker | 0.9878 | 0.9878 | 0.0080 | 2.6713 | 3.0394 |
+| Header text decision | SVM | 0.8658 | 0.8648 | 0.0993 | 0.0770 | 0.0799 |
+| Header text decision | LightGBM | 0.8937 | 0.8931 | 0.1199 | 1.8445 | 2.0318 |
+| Header text decision | Logistic Regression | 0.8793 | 0.8794 | 0.1046 | 0.0786 | 0.0822 |
+| Header text decision | MLP | 0.8848 | 0.8850 | 0.0830 | 0.1444 | 0.1530 |
+| Header text decision | Strict-veto ensemble | 0.7796 | 0.7794 | 0.0462 | 2.3791 | 2.4831 |
+| Header text decision | Calibrated logistic stacker | 0.9007 | 0.9007 | 0.0819 | 2.4700 | 2.7285 |
+| Header text decision | LightGBM reject threshold | 0.7428 | 0.7226 | 0.0164 | 2.6253 | 2.8409 |
+| Header text decision | XGBoost reject threshold | 0.6656 | 0.6131 | 0.0027 | 2.6884 | 3.0246 |
+| Header text decision | CatBoost stacker | 0.9020 | 0.9020 | 0.0857 | 2.7073 | 3.8643 |
+
+Decision:
+
+- Visual boldness has a viable reviewer-assist path. CatBoost has the best
+  raw test F1, while the strict-veto ensemble has the best safety posture.
+- Header text correctness remains a separate problem. Raw-F1 stackers still
+  false-clear too often; reject-threshold policies reduce false clears by
+  routing many more crops to review.
+- Do not promote typography automation to final runtime authority yet. Keep the
+  deployed rule as `Needs Review`, and use this run as evidence for a future
+  optional preflight/control-board feature.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:
@@ -1240,7 +1308,10 @@ government-safe arbitration across docTR, PaddleOCR, and OpenOCR. The current
 best BERT-assisted OCR-smoke result is `E015`, using OSA market-domain NER plus
 the government-safe ensemble. The current best trained text-pair arbiter result
 is `E017`, where DistilRoBERTa beat RoBERTa-base on the 3,000-application
-locked holdout with lower CPU latency.
+locked holdout with lower CPU latency. The current best typography-preflight
+result is `E018`: strict-veto is the safety winner for visual boldness, while
+header text correctness remains review-only unless a conservative reject
+threshold is acceptable.
 
 ## Known Limitations
 

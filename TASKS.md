@@ -90,7 +90,9 @@ The sprint priority is now:
 - [x] Typography preflight measured about **0.09 ms/crop** SVM decision latency.
 - [x] Typography preflight is **not promoted**: safe thresholds have low recall, while useful-F1 thresholds have too many false clears.
 - [x] Corrected typography comparison trained SVM, XGBoost, and CatBoost on `audit-v5`; XGBoost wins raw F1, SVM wins false-clear/latency, and no hard-argmax model is promoted.
-- [ ] Boldness remains `Needs Review` until the typography preflight is validated with a safe false-clear rate.
+- [x] Extended typography comparison trained SVM, LightGBM, Logistic Regression, MLP, strict-veto, logistic stacker, LightGBM reject-threshold stacker, XGBoost reject-threshold stacker, and CatBoost stacker on a **40,000 train / 10,000 test** geometry-stress split.
+- [x] Latest typography result: visual strict-veto is the safety winner (**0.0024** false-clear), visual CatBoost stacker is the raw-F1 winner (**0.9878** macro F1), and header text still requires review-first/reject-threshold handling.
+- [x] Boldness remains `Needs Review` until the typography preflight is validated on real COLA warning-heading crops with a safe false-clear rate.
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
 - [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the COLA Cloud-derived 100-application calibration test split.
@@ -654,8 +656,11 @@ Tasks:
 - [x] Document that XGBoost has the best raw F1, SVM has the safest false-clear/latency posture, and CatBoost is not currently buying enough benefit.
 - [x] Add extended 80/20 typography comparison with LightGBM, Logistic Regression, MLP, and strict-veto ensemble.
 - [x] Document that LightGBM wins raw F1 in the extended run, while strict veto is the safest false-clear posture.
-- [ ] Add validation-threshold tuning so weak `clearly_bold` or `correct` predictions route to `needs_review_unclear`.
-- [ ] Keep `GOV_WARNING_HEADER_BOLD_REVIEW` as Needs Review unless validation/test false-clear behavior justifies promotion.
+- [x] Add large 5x geometry-stress comparison with **40,000 train / 10,000 test** crops and 50% rotated/bent examples.
+- [x] Train and compare SVM, LightGBM, Logistic Regression, MLP, strict-veto ensemble, calibrated logistic stacker, LightGBM reject-threshold stacker, XGBoost reject-threshold stacker, and CatBoost stacker.
+- [x] Add validation-threshold tuning for LightGBM and XGBoost stackers so weak positive predictions route to `needs_review_unclear`.
+- [x] Document that visual boldness has a viable future reviewer-assist path, but header text correctness still false-clears too often unless the reject-threshold model sends many cases to review.
+- [x] Keep `GOV_WARNING_HEADER_BOLD_REVIEW` as Needs Review unless validation/test false-clear behavior justifies promotion.
 
 Documentation framing:
 
