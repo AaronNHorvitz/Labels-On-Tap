@@ -248,6 +248,7 @@ Experimental candidates:
 - [x] Add a PaddleOCR / PP-OCR smoke benchmark wrapper under the experiment scaffold.
 - [x] Run PaddleOCR 3.3.3 / PaddlePaddle 3.2.0 30-image CPU smoke benchmark.
 - [x] Document that PaddleOCR 3.5.0 / PaddlePaddle 3.3.1 hit a CPU oneDNN/PIR runtime issue.
+- [x] Compute side-by-side field-support accuracy, precision, recall, F1, specificity, and false-clear rate for docTR vs PaddleOCR.
 - [ ] Promote PaddleOCR into a fuller experimental adapter only if field-level comparison beats or complements docTR.
 - [ ] Add an OpenOCR / SVTRv2 experimental adapter if PaddleOCR is insufficient or install risk is acceptable.
 - [ ] Keep the graph-aware scorer as a post-OCR evidence layer, not an OCR replacement.
@@ -278,22 +279,25 @@ Benchmark stages:
 - [x] Run a 10-image mixed-shape smoke benchmark before any larger run.
 - [x] Run a 30-image mixed-shape smoke benchmark after the 10-image run.
 - [ ] Run the same 100-application / 169-image public COLA calibration set used by docTR.
-- [ ] Compare against docTR using identical field-matching logic.
+- [x] Compare 30-image smoke against docTR using identical field-support scoring logic.
+- [ ] Compare 100-application calibration set against docTR using identical field-matching logic.
 - [ ] If a candidate wins on the 100-application set, run it on the 1,500-record calibration split.
 - [ ] Freeze preprocessing, thresholds, and engine choice before evaluating the 1,500-record locked holdout.
 
 Metrics to compare:
 
-- [ ] Brand-name match rate.
-- [ ] Fanciful-name match rate.
-- [ ] Class/type match rate.
-- [ ] Alcohol-content match rate.
-- [ ] Net-contents match rate.
-- [ ] Country-of-origin match rate.
+- [x] Initial brand-name field-support F1 comparison.
+- [x] Initial fanciful-name field-support F1 comparison.
+- [x] Initial class/type field-support F1 comparison.
+- [x] Initial alcohol-content field-support F1 comparison.
+- [x] Initial net-contents field-support F1 comparison.
+- [x] Initial country-of-origin field-support F1 comparison.
 - [ ] Applicant/producer visibility rate if practical.
 - [ ] Application-level Pass / Needs Review distribution on accepted public records.
+- [x] Initial shuffled-negative false-clear comparison for docTR vs PaddleOCR.
 - [ ] False-clear rate on synthetic known-bad fixtures.
 - [x] Initial per-image latency smoke: 30-image PaddleOCR mean 1,105.00 ms, median 1,096.50 ms, worst 1,544 ms.
+- [x] Initial field-support smoke: PaddleOCR F1 0.7151 vs docTR F1 0.6627, with higher false-clear rate 0.0268 vs 0.0089.
 - [ ] Per-application latency across all associated label panels.
 - [ ] OCR failure modes: curved text, rotated text, small warning text, glare, low contrast, multi-panel ambiguity.
 

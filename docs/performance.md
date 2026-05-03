@@ -227,6 +227,62 @@ Initial interpretation:
 - PaddleOCR should remain experimental until it improves field-level match
   rates or provides complementary evidence when combined with docTR.
 
+### Field-Support Classification Metrics
+
+The same 30-image smoke set represented 20 COLA applications. A follow-up
+field-support comparison scored expected application fields against each
+engine's aggregated OCR text. Accepted application field values were treated as
+positive examples. Controlled negative examples were created by shuffling
+same-field values from other applications. Prediction threshold was a fuzzy
+field-support score of `90`.
+
+Overall result across all fields:
+
+| Metric | docTR | PaddleOCR |
+|---|---:|---:|
+| Examples | 224 | 224 |
+| Accuracy | 0.7455 | 0.7723 |
+| Precision | 0.9825 | 0.9552 |
+| Recall | 0.5000 | 0.5714 |
+| Specificity | 0.9911 | 0.9732 |
+| F1 | 0.6627 | 0.7151 |
+| False-clear rate | 0.0089 | 0.0268 |
+
+Excluding `applicant_or_producer`, which remains a known weak OCR/application
+field in the current data:
+
+| Metric | docTR | PaddleOCR |
+|---|---:|---:|
+| Examples | 184 | 184 |
+| Accuracy | 0.7989 | 0.8315 |
+| Precision | 0.9825 | 0.9552 |
+| Recall | 0.6087 | 0.6957 |
+| Specificity | 0.9891 | 0.9674 |
+| F1 | 0.7517 | 0.8050 |
+| False-clear rate | 0.0109 | 0.0326 |
+
+By field:
+
+| Field | docTR F1 | PaddleOCR F1 | docTR Accuracy | PaddleOCR Accuracy | docTR False Clear | PaddleOCR False Clear |
+|---|---:|---:|---:|---:|---:|---:|
+| alcohol_content | 0.8333 | 0.8966 | 0.8462 | 0.8846 | 0.0769 | 0.2308 |
+| applicant_or_producer | 0.0000 | 0.0000 | 0.5000 | 0.5000 | 0.0000 | 0.0000 |
+| brand_name | 0.7500 | 0.7097 | 0.8000 | 0.7750 | 0.0000 | 0.0000 |
+| class_type | 0.5714 | 0.5714 | 0.7000 | 0.7000 | 0.0000 | 0.0000 |
+| country_of_origin | 0.7143 | 0.9412 | 0.7778 | 0.9444 | 0.0000 | 0.0000 |
+| fanciful_name | 0.8235 | 0.9474 | 0.8500 | 0.9500 | 0.0000 | 0.0000 |
+| net_contents | 0.8235 | 0.7500 | 0.8500 | 0.8000 | 0.0000 | 0.0000 |
+
+Interpretation:
+
+- PaddleOCR improved accuracy, recall, and F1 on this smoke task.
+- docTR preserved higher precision and lower false-clear rate.
+- The alcohol-content false-clear rate for PaddleOCR is too high to promote it
+  directly without stricter field-specific thresholds or deterministic checks.
+- The best next experiment is a combined evidence approach: keep docTR as the
+  conservative default, use PaddleOCR as supplemental OCR evidence, and require
+  deterministic rule checks to control false clears.
+
 ## May 2 COLA Cloud Stratified Calibration
 
 After the sample-pack smoke test, a bounded COLA Cloud API sampling workflow

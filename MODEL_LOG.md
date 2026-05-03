@@ -255,6 +255,57 @@ Decision:
 - Do not promote PaddleOCR to runtime default yet.
 - Next step is field-level comparison, because fewer blocks may still produce cleaner text even when total character count is similar.
 
+### E007 - PaddleOCR vs docTR Field-Support Metrics
+
+**Date:** May 2, 2026
+**Run output:** `data/work/ocr-engine-sweep/field-support-metrics/paddle-vs-doctr-smoke-30/`
+**Input:** The same 20-application / 30-image smoke set from E006
+**Purpose:** Compare docTR and PaddleOCR as binary field-support classifiers rather than by raw extracted-character count.
+
+Method:
+
+```text
+Positive examples:
+  accepted application field value vs OCR text for the same TTB ID
+
+Controlled negative examples:
+  same-field values shuffled from other TTB IDs vs current OCR text
+
+Prediction threshold:
+  fuzzy field-support score >= 90
+```
+
+Overall result across all fields:
+
+| Metric | docTR | PaddleOCR |
+|---|---:|---:|
+| Examples | 224 | 224 |
+| Accuracy | 0.7455 | 0.7723 |
+| Precision | 0.9825 | 0.9552 |
+| Recall | 0.5000 | 0.5714 |
+| Specificity | 0.9911 | 0.9732 |
+| F1 | 0.6627 | 0.7151 |
+| False-clear rate | 0.0089 | 0.0268 |
+
+Excluding `applicant_or_producer`, which is already known to be a weak OCR evidence field:
+
+| Metric | docTR | PaddleOCR |
+|---|---:|---:|
+| Examples | 184 | 184 |
+| Accuracy | 0.7989 | 0.8315 |
+| Precision | 0.9825 | 0.9552 |
+| Recall | 0.6087 | 0.6957 |
+| Specificity | 0.9891 | 0.9674 |
+| F1 | 0.7517 | 0.8050 |
+| False-clear rate | 0.0109 | 0.0326 |
+
+Decision:
+
+- PaddleOCR improves recall, accuracy, and F1 on this small field-support task.
+- docTR is safer on precision, specificity, and false-clear rate.
+- PaddleOCR should not replace docTR as the default yet.
+- The next practical path is combined evidence with field-specific safety thresholds, especially for alcohol content where PaddleOCR false clears were higher.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:

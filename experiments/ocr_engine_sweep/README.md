@@ -82,6 +82,27 @@ mean latency near 1.10 seconds per image.
 The benchmark writes both compact CSV metrics and normalized OCR JSON artifacts
 for later field-level comparison.
 
+## Field-Support Metrics
+
+After a smoke run produces normalized OCR JSON, compute side-by-side
+classification metrics against cached docTR:
+
+```bash
+python experiments/ocr_engine_sweep/field_support_metrics.py \
+  --paddle-run-dir data/work/ocr-engine-sweep/paddleocr-333-paddle-320-smoke-30-json \
+  --run-name paddle-vs-doctr-smoke-30
+```
+
+This writes summary JSON and per-engine score CSVs under:
+
+```text
+data/work/ocr-engine-sweep/field-support-metrics/
+```
+
+The current metric task treats accepted application fields as positive examples
+and uses same-field shuffled values from other applications as controlled
+negative examples. It is a smoke metric, not final production accuracy.
+
 ## Notes
 
 - This harness measures OCR extraction only. Field-level comparison should use
