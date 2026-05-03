@@ -192,6 +192,42 @@ fuzzy field-support score of `90`.
 | Country of origin | 0.7143 | 0.9412 | 0.7143 | 0.7143 | 0.6154 | 0.7143 | 0.6154 | 0.7143 |
 | Applicant / producer | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
 
+#### Deterministic OCR Ensemble Smoke
+
+The best next step was not to immediately choose one OCR engine. The stronger
+engineering move was to treat docTR, PaddleOCR, and OpenOCR as noisy sensors and
+test simple ensemble arbitration policies over their field-support scores. This
+keeps the compliance layer deterministic while measuring whether complementary
+OCR evidence can improve recall without increasing false clears.
+
+The first ensemble smoke used the same `20` applications, `30` images, `224`
+field-support examples, fuzzy score threshold `90`, and seed `20260502`.
+Latency below is a conservative sequential sum of all three engines; a
+production implementation could run the engines in parallel and would then be
+bounded mostly by the slowest OCR engine plus arbitration overhead.
+
+| Model / policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Mean / app | Max / app |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| docTR single engine | 0.7455 | 0.9825 | 0.5000 | 0.9911 | 0.6627 | 0.0089 | 1,200.8 ms | 2,216 ms |
+| PaddleOCR single engine | 0.7723 | 0.9552 | 0.5714 | 0.9732 | 0.7151 | 0.0268 | 1,657.5 ms | 3,558 ms |
+| OpenOCR single engine | 0.7143 | 0.9800 | 0.4375 | 0.9911 | 0.6049 | 0.0089 | 845.65 ms | 1,383 ms |
+| Ensemble: any engine supports field | 0.7902 | 0.9452 | 0.6161 | 0.9643 | 0.7459 | 0.0357 | 3,703.95 ms | 6,940 ms |
+| Ensemble: majority vote | 0.7411 | 0.9821 | 0.4911 | 0.9911 | 0.6548 | 0.0089 | 3,703.95 ms | 6,940 ms |
+| Ensemble: unanimous vote | 0.7009 | 1.0000 | 0.4018 | 1.0000 | 0.5732 | 0.0000 | 3,703.95 ms | 6,940 ms |
+| Ensemble: safety weighted | 0.7902 | 0.9710 | 0.5982 | 0.9821 | 0.7403 | 0.0179 | 3,703.95 ms | 6,940 ms |
+| Ensemble: government safe | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 | 3,703.95 ms | 6,940 ms |
+
+**Synthesis:** The naive "any engine" ensemble produced the highest F1, but it
+also produced the worst false-clear rate because alcohol-content mismatches were
+too easy to clear when any single engine found a plausible ABV. That is the
+wrong direction for government triage. The government-safe policy is the more
+important result: it requires unanimous OCR support for alcohol-content evidence
+and uses majority or high-confidence support for lower-risk fields. In this
+small smoke, that policy improved F1 over every single engine while reducing
+false clears to zero. Small sample sizes increase variance, so this is not a
+final accuracy claim, but it is strong enough to justify a larger calibration
+run before picking a runtime OCR strategy.
+
 ---
 
 ### 3.2.2 Graph Scorer as Post-OCR Evidence, Not OCR Replacement

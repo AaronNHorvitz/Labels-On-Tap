@@ -41,6 +41,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | ASTER crop recognizer | Experimental rectifying recognizer over detected crops | No | Very fast on CPU, zero false clears, but low recall/F1 in first crop-recognition smoke |
 | FCENet + ASTER | Experimental arbitrary-shape detector plus recognizer | No | Successful run, but too slow on CPU and low F1 in first detector-recognizer smoke |
 | ABINet crop recognizer | Experimental recognizer over detected crops | No | Fast on CPU, zero false clears, but low recall/F1 in first crop-recognition smoke |
+| Deterministic OCR ensemble | Combines docTR, PaddleOCR, and OpenOCR field evidence | No | Government-safe smoke improved F1 to 0.7416 with zero shuffled-negative false clears |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -624,6 +625,54 @@ Decision:
 - This result should not be read as "ABINet is bad." It means full ABINet over OpenOCR rectangular crops did not recover enough field evidence to justify runtime promotion.
 - Small sample sizes increase variance, but this first ABINet result does not justify replacing the current OCR path before submission.
 
+### E013 - Deterministic OCR Ensemble Arbitration
+
+**Date:** May 3, 2026
+**Run output:** `data/work/ocr-engine-sweep/ensemble-field-support/doctr-paddle-openocr-ensemble-smoke-30-govsafe/`
+**Input:** The same 20-application / 30-image smoke set from E006-E012
+**Purpose:** Test whether docTR, PaddleOCR, and OpenOCR can be combined as noisy sensors before moving to a learned BERT/LayoutLM-style arbiter.
+
+Method:
+
+```text
+1. Aggregate OCR text by TTB ID for docTR, PaddleOCR, and OpenOCR.
+2. Score each expected application field against each OCR engine.
+3. Create controlled negatives by shuffling same-field values across applications.
+4. Evaluate deterministic ensemble policies using the same accuracy, F1, and false-clear metrics.
+```
+
+Command:
+
+```bash
+python experiments/ocr_engine_sweep/ensemble_field_support_metrics.py \
+  --run-name doctr-paddle-openocr-ensemble-smoke-30-govsafe
+```
+
+Overall result:
+
+| Policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate |
+|---|---:|---:|---:|---:|---:|---:|
+| docTR single engine | 0.7455 | 0.9825 | 0.5000 | 0.9911 | 0.6627 | 0.0089 |
+| PaddleOCR single engine | 0.7723 | 0.9552 | 0.5714 | 0.9732 | 0.7151 | 0.0268 |
+| OpenOCR single engine | 0.7143 | 0.9800 | 0.4375 | 0.9911 | 0.6049 | 0.0089 |
+| Any engine | 0.7902 | 0.9452 | 0.6161 | 0.9643 | 0.7459 | 0.0357 |
+| Majority vote | 0.7411 | 0.9821 | 0.4911 | 0.9911 | 0.6548 | 0.0089 |
+| Unanimous vote | 0.7009 | 1.0000 | 0.4018 | 1.0000 | 0.5732 | 0.0000 |
+| Safety weighted | 0.7902 | 0.9710 | 0.5982 | 0.9821 | 0.7403 | 0.0179 |
+| Government safe | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 |
+
+Latency note:
+
+- Sequential three-engine sum: mean 3,703.95 ms/application, max 6,940 ms/application.
+- Parallel OCR execution has not been implemented; it should be measured before any runtime promotion.
+
+Decision:
+
+- Do not choose the naive highest-F1 "any engine" policy because it increases false clears.
+- The government-safe policy is the best current ensemble smoke result because it improves F1 over every single engine while reducing shuffled-negative false clears to zero.
+- The key field-specific guardrail is alcohol content: non-unanimous ABV evidence routes to review instead of automatic support.
+- This is still a 20-application / 30-image smoke result. It justifies a larger calibration run, not a production claim.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:
@@ -644,19 +693,23 @@ This result does not support a production claim:
 
 > The app is production-ready or has final OCR accuracy.
 
+The current best OCR ensemble smoke result is `E013`, using deterministic
+government-safe arbitration across docTR, PaddleOCR, and OpenOCR. It is not yet
+the deployed runtime path.
+
 ## Known Limitations
 
 - The current graph labels are weak labels from accepted application fields and shuffled negatives, not human-labeled OCR spans.
 - The test split is drawn from the 100-application calibration set, not the planned locked 1,500 holdout.
-- The graph scorer cannot recover text the OCR engine never detected.
+- The graph scorer and deterministic ensemble cannot recover text no OCR engine detected.
 - Class/type remains difficult and probably needs better product taxonomy handling, better OCR, or field-specific candidate generation.
 - The current model processes variable-size graphs one at a time; batching/padding should be added before larger runs.
 - GPU training works locally, but `.venv-gpu` is not part of the deployed app and is intentionally gitignored.
 
 ## Next Experiments
 
-1. Scale graph training to the full 1,500-record calibration split once details/images/OCR are available.
-2. Freeze graph settings after calibration and evaluate only once on the locked 1,500 holdout.
-3. Add PaddleOCR as an alternate OCR engine and compare baseline docTR vs PaddleOCR vs combined OCR boxes.
+1. Run docTR, PaddleOCR, OpenOCR, and the government-safe ensemble on the 100-application / 169-image calibration set.
+2. Scale graph training to the full 1,500-record calibration split once details/images/OCR are available.
+3. Freeze graph/ensemble settings after calibration and evaluate only once on the locked 1,500 holdout.
 4. Add field-specific class/type taxonomy features to attack the weakest measured field.
-5. Preserve the full HO-GNN/TPS/SVTR roadmap as a future research path after post-OCR graph scoring is fully measured.
+5. Preserve BERT/LayoutLMv3 and the full HO-GNN/TPS/SVTR roadmap as future research paths after simpler post-OCR arbitration is fully measured.

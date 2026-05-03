@@ -301,6 +301,38 @@ The current metric task treats accepted application fields as positive examples
 and uses same-field shuffled values from other applications as controlled
 negative examples. It is a smoke metric, not final production accuracy.
 
+## Deterministic Ensemble Metrics
+
+After docTR, PaddleOCR, and OpenOCR have normalized OCR outputs, compare simple
+ensemble arbitration policies:
+
+```bash
+python experiments/ocr_engine_sweep/ensemble_field_support_metrics.py \
+  --run-name doctr-paddle-openocr-ensemble-smoke-30-govsafe
+```
+
+This writes summary JSON and per-policy score CSVs under:
+
+```text
+data/work/ocr-engine-sweep/ensemble-field-support/
+```
+
+The first smoke tests these policies:
+
+- any engine supports the field,
+- majority vote,
+- unanimous vote,
+- high-confidence or majority support,
+- safety-weighted support,
+- government-safe support.
+
+The government-safe policy is intentionally asymmetric: alcohol-content evidence
+requires unanimous OCR support because ABV false clears are a high-risk
+compliance failure. Other lower-risk fields can use majority support or a very
+high-confidence single-engine hit. This policy produced the best safety/F1
+trade-off in the first smoke, but it still needs larger calibration before
+runtime promotion.
+
 ## Notes
 
 - This harness measures OCR extraction only. Field-level comparison should use

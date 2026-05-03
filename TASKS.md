@@ -75,6 +75,8 @@ The sprint priority is now:
 - [x] ASTER was added as a recognizer-stage experiment over OpenOCR-detected crops.
 - [x] FCENet + ASTER was added as a detector-plus-recognizer experiment for arbitrary-shaped text.
 - [x] ABINet was added as a recognizer-stage experiment over OpenOCR-detected crops.
+- [x] Deterministic OCR ensemble arbitration exists for docTR + PaddleOCR + OpenOCR field-support scores.
+- [x] Government-safe OCR ensemble smoke produced F1 **0.7416** with false-clear rate **0.0000** on the 20-application / 30-image smoke.
 - [x] OpenVINO/ONNX/INT8 on EC2 `m7i` is a future CPU optimization path, not a current Lightsail performance claim.
 - [x] OCR engine sweep scaffold exists under `experiments/ocr_engine_sweep/`.
 - [x] `MODEL_LOG.md` records OCR/model experiments and caveats.
@@ -269,6 +271,9 @@ Experimental candidates:
 - [x] Add an MMOCR ABINet crop-recognition benchmark using OpenOCR-detected boxes.
 - [x] Run ABINet crop-recognition smoke on the same 30 images.
 - [x] Compute side-by-side field-support metrics including ABINet crop runs.
+- [x] Add deterministic OCR ensemble arbitration for docTR + PaddleOCR + OpenOCR.
+- [x] Run deterministic ensemble smoke on the same 20-application / 30-image benchmark.
+- [x] Add government-safe ensemble policy requiring unanimous alcohol-content support.
 - [x] Record the statistical caveat that small sample sizes increase variance and the current 20-application / 30-image result is directional only.
 - [ ] Promote PaddleOCR into a fuller experimental adapter only if field-level comparison beats or complements docTR.
 - [ ] Promote OpenOCR into a fuller experimental adapter only if a larger run shows it beats or complements docTR/PaddleOCR.
@@ -330,6 +335,7 @@ Metrics to compare:
 - [x] Initial shuffled-negative false-clear comparison including ASTER crop runs.
 - [x] Initial shuffled-negative false-clear comparison including FCENet + ASTER.
 - [x] Initial shuffled-negative false-clear comparison including ABINet crop runs.
+- [x] Initial deterministic ensemble comparison: government-safe ensemble F1 0.7416, false-clear rate 0.0000.
 - [ ] False-clear rate on synthetic known-bad fixtures.
 - [x] Initial per-image latency smoke: 30-image PaddleOCR mean 1,105.00 ms, median 1,096.50 ms, worst 1,544 ms.
 - [x] Initial per-image latency smoke: 30-image OpenOCR mean 563.77 ms, median 582.50 ms, worst 1,211 ms.
@@ -340,6 +346,8 @@ Metrics to compare:
 - [x] Initial per-image latency smoke: ABINet over OpenOCR crops mean 458.83 ms, median 369.00 ms, worst 1,229 ms.
 - [x] Initial field-support smoke: PaddleOCR F1 0.7151 vs docTR F1 0.6627 vs OpenOCR F1 0.6049 vs PARSeq AR/NAR F1 0.5513 vs ASTER F1 0.5548 vs FCENet + ASTER F1 0.3972 vs ABINet F1 0.4865.
 - [x] Initial field-support smoke: PaddleOCR false-clear rate 0.0268 vs docTR/OpenOCR false-clear rate 0.0089.
+- [x] Initial ensemble smoke: naive any-engine policy F1 0.7459 but false-clear rate 0.0357, so it is not government-safe.
+- [x] Initial ensemble smoke: government-safe policy F1 0.7416 and false-clear rate 0.0000 by routing non-unanimous alcohol-content evidence to review.
 - [x] Initial field-support smoke: ASTER false-clear rate 0.0000 with low recall on the 20-application / 30-image smoke.
 - [x] Initial field-support smoke: FCENet + ASTER false-clear rate 0.0089 with low recall and slow CPU latency.
 - [x] Initial field-support smoke: ABINet false-clear rate 0.0000 with low recall on the 20-application / 30-image smoke.
@@ -368,8 +376,10 @@ Documentation deliverables:
 
 - [x] Add OCR experimentation strategy to `README.md`.
 - [x] Add OCR engine sweep and OpenVINO trade-offs to `TRADEOFFS.md`.
+- [x] Add deterministic OCR ensemble smoke results to `TRADEOFFS.md`.
 - [x] Add each serious run to `MODEL_LOG.md`.
 - [x] Add initial PaddleOCR smoke timing and extraction tables to `docs/performance.md`.
+- [x] Add deterministic OCR ensemble smoke results to `docs/performance.md`.
 - [ ] Update `DEMO_SCRIPT.md` only if the deployed app's OCR behavior changes.
 
 ---

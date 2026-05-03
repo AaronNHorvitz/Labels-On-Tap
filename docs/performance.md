@@ -339,6 +339,38 @@ Interpretation:
   docTR" or "choose PaddleOCR" yet; it is "run the larger calibration set and
   keep PaddleOCR, OpenOCR, and combined evidence under evaluation."
 
+### Deterministic OCR Ensemble Smoke
+
+After the single-engine sweep, a deterministic ensemble smoke treated docTR,
+PaddleOCR, and OpenOCR as noisy OCR sensors. Each engine scored whether its
+aggregated OCR text supported the expected field value. Several simple
+arbitration policies were then compared with the same positive/shuffled-negative
+field-support metric.
+
+This is not BERT, LayoutLMv3, or an LLM. It is a deterministic bridge that tests
+whether multi-engine evidence can be useful before adding a learned arbiter.
+
+| Policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate |
+|---|---:|---:|---:|---:|---:|---:|
+| docTR single engine | 0.7455 | 0.9825 | 0.5000 | 0.9911 | 0.6627 | 0.0089 |
+| PaddleOCR single engine | 0.7723 | 0.9552 | 0.5714 | 0.9732 | 0.7151 | 0.0268 |
+| OpenOCR single engine | 0.7143 | 0.9800 | 0.4375 | 0.9911 | 0.6049 | 0.0089 |
+| Any engine | 0.7902 | 0.9452 | 0.6161 | 0.9643 | 0.7459 | 0.0357 |
+| Majority vote | 0.7411 | 0.9821 | 0.4911 | 0.9911 | 0.6548 | 0.0089 |
+| Unanimous vote | 0.7009 | 1.0000 | 0.4018 | 1.0000 | 0.5732 | 0.0000 |
+| Safety weighted | 0.7902 | 0.9710 | 0.5982 | 0.9821 | 0.7403 | 0.0179 |
+| Government safe | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 |
+
+Latency for the three-engine ensemble is currently reported as a conservative
+sequential sum: mean `3,703.95 ms/application`, max `6,940 ms/application` on
+the 20-application smoke. A production implementation could run the three OCR
+engines in parallel, but that has not been implemented or measured.
+
+The government-safe ensemble is the most important result: it improved F1 over
+all single engines in this smoke and drove false-clear rate to zero by requiring
+unanimous OCR support for alcohol-content evidence. This should be tested on the
+larger calibration set before any runtime change.
+
 ## May 2 COLA Cloud Stratified Calibration
 
 After the sample-pack smoke test, a bounded COLA Cloud API sampling workflow
