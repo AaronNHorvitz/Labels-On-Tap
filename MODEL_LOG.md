@@ -45,17 +45,17 @@ As sample size grows, measured performance should be expected to move closer to 
 | WineBERT/o domain NER | Experimental token-classification arbiter over OCR text | No | Fast CPU inference, but no lift over government-safe ensemble and unknown public model license |
 | OSA market-domain NER | Experimental Apache-2.0 token-classification arbiter over OCR text | No | Small lift over government-safe ensemble: F1 0.7486, false-clear rate 0.0000 |
 | FoodBaseBERT-NER | Culinary-domain token-classification control | No | Fast and MIT-licensed, but no lift over government-safe ensemble and standalone F1 0.0522 |
-| OpenCV/SVM typography preflight | Planned warning-heading boldness classifier | No | Planned only; current runtime still routes boldness to Needs Review |
+| OpenCV/SVM typography preflight | Experimental warning-heading boldness classifier | No | Implemented and measured on synthetic held-out-font data; not promoted because safe thresholds have very low recall |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
 ## Experiment Ledger
 
-### Planned - OpenCV/SVM Government Warning Boldness Preflight
+### E013 - OpenCV/SVM Government Warning Boldness Preflight
 
 **Date added:** May 3, 2026
-**Planned code path:** `experiments/typography_preflight/`
-**Planned artifact path:** `data/work/typography-preflight/`
+**Code path:** `experiments/typography_preflight/`
+**Run output:** `data/work/typography-preflight/svm-v2/`
 **Purpose:** Add a low-latency typography preflight for Jenny Park's requirement that `GOVERNMENT WARNING:` be bold, while keeping the current deployed rule conservative.
 
 Current runtime behavior:
@@ -66,7 +66,7 @@ GOV_WARNING_HEADER_CAPS         -> deterministic capitalization check
 GOV_WARNING_HEADER_BOLD_REVIEW  -> Needs Review / manual typography check
 ```
 
-Planned model:
+Model:
 
 ```text
 heading crop
@@ -76,7 +76,7 @@ heading crop
   -> bold / non-bold / uncertain decision
 ```
 
-Planned synthetic dataset:
+Synthetic dataset:
 
 | Split | Planned Crops | Split Discipline |
 |---|---:|---|
@@ -84,7 +84,7 @@ Planned synthetic dataset:
 | Validation | 5,000 | Held-out font families / distortion recipes |
 | Test | 5,000 | Separate held-out font families and harder distortions |
 
-Candidate features:
+Feature set:
 
 ```text
 ink density
@@ -104,12 +104,59 @@ false clear = regular, medium, degraded, or uncertain warning heading
 classified as acceptable bold
 ```
 
-Execution constraint:
+Execution constraint used:
 
 ```text
 CPU-only, low-priority, no GPU, no Podman changes, no writes to
 data/work/ocr-conveyor/.
 ```
+
+Run command:
+
+```bash
+CUDA_VISIBLE_DEVICES="" \
+OMP_NUM_THREADS=2 \
+OPENBLAS_NUM_THREADS=2 \
+MKL_NUM_THREADS=2 \
+NUMEXPR_NUM_THREADS=2 \
+nice -n 15 ionice -c3 \
+data/work/typography-preflight/.venv/bin/python \
+  -m experiments.typography_preflight.train_svm \
+  --output-dir data/work/typography-preflight/svm-v2 \
+  --classifier sgd-svm \
+  --max-iter 2000 \
+  --false-clear-tolerance 0.0025
+```
+
+Threshold sweep:
+
+| Validation false-clear tolerance | Test F1 | Test precision | Test recall | Test false-clear rate |
+|---:|---:|---:|---:|---:|
+| 0.0000 | 0.0321 | 0.9737 | 0.0163 | 0.0004 |
+| 0.0025 | 0.1170 | 0.8987 | 0.0626 | 0.0059 |
+| 0.0050 | 0.1736 | 0.9008 | 0.0960 | 0.0088 |
+| 0.0100 | 0.4492 | 0.9052 | 0.2987 | 0.0260 |
+| 0.0200 | 0.5780 | 0.9027 | 0.4251 | 0.0381 |
+| 0.0500 | 0.7757 | 0.8867 | 0.6894 | 0.0733 |
+
+Latency:
+
+```text
+mean decision latency: about 0.09 ms/crop
+```
+
+Interpretation:
+
+- The model class is computationally excellent.
+- The first synthetic classifier is not strong enough for autonomous boldness
+  passing under a government false-clear posture.
+- At the safest threshold, it false-clears almost nothing but passes almost no
+  bold headings either.
+- At useful recall/F1 thresholds, the false-clear rate is too high.
+- Keep boldness as `Needs Review` for the submission.
+- Next improvement would be better crop isolation, relative comparison against
+  warning body text, richer synthetic typography, and positive smoke tests on
+  approved public COLA warning-heading crops.
 
 Reference:
 
@@ -119,11 +166,11 @@ The Elements of Statistical Learning: Data Mining, Inference, and Prediction.
 2nd ed., Springer, 2009.
 ```
 
-Decision gate:
+Decision:
 
-- Do not promote this to hard `Fail` unless validation/test false-clear behavior is safe.
+- Do not promote to runtime Pass/Fail authority from this run.
 - Approved public COLA crops may be used as positive smoke evidence only.
-- Synthetic non-bold/degraded examples are required for negative validation.
+- Synthetic non-bold/degraded examples remain required for negative validation.
 - Ambiguous typography remains `Needs Review`.
 
 ### E001 - Remapped OCR Field-Matching Baseline

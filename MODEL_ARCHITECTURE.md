@@ -336,9 +336,9 @@ GOV_WARNING_HEADER_CAPS      -> deterministic capitalization check
 GOV_WARNING_HEADER_BOLD_REVIEW -> human typography review
 ```
 
-The planned next architecture adds a lightweight OpenCV/SVM typography
-preflight. It stays outside the running OCR conveyor and outside the deployed
-runtime until validated.
+The next architecture adds a lightweight OpenCV/SVM typography preflight. The
+experiment is implemented, but it stays outside the deployed runtime until it is
+validated strongly enough to support autonomous evidence.
 
 ```mermaid
 flowchart TD
@@ -366,11 +366,11 @@ Why this model class fits:
 - The decision threshold can be tuned for the primary safety metric:
   false clears.
 
-The planned dataset is synthetic because the negative cases are not public. It
-will render `GOVERNMENT WARNING:` in bold, regular, medium, and degraded styles
+The first dataset is synthetic because the negative cases are not public. It
+renders `GOVERNMENT WARNING:` in bold, regular, medium, and degraded styles
 across many local fonts and distortions.
 
-Planned split:
+Implemented split:
 
 ```text
 train:      20,000 crops
@@ -396,6 +396,28 @@ not a deep-learning shortcut. Hastie, Tibshirani, and Friedman describe
 support vector machines as margin-based supervised learners; this is a good fit
 when engineered stroke/shape features carry the decision boundary and compute
 cost matters.
+
+Initial measured result:
+
+| Operating Point | Test F1 | Precision | Recall | False-Clear Rate | Interpretation |
+|---|---:|---:|---:|---:|---|
+| Zero validation false-clear tolerance | 0.0321 | 0.9737 | 0.0163 | 0.0004 | Safe but barely clears bold headings. |
+| 0.25% validation false-clear tolerance | 0.1170 | 0.8987 | 0.0626 | 0.0059 | Still too weak for promotion. |
+| 5% validation false-clear tolerance | 0.7757 | 0.8867 | 0.6894 | 0.0733 | Better F1, unsafe false-clear posture. |
+
+Latency:
+
+```text
+mean SVM decision latency: about 0.09 ms/crop
+```
+
+Conclusion:
+
+```text
+The model class is computationally viable, but the current synthetic classifier
+is not promoted. It supports a measured path toward typography preflight while
+confirming that boldness should remain Needs Review for the submission.
+```
 
 Reference:
 

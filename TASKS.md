@@ -77,11 +77,14 @@ The sprint priority is now:
 - [x] Armored OCR conveyor real tri-engine smoke passed at 3 images, 8 images, and 16 requested images.
 - [x] Latest chunk-size 16 smoke processed **13 valid images**, skipped **3 invalid/corrupt images** in preflight, and completed **39 OCR rows** across docTR, PaddleOCR, and OpenOCR with **0 row errors**.
 - [x] Full train/validation OCR conveyor dry run passed at chunk-size 16: **5,353 image rows**, **5,179 valid images**, **174 invalid/corrupt skipped**, **975 planned jobs**.
-- [x] Full train/validation OCR conveyor is currently running in Podman under `data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16/`.
-- [x] OCR conveyor progress snapshot at `2026-05-03T11:51:46-05:00`: **960 / 975** chunk result files complete, **0** OCR row errors, with the container observed `Up 8 hours`.
-- [ ] Full train/validation OCR conveyor still needs to finish before OCR evidence attachment.
+- [x] Full train/validation OCR conveyor ran under `data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16/`.
+- [x] OCR conveyor progress snapshot at `2026-05-03T11:51:46-05:00` showed **960 / 975** chunk result files complete and **0** OCR row errors.
+- [x] Full train/validation OCR conveyor completed: **975 / 975** chunk result files, **0** OCR row errors.
 - [ ] Locked holdout OCR conveyor has not been run and must remain sealed until preprocessing, model, and thresholds are frozen.
-- [ ] OpenCV/SVM typography preflight is planned for `GOVERNMENT WARNING:` boldness detection; no code has been added yet.
+- [x] OpenCV/SVM typography preflight experiment is implemented under `experiments/typography_preflight/`.
+- [x] Typography preflight synthetic SVM run completed with **20,000 train**, **5,000 validation**, and **5,000 test** crops.
+- [x] Typography preflight measured about **0.09 ms/crop** SVM decision latency.
+- [x] Typography preflight is **not promoted**: safe thresholds have low recall, while useful-F1 thresholds have too many false clears.
 - [ ] Boldness remains `Needs Review` until the typography preflight is validated with a safe false-clear rate.
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
@@ -158,7 +161,6 @@ Sample-size framing:
 - [x] Supersede the initial 3,000-record target with a **6,000-application** public-data corpus.
 - [x] Preserve a **3,000-application locked holdout** for final model evaluation.
 - [x] Use **2,000 train**, **1,000 validation**, and **3,000 locked holdout** for trained field-support classifiers.
-- [x] A locked holdout of `n = 1,500` gives about **+/- 2.5 percentage points** conservative 95% margin of error for a binary proportion estimate.
 - [x] A locked holdout of `n = 3,000` gives about **+/- 1.8 percentage points** conservative 95% margin of error for a binary proportion estimate, before finite-population correction.
 - [ ] Explain clearly that `+/- 1.8%` is a conservative 95% margin of error on the 3,000-record final holdout estimate, not a guarantee of production accuracy.
 - [ ] Build 300-500 known-bad synthetic negative cases for false-clear testing.
@@ -562,21 +564,21 @@ data/work/typography-preflight/
 
 Tasks:
 
-- [ ] Create `experiments/typography_preflight/README.md`.
-- [ ] Create a synthetic typography dataset generator for `GOVERNMENT WARNING:` crops.
-- [ ] Use local system fonts only; do not download model/data dependencies while the OCR conveyor is running.
-- [ ] Generate at least **20,000 train**, **5,000 validation**, and **5,000 test** synthetic crops.
-- [ ] Hold out font families and distortion recipes across train/validation/test.
-- [ ] Include bold, regular, medium/borderline, degraded, warped, blurred, compressed, and low-contrast variants.
-- [ ] Extract OpenCV features: ink density, edge density, distance-transform stroke width, stroke-width variance, skeleton-to-ink ratio, connected-component statistics, projection profiles, and HOG descriptors.
-- [ ] Train a CPU-only Support Vector Machine with `StandardScaler` and calibrated decision scores.
-- [ ] Run with CPU limits such as `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=2`, `OPENBLAS_NUM_THREADS=2`, and `nice`/`ionice` if possible.
-- [ ] Report accuracy, precision, recall, specificity, F1, confusion matrix, mean/p95 crop latency, and false-clear rate.
-- [ ] Treat `false clear = non-bold or uncertain heading classified as acceptable bold` as the primary safety metric.
-- [ ] Smoke test approved public COLA warning crops as positive examples only if warning-heading crops can be isolated without interfering with the active OCR run.
-- [ ] Keep all generated crops, features, metrics, and model files under gitignored `data/work/typography-preflight/`.
-- [ ] Commit only experiment code/docs, never synthetic image bulk or `.joblib` model artifacts.
-- [ ] Update `MODEL_LOG.md`, `TRADEOFFS.md`, `MODEL_ARCHITECTURE.md`, and README after the experiment runs.
+- [x] Create `experiments/typography_preflight/README.md`.
+- [x] Create a synthetic typography dataset generator for `GOVERNMENT WARNING:` crops.
+- [x] Use local system fonts only.
+- [x] Generate at least **20,000 train**, **5,000 validation**, and **5,000 test** synthetic crops.
+- [x] Hold out font families and distortion recipes across train/validation/test.
+- [x] Include bold, regular, medium/borderline, degraded, warped, blurred, compressed, and low-contrast variants.
+- [x] Extract OpenCV features: ink density, edge density, distance-transform stroke width, stroke-width variance, connected-component statistics, projection profiles, and HOG descriptors.
+- [x] Train a CPU-only Support Vector Machine-style margin classifier with `StandardScaler`.
+- [x] Run with CPU limits such as `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=2`, `OPENBLAS_NUM_THREADS=2`, and `nice`/`ionice`.
+- [x] Report accuracy, precision, recall, specificity, F1, confusion matrix, mean/p95 crop latency, and false-clear rate.
+- [x] Treat `false clear = non-bold or uncertain heading classified as acceptable bold` as the primary safety metric.
+- [ ] Smoke test approved public COLA warning crops as positive examples if warning-heading crops can be isolated cleanly.
+- [x] Keep all generated crops, features, metrics, and model files under gitignored `data/work/typography-preflight/`.
+- [x] Commit only experiment code/docs, never synthetic image bulk or `.joblib` model artifacts.
+- [x] Update `MODEL_LOG.md`, `TRADEOFFS.md`, `MODEL_ARCHITECTURE.md`, and README after the experiment runs.
 - [ ] Keep `GOV_WARNING_HEADER_BOLD_REVIEW` as Needs Review unless validation/test false-clear behavior justifies promotion.
 
 Documentation framing:
@@ -650,8 +652,8 @@ Legal guidance is valuable, but it should explain deterministic findings rather 
 3. Keep docTR as the deployed default unless PaddleOCR/OpenOCR or an ensemble wins the measured comparison and fits the CPU SLA.
 4. Use the current 6,000-record public-data corpus without replacement.
 5. Use the current 2,000 train / 1,000 validation / 3,000 locked-holdout split.
-6. Run the full train/validation armored OCR conveyor with chunk-size 16 before attaching OCR evidence.
-7. If there is CPU headroom, build the isolated OpenCV/SVM typography preflight without touching `data/work/ocr-conveyor/`.
+6. Completed: full train/validation armored OCR conveyor with chunk-size 16.
+7. Completed: isolated OpenCV/SVM typography preflight experiment.
 8. Attach OCR evidence to the field-support manifests before retraining DistilRoBERTa or graph scorers.
 9. Freeze OCR engine choice, OCR preprocessing, field-normalization, model family, pass/review thresholds, and any typography-preflight threshold.
 10. Evaluate the locked test split and report field-level match rates, false-clear rate, latency, and limitations.

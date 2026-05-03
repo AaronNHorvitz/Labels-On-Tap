@@ -97,16 +97,9 @@ locked holdout: 3,000 applications
 
 The split happens before field-pair examples are generated so the same TTB ID
 cannot leak across train, validation, and test. The train/validation OCR
-conveyor is currently running over `5,353` image rows, with `5,179` valid images
-and `174` invalid/corrupt images skipped during preflight.
-
-For a binary proportion on a `1,500`-record holdout, the conservative 95% margin of error is approximately:
-
-```text
-1.96 * sqrt(0.25 / 1500) = 0.0253
-```
-
-That is about `+/- 2.5 percentage points` before finite-population correction, and about the same after correction against an annual population near `150,000` COLA applications. This is a margin-of-error statement for the locked holdout estimate, not a claim that production accuracy is guaranteed.
+conveyor completed `975 / 975` tri-engine OCR chunk jobs over `5,353` image
+rows, with `5,179` valid images, `174` invalid/corrupt images skipped during
+preflight, and `0` OCR row errors.
 
 For the current `3,000`-application locked holdout, the conservative 95% margin
 of error is approximately `+/- 1.8 percentage points` for a binary proportion
@@ -170,7 +163,7 @@ Runtime claims remain measured, not assumed. OpenVINO/ONNX/INT8 optimization on 
 
 Jenny Park's stakeholder note includes a typography requirement that plain OCR does not solve by itself: the government warning heading must be exactly `GOVERNMENT WARNING:` and must be bold. The current deployed rule already checks the all-caps heading deterministically and routes font-weight verification to human review. The next experimental workstream is to add a lightweight typography preflight for that boldness requirement without destabilizing the running OCR evaluation.
 
-The planned approach is intentionally classical statistical learning rather than deep learning:
+The implemented experimental approach is intentionally classical statistical learning rather than deep learning:
 
 ```text
 OCR isolates or approximates the GOVERNMENT WARNING: heading crop
@@ -204,7 +197,17 @@ The primary metric remains government-safe:
 false clear = non-bold or uncertain heading classified as acceptable bold
 ```
 
-This planned classifier should not become a hard automated rejection until it is validated. The safe runtime posture is:
+Initial synthetic evaluation was completed under `experiments/typography_preflight/` using a `20,000` / `5,000` / `5,000` train/validation/test split with held-out font families and distortion recipes. The classifier is extremely fast, but the conservative operating point is not yet useful enough to promote into autonomous runtime passing:
+
+| Operating Point | Test F1 | Test Precision | Test Recall | Test False-Clear Rate | Meaning |
+|---|---:|---:|---:|---:|---|
+| Zero validation false-clear tolerance | 0.0321 | 0.9737 | 0.0163 | 0.0004 | Very safe, but passes almost nothing as bold. |
+| 0.25% validation false-clear tolerance | 0.1170 | 0.8987 | 0.0626 | 0.0059 | Still too weak for autonomous promotion. |
+| 5% validation false-clear tolerance | 0.7757 | 0.8867 | 0.6894 | 0.0733 | Useful F1, but too many false clears for government posture. |
+
+Measured CPU prediction latency was about `0.09 ms/crop` after feature extraction. The model therefore has essentially no inference cost compared with OCR, but the safety/recall trade-off means it remains an experimental preflight rather than final authority.
+
+The safe runtime posture is:
 
 | Typography Evidence | Runtime Action |
 |---|---|
@@ -212,7 +215,7 @@ This planned classifier should not become a hard automated rejection until it is
 | Strong non-bold signal | Route to Needs Review or Fail Candidate depending validation. |
 | Low-quality crop, unusual font, glare, curvature, or borderline signal | Needs Review. |
 
-The experiment will live under `experiments/typography_preflight/` with generated artifacts under gitignored `data/work/typography-preflight/`. It must not touch the active OCR conveyor output, the deployed app, the GPU, or the running Podman job.
+The experiment lives under `experiments/typography_preflight/` with generated artifacts under gitignored `data/work/typography-preflight/`. It does not touch OCR conveyor output, the deployed app, or the GPU.
 
 Before any OCR engine becomes the default runtime path, it must pass the same checklist:
 

@@ -529,21 +529,74 @@ WHISKY -> bourbon/whisky/whiskey`. After remapping and adding those evaluation
 candidates, ABV and net-contents became measurable fields and class/type
 matching improved from 16% to 49%.
 
-The next defensible measurement design is a 3,000-application corpus split into:
+This 3,000-record plan has been superseded by the current 6,000-application
+corpus:
 
 | Split | Size | Purpose |
 |---|---:|---|
-| Calibration/tuning | 1,500 applications | Tune OCR preprocessing, field normalization, and pass/review thresholds. |
-| Locked holdout | 1,500 applications | Report final OCR/field-match rates after tuning decisions are frozen. |
+| Train | 2,000 applications | Train field-support classifiers and graph/evidence models. |
+| Validation | 1,000 applications | Tune OCR preprocessing, field normalization, and pass/review thresholds. |
+| Locked holdout | 3,000 applications | Report final OCR/field-match rates after tuning decisions are frozen. |
 
-The sampler has been dry-run locally against the existing 7,788-record candidate
-pool and produced exact split counts of 1,500 calibration and 1,500 holdout
-applications without replacement.
+The train/validation OCR conveyor completed all planned tri-engine chunks:
 
-For a binary proportion measured on the 1,500-record holdout, the conservative
-95% margin of error is approximately `1.96 * sqrt(0.25 / 1500) = 2.53`
-percentage points before finite-population correction. With an annual COLA
-population around 150,000 applications, the finite-population correction changes
-that only slightly, to about 2.52 percentage points. This is the basis for the
-"about +/- 2.5 percentage points" claim. It is a margin of error for the locked
-holdout estimate, not a guarantee of production accuracy.
+| Item | Count |
+|---|---:|
+| Image rows | 5,353 |
+| Valid images | 5,179 |
+| Invalid/corrupt images skipped | 174 |
+| OCR chunk jobs | 975 |
+| Completed chunk jobs | 975 |
+| OCR row errors | 0 |
+
+For a binary proportion measured on the 3,000-record locked holdout, the
+conservative 95% margin of error is approximately `1.96 * sqrt(0.25 / 3000) =
+1.79` percentage points before finite-population correction. This is the basis
+for the "about +/- 1.8 percentage points" claim. It is a margin of error for
+the locked holdout estimate, not a guarantee of production accuracy.
+
+## May 3 Typography Preflight SVM Experiment
+
+Jenny Park's warning-statement requirement includes bold typography for the
+`GOVERNMENT WARNING:` heading. OCR handles text content; it does not reliably
+prove font weight. An isolated OpenCV/SVM typography experiment was added under
+`experiments/typography_preflight/` and run against synthetic warning-heading
+crops.
+
+Dataset:
+
+| Split | Crops |
+|---|---:|
+| Train | 20,000 |
+| Validation | 5,000 |
+| Test | 5,000 |
+
+The split holds out font families and distortion recipes. Negative examples
+include regular, medium/borderline, and degraded/uncertain headings. The primary
+safety metric is false-clear rate: non-bold or uncertain headings classified as
+acceptable bold.
+
+Threshold sweep:
+
+| Validation false-clear tolerance | Test F1 | Test precision | Test recall | Test false-clear rate |
+|---:|---:|---:|---:|---:|
+| 0.0000 | 0.0321 | 0.9737 | 0.0163 | 0.0004 |
+| 0.0025 | 0.1170 | 0.8987 | 0.0626 | 0.0059 |
+| 0.0050 | 0.1736 | 0.9008 | 0.0960 | 0.0088 |
+| 0.0100 | 0.4492 | 0.9052 | 0.2987 | 0.0260 |
+| 0.0200 | 0.5780 | 0.9027 | 0.4251 | 0.0381 |
+| 0.0500 | 0.7757 | 0.8867 | 0.6894 | 0.0733 |
+
+Latency:
+
+| Metric | Result |
+|---|---:|
+| Mean SVM decision latency | about 0.09 ms/crop |
+
+Interpretation:
+
+- The model class is computationally viable.
+- Safe thresholds currently pass too few bold headings.
+- Useful-F1 thresholds currently false-clear too often.
+- The classifier is not promoted to runtime authority.
+- `GOV_WARNING_HEADER_BOLD_REVIEW` should remain `Needs Review` for submission.

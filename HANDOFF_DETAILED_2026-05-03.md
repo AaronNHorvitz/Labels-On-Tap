@@ -420,8 +420,6 @@ Recommended training/testing workflow:
 Margin-of-error notes:
 
 ```text
-n = 1500 locked holdout -> about +/- 2.5 percentage points conservative 95% MOE
-n = 600 locked test -> about +/- 4.0 percentage points conservative 95% MOE
 n = 3000 locked test -> about +/- 1.8 percentage points conservative 95% MOE
 ```
 
@@ -701,26 +699,21 @@ Completed checks:
 Active train/validation run snapshot:
 
 ```text
-snapshot_time: 2026-05-03T11:51:46-05:00
+snapshot_time: 2026-05-03T12:20:42-05:00
 container: 253b9caaf335
-container_status_observed: Up 8 hours
 output_dir: data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16/
 planned_jobs: 975
-completed_chunk_results: 960
+completed_chunk_results: 975
 completed_by_engine:
   docTR: 325
   PaddleOCR: 325
-  OpenOCR: 310
+  OpenOCR: 325
 ocr_row_errors_observed: 0
-mean_elapsed_seconds_per_completed_chunk: 29.323
-max_elapsed_seconds_per_completed_chunk: 85.338
 ```
 
 Interpretation:
 
-- The active train/validation run is far past smoke-test state.
-- docTR and PaddleOCR train/validation chunks appear complete at the snapshot.
-- OpenOCR was still completing remaining chunks at the snapshot.
+- The train/validation run completed all planned chunks.
 - There were no observed OCR row errors.
 - Do not start a second full conveyor run against the same output directory.
 
@@ -756,9 +749,9 @@ both all caps and bold. The all-caps requirement is already a deterministic
 rule. Boldness is currently handled as `GOV_WARNING_HEADER_BOLD_REVIEW`, which
 routes the issue to manual typography review.
 
-The planned experiment is a classical OpenCV/SVM typography preflight. It should
-not touch the current OCR conveyor, should not use the GPU, and should not be
-integrated into runtime until validated.
+The experiment is a classical OpenCV/SVM typography preflight. It does not touch
+the OCR conveyor, does not use the GPU, and should not be integrated into
+runtime authority until validated.
 
 Target architecture:
 
@@ -795,7 +788,7 @@ Do not overclaim the citation. Use it to justify why a margin-based classical
 model is appropriate for compact engineered feature vectors, not to claim this
 specific typography model is production-certified.
 
-Planned isolated paths:
+Implemented paths:
 
 ```text
 experiments/typography_preflight/
@@ -815,7 +808,7 @@ data/work/typography-preflight/
   sample_crops/
 ```
 
-Dataset plan:
+Dataset:
 
 ```text
 train:      20,000 synthetic warning-heading crops
@@ -872,6 +865,55 @@ ionice -c3
 ```
 
 Also set `cv2.setNumThreads(1)` inside the experiment scripts if OpenCV is used.
+
+Run output:
+
+```text
+data/work/typography-preflight/svm-v2/
+```
+
+Run command:
+
+```bash
+CUDA_VISIBLE_DEVICES="" \
+OMP_NUM_THREADS=2 \
+OPENBLAS_NUM_THREADS=2 \
+MKL_NUM_THREADS=2 \
+NUMEXPR_NUM_THREADS=2 \
+nice -n 15 ionice -c3 \
+data/work/typography-preflight/.venv/bin/python \
+  -m experiments.typography_preflight.train_svm \
+  --output-dir data/work/typography-preflight/svm-v2 \
+  --classifier sgd-svm \
+  --max-iter 2000 \
+  --false-clear-tolerance 0.0025
+```
+
+Measured operating points:
+
+| Validation false-clear tolerance | Test F1 | Test precision | Test recall | Test false-clear rate |
+|---:|---:|---:|---:|---:|
+| 0.0000 | 0.0321 | 0.9737 | 0.0163 | 0.0004 |
+| 0.0025 | 0.1170 | 0.8987 | 0.0626 | 0.0059 |
+| 0.0050 | 0.1736 | 0.9008 | 0.0960 | 0.0088 |
+| 0.0100 | 0.4492 | 0.9052 | 0.2987 | 0.0260 |
+| 0.0200 | 0.5780 | 0.9027 | 0.4251 | 0.0381 |
+| 0.0500 | 0.7757 | 0.8867 | 0.6894 | 0.0733 |
+
+Latency:
+
+```text
+mean SVM decision latency: about 0.09 ms/crop
+```
+
+Decision:
+
+```text
+Do not promote the SVM typography preflight to runtime authority yet.
+It is computationally viable, but safe thresholds pass too few bold headings,
+and useful-F1 thresholds false-clear too often.
+Keep GOV_WARNING_HEADER_BOLD_REVIEW as Needs Review for submission.
+```
 
 Do not commit:
 
@@ -1110,10 +1152,8 @@ curl http://localhost:8000/health
 1. Keep the public deployment stable.
 2. Use `data/work/cola/evaluation-splits/field-support-v1/` as the canonical
    split source.
-3. Let the active chunk-size 16 armored OCR conveyor finish; do not start a
-   duplicate run in the same output directory.
-4. If there is CPU headroom, build the isolated OpenCV/SVM typography preflight
-   under `experiments/typography_preflight/` and `data/work/typography-preflight/`.
+3. Completed: chunk-size 16 armored OCR conveyor finished for train/validation.
+4. Completed: isolated OpenCV/SVM typography preflight was built and measured.
 5. Attach conveyor OCR evidence to the generated field-support pair manifests.
 6. Rerun DistilRoBERTa on OCR-backed candidate evidence.
 7. Compare all serious candidates with identical statistics and latency tables.

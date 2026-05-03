@@ -222,19 +222,18 @@ Completed conveyor checks:
 Active train/validation run snapshot:
 
 ```text
-snapshot_time: 2026-05-03T11:51:46-05:00
+snapshot_time: 2026-05-03T12:20:42-05:00
 container: 253b9caaf335
-container_status_observed: Up 8 hours
 output_dir: data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16/
-completed_chunk_results: 960 / 975
+completed_chunk_results: 975 / 975
 completed_by_engine:
   docTR: 325
   PaddleOCR: 325
-  OpenOCR: 310
+  OpenOCR: 325
 ocr_row_errors_observed: 0
 ```
 
-Command used for the active train/validation run:
+Command used for the completed train/validation run:
 
 ```bash
 podman run --rm \
@@ -259,7 +258,7 @@ bold. The all-caps requirement is already deterministic. Boldness is currently
 handled as `GOV_WARNING_HEADER_BOLD_REVIEW`, which routes typography judgment to
 human review.
 
-The planned next experiment is an isolated OpenCV/SVM typography preflight:
+The isolated OpenCV/SVM typography preflight is now implemented and measured:
 
 ```text
 warning heading crop
@@ -276,7 +275,7 @@ experiments/typography_preflight/
 data/work/typography-preflight/
 ```
 
-Planned synthetic dataset:
+Synthetic dataset:
 
 ```text
 train:      20,000 crops
@@ -287,6 +286,35 @@ test:       5,000 crops
 Hold out font families and distortion recipes across splits. The primary metric
 is false-clear rate: non-bold, medium, degraded, or uncertain warning headings
 incorrectly accepted as bold.
+
+Current result:
+
+```text
+run_output: data/work/typography-preflight/svm-v2/
+model: StandardScaler + SGDClassifier hinge-loss linear SVM
+feature_count: 3,480
+mean_decision_latency: about 0.09 ms/crop
+zero-validation-false-clear operating point:
+  test F1: 0.0321
+  test precision: 0.9737
+  test recall: 0.0163
+  test false-clear rate: 0.0004
+0.25% validation false-clear operating point:
+  test F1: 0.1170
+  test false-clear rate: 0.0059
+5% validation false-clear operating point:
+  test F1: 0.7757
+  test false-clear rate: 0.0733
+```
+
+Decision:
+
+```text
+Do not promote this classifier to runtime authority yet. It proves the
+classical-statistical path is cheap and measurable, but safe thresholds pass too
+few bold headings and useful-F1 thresholds false-clear too often. Keep
+GOV_WARNING_HEADER_BOLD_REVIEW as Needs Review for submission.
+```
 
 Reference framing:
 
@@ -413,7 +441,7 @@ not pixel-level OCR recognizers.
 1. Keep the deployed app stable.
 2. Use `MODEL_LOG.md` as the experiment ledger for all OCR/model runs.
 3. Run the full chunk-size 16 OCR conveyor over train/validation for docTR, PaddleOCR, and OpenOCR.
-4. Build the isolated OpenCV/SVM typography-preflight experiment only if it can run CPU-throttled without touching the conveyor paths.
+4. Completed: isolated OpenCV/SVM typography-preflight experiment.
 5. Attach conveyor OCR evidence to the existing field-support pair manifests.
 6. Rerun DistilRoBERTa on OCR-backed candidate evidence.
 7. Compare them against deterministic ensemble and graph-aware evidence scorer.

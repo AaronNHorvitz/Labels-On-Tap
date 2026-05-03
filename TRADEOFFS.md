@@ -529,18 +529,15 @@ flowchart TB
 
 **Data governance posture:** COLA Cloud is a pragmatic fallback over a weekend outage, not the product architecture. The README and submission notes should state that the deployed prototype remains local-first and can run without COLA Cloud; the commercial data source was used only to obtain public example records/images for OCR evaluation when TTBOnline.gov was unavailable. The measured sprint metrics should be described as **COLA Cloud-derived public COLA calibration results**, not as direct-registry TTB download results.
 
-**Evaluation design:** The preferred final measurement corpus is 3,000 public
-COLA applications sampled without replacement. For pure OCR/rule calibration,
-the earlier split can remain 1,500 calibration/tuning records and 1,500 locked
-holdout records. For trained DistilRoBERTa/RoBERTa field-support classifiers,
-the current preferred split is application-level `60%` train / `20%` validation
-/ `20%` locked test. The validation split is allowed to influence model choice,
-preprocessing, field normalization, and pass/review thresholds. The locked test
-is not used for tuning; it is reserved for final field-match estimates. At
-`n = 1,500`, the conservative 95% margin of error for a binary proportion is
-about `+/- 2.5` percentage points; at `n = 600`, it is about `+/- 4.0`
-percentage points. These are sampling margins for held-out evaluation, not
-production guarantees.
+**Evaluation design:** The current final measurement corpus is 6,000 public
+COLA applications sampled without replacement. The active split is `2,000`
+train, `1,000` validation, and `3,000` locked holdout applications. The
+validation split is allowed to influence model choice, preprocessing, field
+normalization, and pass/review thresholds. The locked holdout is not used for
+tuning; it is reserved for final field-match estimates. At `n = 3,000`, the
+conservative 95% margin of error for a binary proportion near 50% is about
+`+/- 1.8` percentage points before finite-population correction. This is a
+sampling margin for held-out evaluation, not a production guarantee.
 
 **Migration plan after paid access:**
 
@@ -608,7 +605,7 @@ production guarantees.
 Manual typography verification required. This prototype verifies warning text and capitalization but does not make a definitive font-weight determination from raster images.
 ```
 
-**Next experiment:** Add an isolated OpenCV/SVM typography preflight for the `GOVERNMENT WARNING:` heading.
+**Experiment added:** An isolated OpenCV/SVM typography preflight for the `GOVERNMENT WARNING:` heading now exists under `experiments/typography_preflight/`.
 
 This is deliberately not a large deep-learning vision model. It is a small statistical-learning classifier for a narrow question:
 
@@ -633,9 +630,9 @@ flowchart TD
 
 **Why an SVM is reasonable here:** The feature space is intentionally engineered around stroke thickness and glyph structure. In that setting, a margin-based classifier can be a strong, low-latency baseline without the data hunger and deployment cost of a CNN/Transformer. This follows the statistical-learning framing in Hastie, Tibshirani, and Friedman: when the relevant structure can be represented by a compact feature vector, classical supervised models remain appropriate and often preferable to heavier architectures.
 
-**Dataset plan:** Generate a synthetic typography dataset under gitignored `data/work/typography-preflight/`. The generator should render `GOVERNMENT WARNING:` across many local fonts, sizes, contrast levels, blur/noise settings, rotations, compression artifacts, thresholding artifacts, and mild warps. The split must hold out font families and distortion recipes, not merely random images, so the model cannot memorize one typeface.
+**Dataset:** The first full run generated a synthetic typography dataset under gitignored `data/work/typography-preflight/svm-v2/`. The generator rendered `GOVERNMENT WARNING:` across local fonts, sizes, contrast levels, blur/noise settings, rotations, compression artifacts, thresholding artifacts, and mild warps. The split holds out font families and distortion recipes, not merely random images, so the model cannot memorize one typeface.
 
-Planned split:
+Split:
 
 ```text
 train:      20,000 synthetic crops
@@ -651,7 +648,17 @@ false clear = regular, medium, degraded, or uncertain heading classified as acce
 
 **Important limitation:** Existing approved public COLA labels can provide a useful positive smoke test because they should generally contain compliant warning headings. They cannot validate the dangerous negative case by themselves. Synthetic non-bold and degraded examples are required to test false clears.
 
-**Runtime implication:** Even if the SVM performs well, the safe deployment posture is to treat it as a typography preflight, not as unchecked final authority. Ambiguous crops still route to `Needs Review`.
+**Measured result:** The SVM typography preflight is extremely fast but not yet strong enough to promote to autonomous Pass evidence.
+
+| Operating point | Test F1 | Test precision | Test recall | Test false-clear rate | Decision |
+|---|---:|---:|---:|---:|---|
+| Zero validation false-clear tolerance | 0.0321 | 0.9737 | 0.0163 | 0.0004 | Safe but too conservative; passes almost nothing. |
+| 0.25% validation false-clear tolerance | 0.1170 | 0.8987 | 0.0626 | 0.0059 | Too weak for promotion. |
+| 5% validation false-clear tolerance | 0.7757 | 0.8867 | 0.6894 | 0.0733 | Better F1 but unsafe false-clear posture. |
+
+Measured SVM decision latency is about `0.09 ms/crop`; feature extraction dominates any remaining cost but remains trivial compared with OCR. The core trade-off is statistical, not compute-related.
+
+**Runtime implication:** The current safe deployment posture is to treat the SVM as an experimental typography preflight, not as unchecked final authority. Ambiguous crops still route to `Needs Review`, and the deployed app should continue using `GOV_WARNING_HEADER_BOLD_REVIEW` until real warning-heading crops and stronger negative validation support promotion.
 
 Reference:
 
