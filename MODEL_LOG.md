@@ -37,6 +37,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | Local graph scorer | Experimental post-OCR evidence model | No | Best POC run improved F1 and false-clear rate |
 | PaddleOCR sweep | Experimental alternate local OCR candidate | No | 30-image smoke improved F1/accuracy/recall, with higher false-clear rate |
 | OpenOCR / SVTRv2 sweep | Experimental alternate local OCR candidate | No | 30-image smoke was fastest, with lower F1 in first field-support test |
+| PARSeq crop recognizer | Experimental recognizer over detected crops | No | Fast on CPU, but lower field-support F1 in first crop-recognition smoke |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -370,6 +371,68 @@ Decision:
 - It matched docTR's low false-clear rate in the shuffled-negative smoke.
 - It remains a candidate for larger samples and possible supplemental evidence, but the current evidence does not justify replacing docTR or PaddleOCR.
 - Small sample sizes increase variance; this is a calibration checkpoint, not a final engine selection.
+
+### E009 - PARSeq Recognition Over OpenOCR Crops
+
+**Date:** May 3, 2026
+**Autoregressive run output:** `data/work/ocr-engine-sweep/parseq-openocr-crops-ar-smoke-30/`
+**Non-autoregressive run output:** `data/work/ocr-engine-sweep/parseq-openocr-crops-nar-r2-smoke-30/`
+**Field-support output:** `data/work/ocr-engine-sweep/field-support-metrics/doctr-vs-paddle-vs-openocr-vs-parseq-ar-nar-smoke-30/`
+**Input:** The same 20-application / 30-image smoke set from E006-E008
+**Purpose:** Test PARSeq, a scene-text recognizer for irregular text, while keeping the evaluation honest about the fact that PARSeq is not a full detector-plus-recognizer label OCR pipeline by itself.
+
+Method:
+
+```text
+1. Reuse OpenOCR-detected text boxes from E008.
+2. Crop each detected box with small padding.
+3. Run PARSeq recognition on the crops.
+4. Aggregate recognized crop text by original label image and TTB ID.
+5. Score field support with the same shuffled-negative metric.
+```
+
+Environment:
+
+```text
+container: python:3.11-slim
+model source: torch.hub baudm/parseq
+runtime: CPU
+box source: OpenOCR 0.1.5 / SVTRv2 smoke output
+AR run: decode_ar=true, refine_iters=1
+NAR run: decode_ar=false, refine_iters=2
+```
+
+Timing / extraction smoke:
+
+| Metric | PARSeq AR Crops | PARSeq NAR/refine-2 Crops |
+|---|---:|---:|
+| Images processed | 30 | 30 |
+| Error count | 0 | 0 |
+| Mean latency | 293.47 ms/image | 215.17 ms/image |
+| Median latency | 212.00 ms/image | 168.50 ms/image |
+| Worst latency | 870 ms/image | 655 ms/image |
+| Mean confidence | 0.9519 | 0.9158 |
+| Mean crop count | 20.0 | 20.0 |
+| Mean extracted chars | 303.37 | 325.50 |
+
+Overall field-support result across all fields:
+
+| Metric | docTR | PaddleOCR | OpenOCR | PARSeq AR | PARSeq NAR |
+|---|---:|---:|---:|---:|---:|
+| Accuracy | 0.7455 | 0.7723 | 0.7143 | 0.6875 | 0.6875 |
+| Precision | 0.9825 | 0.9552 | 0.9800 | 0.9773 | 0.9773 |
+| Recall | 0.5000 | 0.5714 | 0.4375 | 0.3839 | 0.3839 |
+| Specificity | 0.9911 | 0.9732 | 0.9911 | 0.9911 | 0.9911 |
+| F1 | 0.6627 | 0.7151 | 0.6049 | 0.5513 | 0.5513 |
+| False-clear rate | 0.0089 | 0.0268 | 0.0089 | 0.0089 | 0.0089 |
+
+Decision:
+
+- PARSeq did not fail the CPU latency concern in this crop-recognition setup. Even autoregressive decoding stayed well below the five-second target.
+- PARSeq did not improve field-support F1 when paired with OpenOCR boxes and rectangular crop extraction.
+- The result should not be read as "PARSeq is bad." It means this quick crop contract is not better than current full OCR candidates.
+- A fairer future test would pair PARSeq with a detector/rectifier that produces high-quality word/line crops, or test MMOCR's detector-plus-PARSeq recipe if the dependency stack is acceptable.
+- Small sample sizes increase variance, but this first result does not justify promoting PARSeq over PaddleOCR/OpenOCR/docTR.
 
 ## Current Best Result
 

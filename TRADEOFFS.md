@@ -109,7 +109,8 @@ The repository includes a large legal/research corpus and source-backed rule mat
 1. docTR baseline
 2. PaddleOCR / PP-OCR local adapter
 3. OpenOCR / SVTRv2 local adapter
-4. Combined OCR evidence, if two engines find complementary text
+4. PARSeq recognition over detected crops, if recognizer-level accuracy helps
+5. Combined OCR evidence, if two engines find complementary text
 ```
 
 **Promotion gate:**
@@ -126,7 +127,7 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 **Implication:** The app can pursue better OCR aggressively without destabilizing the deployed demo. Until a candidate wins, docTR remains the safe runtime baseline.
 
-**Current smoke finding:** On the first 20-application / 30-image field-support comparison, PaddleOCR improved F1, accuracy, and recall versus docTR, while docTR preserved the lower false-clear rate. OpenOCR/SVTRv2 was the fastest candidate and matched docTR's false-clear rate in the same smoke, but had lower F1. Small sample sizes increase variance, so these results are directional calibration evidence only. PaddleOCR remains undecided and promising; it should not be promoted or rejected until a larger calibration run confirms whether the F1 lift survives.
+**Current smoke finding:** On the first 20-application / 30-image field-support comparison, PaddleOCR improved F1, accuracy, and recall versus docTR, while docTR preserved the lower false-clear rate. OpenOCR/SVTRv2 was the fastest complete OCR candidate and matched docTR's false-clear rate in the same smoke, but had lower F1. PARSeq was tested as a recognizer over OpenOCR-detected crops. It was fast even in autoregressive mode, but did not improve field-support F1 in that crop setup. Small sample sizes increase variance, so these results are directional calibration evidence only. PaddleOCR remains undecided and promising; it should not be promoted or rejected until a larger calibration run confirms whether the F1 lift survives.
 
 ---
 

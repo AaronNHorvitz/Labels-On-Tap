@@ -179,9 +179,15 @@ an experimental calibration result, not a locked-holdout production claim.
 The curved-text OCR research brief suggested that a mature pre-trained OCR
 engine may be more practical than training a custom curved-text model before
 the submission deadline. To test that hypothesis without touching the deployed
-runtime path, isolated PaddleOCR and OpenOCR/SVTRv2 smoke benchmarks were run
-in Python 3.11 containers against real public COLA label images that already
-had cached docTR OCR output.
+runtime path, isolated PaddleOCR, OpenOCR/SVTRv2, and PARSeq smoke benchmarks
+were run in Python 3.11 containers against real public COLA label images that
+already had cached docTR OCR output.
+
+PARSeq is reported separately because it is a scene-text recognizer, not a
+complete label-page detector. The PARSeq smoke uses OpenOCR-detected boxes as
+the crop source, then runs PARSeq recognition on those crops. Those latency
+numbers are recognizer-stage plus crop-preparation time, not full
+detector-plus-recognizer OCR latency.
 
 The first modern stack installed but was not usable as-is:
 
@@ -193,27 +199,27 @@ The first modern stack installed but was not usable as-is:
 
 Successful 30-image smoke result:
 
-| Metric | PaddleOCR 3.3.3 / PaddlePaddle 3.2.0 | OpenOCR 0.1.5 / SVTRv2 |
-|---|---:|---:|
-| Images processed | 30 | 30 |
-| Error count | 0 | 0 |
-| Mean latency | 1,105.00 ms/image | 563.77 ms/image |
-| Median latency | 1,096.50 ms/image | 582.50 ms/image |
-| Worst latency | 1,544 ms/image | 1,211 ms/image |
-| Images under 1.5 seconds | 29 / 30 | 30 / 30 |
-| Mean confidence | 0.9346 | 0.9356 |
-| Mean text blocks | 20.8 | 20.0 |
-| Mean extracted characters | 431.67 | 376.63 |
+| Metric | PaddleOCR 3.3.3 / PaddlePaddle 3.2.0 | OpenOCR 0.1.5 / SVTRv2 | PARSeq AR over OpenOCR crops | PARSeq NAR/refine-2 over OpenOCR crops |
+|---|---:|---:|---:|---:|
+| Images processed | 30 | 30 | 30 | 30 |
+| Error count | 0 | 0 | 0 | 0 |
+| Mean latency | 1,105.00 ms/image | 563.77 ms/image | 293.47 ms/image | 215.17 ms/image |
+| Median latency | 1,096.50 ms/image | 582.50 ms/image | 212.00 ms/image | 168.50 ms/image |
+| Worst latency | 1,544 ms/image | 1,211 ms/image | 870 ms/image | 655 ms/image |
+| Images under 1.5 seconds | 29 / 30 | 30 / 30 | 30 / 30 | 30 / 30 |
+| Mean confidence | 0.9346 | 0.9356 | 0.9519 | 0.9158 |
+| Mean text blocks | 20.8 | 20.0 | 20.0 | 20.0 |
+| Mean extracted characters | 431.67 | 376.63 | 303.37 | 325.50 |
 
 Cached docTR comparison on the same 30 images:
 
-| Metric | docTR Cached Baseline | PaddleOCR Smoke | OpenOCR Smoke |
-|---|---:|---:|---:|
-| Mean latency | 800.53 ms/image | 1,105.00 ms/image | 563.77 ms/image |
-| Median latency | 804.50 ms/image | 1,096.50 ms/image | 582.50 ms/image |
-| Worst latency | 1,592 ms/image | 1,544 ms/image | 1,211 ms/image |
-| Mean extracted characters | 436.00 | 431.67 | 376.63 |
-| Mean text blocks | 79.3 | 20.8 | 20.0 |
+| Metric | docTR Cached Baseline | PaddleOCR Smoke | OpenOCR Smoke | PARSeq AR Crops | PARSeq NAR Crops |
+|---|---:|---:|---:|---:|---:|
+| Mean latency | 800.53 ms/image | 1,105.00 ms/image | 563.77 ms/image | 293.47 ms/image | 215.17 ms/image |
+| Median latency | 804.50 ms/image | 1,096.50 ms/image | 582.50 ms/image | 212.00 ms/image | 168.50 ms/image |
+| Worst latency | 1,592 ms/image | 1,544 ms/image | 1,211 ms/image | 870 ms/image | 655 ms/image |
+| Mean extracted characters | 436.00 | 431.67 | 376.63 | 303.37 | 325.50 |
+| Mean text blocks | 79.3 | 20.8 | 20.0 | 20.0 | 20.0 |
 
 Initial interpretation:
 
@@ -221,6 +227,10 @@ Initial interpretation:
   under the 1.5-second local CPU target.
 - OpenOCR/SVTRv2 is operationally interesting because it was the fastest engine
   in the 30-image smoke and normalized cleanly into the same OCR schema.
+- PARSeq did not fail the CPU latency test when run over already-detected
+  crops. Autoregressive mode averaged 293.47 ms/image for crop recognition, and
+  non-autoregressive/refine-2 mode averaged 215.17 ms/image. These are not full
+  OCR pipeline timings.
 - PaddleOCR and OpenOCR did not clearly beat docTR on raw extracted-character
   count.
 - Character count is only a crude proxy. Alternate engines produced fewer text
@@ -240,28 +250,28 @@ field-support score of `90`.
 
 Overall result across all fields:
 
-| Metric | docTR | PaddleOCR | OpenOCR |
-|---|---:|---:|---:|
-| Examples | 224 | 224 | 224 |
-| Accuracy | 0.7455 | 0.7723 | 0.7143 |
-| Precision | 0.9825 | 0.9552 | 0.9800 |
-| Recall | 0.5000 | 0.5714 | 0.4375 |
-| Specificity | 0.9911 | 0.9732 | 0.9911 |
-| F1 | 0.6627 | 0.7151 | 0.6049 |
-| False-clear rate | 0.0089 | 0.0268 | 0.0089 |
+| Metric | docTR | PaddleOCR | OpenOCR | PARSeq AR Crops | PARSeq NAR Crops |
+|---|---:|---:|---:|---:|---:|
+| Examples | 224 | 224 | 224 | 224 | 224 |
+| Accuracy | 0.7455 | 0.7723 | 0.7143 | 0.6875 | 0.6875 |
+| Precision | 0.9825 | 0.9552 | 0.9800 | 0.9773 | 0.9773 |
+| Recall | 0.5000 | 0.5714 | 0.4375 | 0.3839 | 0.3839 |
+| Specificity | 0.9911 | 0.9732 | 0.9911 | 0.9911 | 0.9911 |
+| F1 | 0.6627 | 0.7151 | 0.6049 | 0.5513 | 0.5513 |
+| False-clear rate | 0.0089 | 0.0268 | 0.0089 | 0.0089 | 0.0089 |
 
 Excluding `applicant_or_producer`, which remains a known weak OCR/application
 field in the current data:
 
-| Metric | docTR | PaddleOCR | OpenOCR |
-|---|---:|---:|---:|
-| Examples | 184 | 184 | 184 |
-| Accuracy | 0.7989 | 0.8315 | 0.7609 |
-| Precision | 0.9825 | 0.9552 | 0.9800 |
-| Recall | 0.6087 | 0.6957 | 0.5326 |
-| Specificity | 0.9891 | 0.9674 | 0.9891 |
-| F1 | 0.7517 | 0.8050 | 0.6901 |
-| False-clear rate | 0.0109 | 0.0326 | 0.0109 |
+| Metric | docTR | PaddleOCR | OpenOCR | PARSeq AR Crops | PARSeq NAR Crops |
+|---|---:|---:|---:|---:|---:|
+| Examples | 184 | 184 | 184 | 184 | 184 |
+| Accuracy | 0.7989 | 0.8315 | 0.7609 | 0.7283 | 0.7283 |
+| Precision | 0.9825 | 0.9552 | 0.9800 | 0.9773 | 0.9773 |
+| Recall | 0.6087 | 0.6957 | 0.5326 | 0.4674 | 0.4674 |
+| Specificity | 0.9891 | 0.9674 | 0.9891 | 0.9891 | 0.9891 |
+| F1 | 0.7517 | 0.8050 | 0.6901 | 0.6324 | 0.6324 |
+| False-clear rate | 0.0109 | 0.0326 | 0.0109 | 0.0109 | 0.0109 |
 
 By field:
 
@@ -282,6 +292,11 @@ Interpretation:
 - docTR preserved higher precision and lower false-clear rate.
 - OpenOCR was faster and matched docTR's low false-clear rate, but it did not
   beat the other engines on F1 in this first smoke.
+- PARSeq was fast as a recognizer over detected crops, including autoregressive
+  mode, but it produced lower field-support F1 in this setup. The likely issue
+  is not PARSeq's recognition architecture alone; it is the whole crop contract:
+  OpenOCR boxes, rectangular cropping, curved/rotated text, and loss of
+  detector/recognizer integration.
 - The alcohol-content false-clear rate for PaddleOCR is too high to promote it
   directly without stricter field-specific thresholds or deterministic checks.
 - Small sample sizes increase variance. The correct conclusion is not "choose

@@ -71,6 +71,7 @@ The sprint priority is now:
 - [x] Curved-text OCR research changed the next experiment: evaluate mature pre-trained local OCR engines before attempting a custom HO-GNN/TPS/SVTR vision model.
 - [x] PaddleOCR / PP-OCR is the first alternate OCR engine candidate to benchmark against docTR.
 - [x] OpenOCR / SVTRv2 is the second alternate OCR engine candidate and now has a 30-image smoke benchmark.
+- [x] PARSeq was added as a recognizer-stage experiment over OpenOCR-detected crops.
 - [x] OpenVINO/ONNX/INT8 on EC2 `m7i` is a future CPU optimization path, not a current Lightsail performance claim.
 - [x] OCR engine sweep scaffold exists under `experiments/ocr_engine_sweep/`.
 - [x] `MODEL_LOG.md` records OCR/model experiments and caveats.
@@ -252,6 +253,10 @@ Experimental candidates:
 - [x] Add an OpenOCR / SVTRv2 smoke benchmark wrapper under the experiment scaffold.
 - [x] Run OpenOCR 0.1.5 / SVTRv2 30-image CPU smoke benchmark.
 - [x] Compute side-by-side field-support metrics for docTR vs PaddleOCR vs OpenOCR.
+- [x] Add a PARSeq crop-recognition benchmark using OpenOCR-detected boxes.
+- [x] Run PARSeq autoregressive crop-recognition smoke on the same 30 images.
+- [x] Run PARSeq non-autoregressive/refinement crop-recognition smoke on the same 30 images.
+- [x] Compute side-by-side field-support metrics including PARSeq AR and NAR crop runs.
 - [x] Record the statistical caveat that small sample sizes increase variance and the current 20-application / 30-image result is directional only.
 - [ ] Promote PaddleOCR into a fuller experimental adapter only if field-level comparison beats or complements docTR.
 - [ ] Promote OpenOCR into a fuller experimental adapter only if a larger run shows it beats or complements docTR/PaddleOCR.
@@ -270,6 +275,7 @@ Normalized output contract:
 
 - [x] Normalize the current docTR/PaddleOCR smoke wrappers to the existing `OCRResult` shape.
 - [x] Normalize the OpenOCR wrapper to the existing `OCRResult` shape.
+- [x] Normalize PARSeq crop-recognition output to the existing `OCRResult` shape.
 - [x] Preserve `source` as `local docTR`, `local PaddleOCR`, `local OpenOCR`, or equivalent.
 - [x] Preserve per-block text.
 - [x] Preserve per-block confidence when available.
@@ -283,6 +289,7 @@ Benchmark stages:
 - [x] Run a 10-image mixed-shape smoke benchmark before any larger run.
 - [x] Run a 30-image mixed-shape smoke benchmark after the 10-image run.
 - [x] Run OpenOCR on the same 30-image mixed-shape smoke benchmark.
+- [x] Run PARSeq AR and NAR crop-recognition on the same 30-image mixed-shape smoke benchmark.
 - [ ] Run the same 100-application / 169-image public COLA calibration set used by docTR.
 - [x] Compare 30-image smoke against docTR using identical field-support scoring logic.
 - [ ] Compare 100-application calibration set against docTR using identical field-matching logic.
@@ -301,10 +308,13 @@ Metrics to compare:
 - [ ] Application-level Pass / Needs Review distribution on accepted public records.
 - [x] Initial shuffled-negative false-clear comparison for docTR vs PaddleOCR.
 - [x] Initial shuffled-negative false-clear comparison for docTR vs PaddleOCR vs OpenOCR.
+- [x] Initial shuffled-negative false-clear comparison including PARSeq AR/NAR crop runs.
 - [ ] False-clear rate on synthetic known-bad fixtures.
 - [x] Initial per-image latency smoke: 30-image PaddleOCR mean 1,105.00 ms, median 1,096.50 ms, worst 1,544 ms.
 - [x] Initial per-image latency smoke: 30-image OpenOCR mean 563.77 ms, median 582.50 ms, worst 1,211 ms.
-- [x] Initial field-support smoke: PaddleOCR F1 0.7151 vs docTR F1 0.6627 vs OpenOCR F1 0.6049.
+- [x] Initial per-image latency smoke: PARSeq AR over OpenOCR crops mean 293.47 ms, median 212.00 ms, worst 870 ms.
+- [x] Initial per-image latency smoke: PARSeq NAR/refine-2 over OpenOCR crops mean 215.17 ms, median 168.50 ms, worst 655 ms.
+- [x] Initial field-support smoke: PaddleOCR F1 0.7151 vs docTR F1 0.6627 vs OpenOCR F1 0.6049 vs PARSeq AR/NAR F1 0.5513.
 - [x] Initial field-support smoke: PaddleOCR false-clear rate 0.0268 vs docTR/OpenOCR false-clear rate 0.0089.
 - [ ] Per-application latency across all associated label panels.
 - [ ] OCR failure modes: curved text, rotated text, small warning text, glare, low contrast, multi-panel ambiguity.

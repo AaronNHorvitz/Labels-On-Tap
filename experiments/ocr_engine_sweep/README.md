@@ -12,6 +12,7 @@ latency, and failure behavior.
 | docTR | Current local baseline | Implemented in app runtime |
 | PaddleOCR / PP-OCR | First alternate local OCR candidate | 30-image smoke benchmark and field-support metrics recorded |
 | OpenOCR / SVTRv2 | Second alternate local OCR candidate | 30-image smoke benchmark and field-support metrics recorded |
+| PARSeq | Scene-text recognizer over detected crops | AR and NAR crop-recognition smoke benchmarks recorded |
 | Graph scorer | Post-OCR field evidence scorer | Implemented under `experiments/graph_ocr/` |
 
 ## Promotion Gate
@@ -83,6 +84,48 @@ first smoke is a real reason to keep testing it, not enough evidence to promote
 it. OpenOCR's fast latency is also a real reason to keep testing it, not enough
 evidence to pick it despite lower first-pass F1.
 
+PARSeq is a recognizer-stage experiment. It requires detected text crops, so
+its crop benchmark is not a full OCR pipeline benchmark. The first PARSeq run
+uses OpenOCR boxes as the crop source and reports recognizer-plus-cropping
+latency separately from detector-inclusive OCR latency.
+
+## PARSeq Crop Recognition
+
+Install the optional standalone PARSeq stack in an isolated environment or
+container:
+
+```bash
+python -m pip install pydantic pillow
+python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+python -m pip install timm einops pytorch-lightning hydra-core nltk lmdb
+```
+
+Then run PARSeq over previously detected OpenOCR boxes:
+
+```bash
+python experiments/ocr_engine_sweep/parseq_crop_benchmark.py \
+  --box-run-dir data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30 \
+  --box-engine openocr \
+  --limit 30 \
+  --device cpu \
+  --decode-ar \
+  --refine-iters 1 \
+  --run-name parseq-openocr-crops-ar-smoke-30
+```
+
+The non-autoregressive/refinement variant:
+
+```bash
+python experiments/ocr_engine_sweep/parseq_crop_benchmark.py \
+  --box-run-dir data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30 \
+  --box-engine openocr \
+  --limit 30 \
+  --device cpu \
+  --no-decode-ar \
+  --refine-iters 2 \
+  --run-name parseq-openocr-crops-nar-r2-smoke-30
+```
+
 ## PaddleOCR Version Notes
 
 The first working CPU smoke used:
@@ -119,6 +162,17 @@ python experiments/ocr_engine_sweep/field_support_metrics.py \
   --engine-run paddleocr=data/work/ocr-engine-sweep/paddleocr-333-paddle-320-smoke-30-json \
   --engine-run openocr=data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30 \
   --run-name doctr-vs-paddle-vs-openocr-smoke-30
+```
+
+Including PARSeq crop runs:
+
+```bash
+python experiments/ocr_engine_sweep/field_support_metrics.py \
+  --engine-run paddleocr=data/work/ocr-engine-sweep/paddleocr-333-paddle-320-smoke-30-json \
+  --engine-run openocr=data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30 \
+  --engine-run parseq_ar_openocr_crops=data/work/ocr-engine-sweep/parseq-openocr-crops-ar-smoke-30 \
+  --engine-run parseq_nar_openocr_crops=data/work/ocr-engine-sweep/parseq-openocr-crops-nar-r2-smoke-30 \
+  --run-name doctr-vs-paddle-vs-openocr-vs-parseq-ar-nar-smoke-30
 ```
 
 This writes summary JSON and per-engine score CSVs under:
