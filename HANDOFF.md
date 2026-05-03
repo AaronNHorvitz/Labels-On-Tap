@@ -3,7 +3,7 @@
 **Project:** Labels On Tap
 **Canonical URL:** `https://www.labelsontap.ai`
 **Repo:** `https://github.com/AaronNHorvitz/Labels-On-Tap`
-**Last updated:** May 2, 2026
+**Last updated:** May 3, 2026
 
 Read this first if a new Codex session starts cold.
 
@@ -38,6 +38,7 @@ The app is already deployed and working. The current sprint has shifted from app
 |---|---|
 | `README.md` | Main submission readme and high-level project story |
 | `TASKS.md` | Sprint command center |
+| `MODEL_ARCHITECTURE.md` | End-to-end model architecture, split design, and promotion gates |
 | `MODEL_LOG.md` | OCR/model experiment ledger |
 | `docs/performance.md` | Measured performance and calibration metrics |
 | `TRADEOFFS.md` | Architecture and data trade-offs |
@@ -218,8 +219,9 @@ Current language should be:
 
 - The prototype is a reviewer-support triage tool.
 - Current OCR/model numbers are calibration signals.
-- The planned claim requires 1,500 calibration and 1,500 locked holdout records.
-- The locked holdout gives about `+/- 2.5 percentage points` conservative 95% margin of error for binary proportions.
+- For pure OCR/rule calibration, the older 3,000-record design can use 1,500 calibration and 1,500 locked holdout records.
+- For trained DistilRoBERTa/RoBERTa field-support classifiers, the current preferred design is an application-level `60%` train / `20%` validation / `20%` locked test split.
+- A locked holdout of `1,500` gives about `+/- 2.5 percentage points` conservative 95% margin of error for binary proportions; a locked test of `600` gives about `+/- 4.0 percentage points`.
 - If larger samples reveal weaker field performance, route uncertain cases to `Needs Review` and document limitations.
 
 Do not say the app is production-ready. Say it demonstrates a measured, auditable path to production readiness.
@@ -232,5 +234,5 @@ Do not say the app is production-ready. Say it demonstrates a measured, auditabl
 4. Add batching/padding to speed graph training before large experiments.
 5. Improve class/type with product taxonomy features.
 6. Add PaddleOCR as an alternate local OCR engine and compare against docTR.
-7. Run 1,500 calibration / 1,500 locked holdout when data and time allow.
-
+7. Create the application-level split before generating any trained-model field pairs.
+8. Use `MODEL_ARCHITECTURE.md` as the current map for DistilRoBERTa/RoBERTa field-support experiments.

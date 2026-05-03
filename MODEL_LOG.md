@@ -905,7 +905,10 @@ because the lift came from one additional true positive in a small smoke sample.
 ## Next Experiments
 
 1. Run docTR, PaddleOCR, OpenOCR, the government-safe ensemble, and OSA hybrid evidence on the 100-application / 169-image calibration set.
-2. Scale graph training to the full 1,500-record calibration split once details/images/OCR are available.
-3. Freeze graph/ensemble settings after calibration and evaluate only once on the locked 1,500 holdout.
-4. Add field-specific class/type taxonomy features to attack the weakest measured field.
-5. Preserve BERT/LayoutLMv3 and the full HO-GNN/TPS/SVTR roadmap as future research paths after simpler post-OCR arbitration is fully measured.
+2. Build the expanded application-level public-data split before generating field-pair examples.
+3. For trained Transformer experiments, use `60%` train / `20%` validation / `20%` locked test, with no TTB ID crossing splits.
+4. Train a DistilRoBERTa field-support classifier before RoBERTa-base; tune thresholds on validation only.
+5. Compare DistilRoBERTa/RoBERTa against the deterministic government-safe ensemble and OSA hybrid.
+6. Freeze graph/ensemble/classifier settings after calibration and evaluate only once on the locked test split.
+7. Add field-specific class/type taxonomy features to attack the weakest measured field.
+8. Preserve LayoutLMv3 and the full HO-GNN/TPS/SVTR roadmap as future research paths after simpler post-OCR arbitration is fully measured.

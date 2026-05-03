@@ -30,6 +30,14 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 **OCR smoke-test synthesis:** The 30-image OCR smoke test carries inherent statistical variance, but it achieved its primary engineering objective: rapid architectural pruning. It identified the strongest near-term production candidates as complete OCR engines, especially docTR, PaddleOCR, and OpenOCR/SVTRv2, while showing that crop-dependent recognizers such as PARSeq, ASTER, and ABINet did not improve field-support performance under the tested OpenOCR-box crop contract. It also showed that FCENet + ASTER, while useful as an arbitrary-shape text detection research checkpoint, missed the CPU latency target for this compliance workflow. By isolating these failure modes early, the project narrowed the production path without spending the remaining sprint on full-scale calibration of architectures that did not earn promotion in the smoke test.
 
+**Model architecture synthesis:** The next trainable-model path should be a
+field-support classifier, not token-level NER. Public COLA data provides
+application fields and accepted label images, but not human token-span labels.
+The current preferred split for trained DistilRoBERTa/RoBERTa experiments is
+application-level `60%` train / `20%` validation / `20%` locked test, with the
+test set untouched until model choice, preprocessing, and thresholds are frozen.
+See [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) for the end-to-end diagrams.
+
 ---
 
 ## 2. Product Scope Trade-Offs
@@ -522,13 +530,17 @@ flowchart TB
 **Data governance posture:** COLA Cloud is a pragmatic fallback over a weekend outage, not the product architecture. The README and submission notes should state that the deployed prototype remains local-first and can run without COLA Cloud; the commercial data source was used only to obtain public example records/images for OCR evaluation when TTBOnline.gov was unavailable.
 
 **Evaluation design:** The preferred final measurement corpus is 3,000 public
-COLA applications split into exactly 1,500 calibration/tuning records and 1,500
-locked holdout records. The calibration split is allowed to influence OCR
-preprocessing, field normalization, and pass/review thresholds. The holdout
-split is not used for tuning; it is reserved for the final field-match estimates.
-At `n = 1,500`, the conservative 95% margin of error for a binary proportion is
-about `+/- 2.5` percentage points. This is a sampling margin for the held-out
-evaluation, not a production guarantee.
+COLA applications sampled without replacement. For pure OCR/rule calibration,
+the earlier split can remain 1,500 calibration/tuning records and 1,500 locked
+holdout records. For trained DistilRoBERTa/RoBERTa field-support classifiers,
+the current preferred split is application-level `60%` train / `20%` validation
+/ `20%` locked test. The validation split is allowed to influence model choice,
+preprocessing, field normalization, and pass/review thresholds. The locked test
+is not used for tuning; it is reserved for final field-match estimates. At
+`n = 1,500`, the conservative 95% margin of error for a binary proportion is
+about `+/- 2.5` percentage points; at `n = 600`, it is about `+/- 4.0`
+percentage points. These are sampling margins for held-out evaluation, not
+production guarantees.
 
 **Migration plan after paid access:**
 
@@ -685,6 +697,8 @@ README.md
 PRD.md
 TASKS.md
 ARCHITECTURE.md
+MODEL_ARCHITECTURE.md
+MODEL_LOG.md
 TRADEOFFS.md
 DEMO_SCRIPT.md
 PERSONALITIES.md

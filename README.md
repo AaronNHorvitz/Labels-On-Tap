@@ -83,15 +83,29 @@ The current 100-record calibration result is intentionally conservative: all app
 | Net contents | 86 | 83.72% |
 | Country of origin | 38 | 78.95% |
 
-The next statistical target is a `3,000`-application public-data corpus split into exactly `1,500` calibration/tuning records and `1,500` locked holdout records. A no-network plan-only check has already verified that the current candidate pool can produce this exact split without replacement. The calibration split is for OCR preprocessing, field-normalization, and threshold decisions. The holdout split is reserved for the final reported estimate after tuning is frozen.
+The next statistical target is a `3,000`-application public-data corpus sampled
+without replacement. A no-network plan-only check has already verified that the
+current candidate pool can produce `3,000` non-overlapping selected records. For
+plain OCR/rule calibration, the earlier plan used `1,500` calibration/tuning
+records and `1,500` locked holdout records. For any trained
+DistilRoBERTa/RoBERTa field-support classifier, the current preferred design is
+an application-level `60%` train / `20%` validation / `20%` locked test split.
+The split must happen before field-pair examples are generated so the same TTB
+ID cannot leak across train, validation, and test.
 
-For a binary proportion on the `1,500`-record holdout, the conservative 95% margin of error is approximately:
+For a binary proportion on a `1,500`-record holdout, the conservative 95% margin of error is approximately:
 
 ```text
 1.96 * sqrt(0.25 / 1500) = 0.0253
 ```
 
 That is about `+/- 2.5 percentage points` before finite-population correction, and about the same after correction against an annual population near `150,000` COLA applications. This is a margin-of-error statement for the locked holdout estimate, not a claim that production accuracy is guaranteed.
+
+For a `3,000`-application corpus split `60/20/20`, the `600`-application locked
+test set has a wider conservative 95% margin of error, approximately
+`+/- 4.0 percentage points`, but it preserves a separate validation set for
+threshold tuning and model selection. That trade-off is appropriate if the next
+step is supervised model training rather than pure OCR/rule calibration.
 
 This design gives the project a cleaner evidence story than hand-picked examples:
 
@@ -117,6 +131,10 @@ Problem 2: decide whether the read text supports the application fields
 ```
 
 Labels On Tap currently uses local docTR OCR as the baseline OCR engine and a fixture OCR fallback for deterministic demos. Alternate engines are being measured in an isolated OCR sweep, not dropped directly into the deployed app.
+
+The current model architecture, promotion gates, split discipline, and future
+DistilRoBERTa/RoBERTa field-support plan are documented in
+[MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md).
 
 | Layer | Role | Current Status | Promotion Gate |
 |---|---|---|---|
@@ -536,6 +554,7 @@ Operational handoff and experiment tracking:
 | File | Purpose |
 |---|---|
 | [HANDOFF.md](HANDOFF.md) | Restart guide for a fresh coding session. |
+| [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) | End-to-end model architecture, evaluation design, and promotion gates. |
 | [MODEL_LOG.md](MODEL_LOG.md) | OCR and graph-evidence experiment ledger. |
 | [TASKS.md](TASKS.md) | Final sprint command center. |
 | [docs/performance.md](docs/performance.md) | Measured timings, OCR calibration results, and model metrics. |
@@ -595,6 +614,8 @@ Important root docs:
 
 - [DEMO_SCRIPT.md](DEMO_SCRIPT.md)
 - [TASKS.md](TASKS.md)
+- [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md)
+- [MODEL_LOG.md](MODEL_LOG.md)
 - [TRADEOFFS.md](TRADEOFFS.md)
 - [PRD.md](PRD.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md)

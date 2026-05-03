@@ -39,7 +39,7 @@ The sprint priority is now:
 - [x] `country_of_origin` and `imported` are first-class application fields.
 - [x] Demo fixtures/data scaffold exists.
 - [x] Tests scaffold exists.
-- [x] Last known complete local test run: `pytest -q` passed with 61 tests.
+- [x] Last known complete local test run: `pytest -q` passed with 65 tests.
 - [x] Local Podman image rebuild passed on May 2, 2026.
 - [x] Local container smoke passed on May 2, 2026 for `/health`, `/`, and `/demo/clean`.
 - [x] Public COLA ETL scripts exist for search-result imports, public form fetches, form parsing, label image download, curated fixture export, and stratified sampling.
@@ -85,6 +85,7 @@ The sprint priority is now:
 - [x] OpenVINO/ONNX/INT8 on EC2 `m7i` is a future CPU optimization path, not a current Lightsail performance claim.
 - [x] OCR engine sweep scaffold exists under `experiments/ocr_engine_sweep/`.
 - [x] `MODEL_LOG.md` records OCR/model experiments and caveats.
+- [x] `MODEL_ARCHITECTURE.md` records the end-to-end model architecture, train/validation/test plan, and model promotion gates.
 - [x] `HANDOFF.md` records current state, GPU setup, data paths, and restart steps.
 - [x] Existing public sampling used deterministic seeds and sampling without replacement.
 - [x] Existing public sampling produced two non-overlapping samples: 300 applications and 500 applications.
@@ -121,12 +122,24 @@ Core metrics to report:
 - [ ] OCR failure modes: low confidence, missing field, curved text, rotated text, poor image quality, multi-panel ambiguity.
 - [ ] False-clear rate on known synthetic negative cases.
 
+Split discipline:
+
+- [ ] Create the locked application-level split before generating field-pair examples.
+- [ ] Use `60%` train / `20%` validation / `20%` locked test for trained field-support classifiers.
+- [ ] Stratify by month, product family, import/domestic bucket, and label-panel complexity where data allows.
+- [ ] Ensure the same TTB ID never appears across train, validation, and test.
+- [ ] Tune preprocessing, thresholds, model family, and safety policy on validation only.
+- [ ] Report final trained-model metrics on the locked test only after all tuning decisions are frozen.
+
 Sample-size framing:
 
 - [x] Use `N ~= 150,000` annual COLA applications as the working population size.
 - [x] Current `n = 810` parsed official public COLAs gives about **+/- 3.4%** conservative 95% margin of error for a broad proportion estimate.
-- [ ] Target `n = 3,000` public COLA applications if quota/time allows, split into **1,500 calibration/tuning** and **1,500 locked holdout** records.
+- [ ] Target `n = 3,000` public COLA applications if quota/time allows.
+- [ ] For pure OCR/rule calibration, preserve the option of **1,500 calibration/tuning** and **1,500 locked holdout** records.
+- [ ] For trained DistilRoBERTa/RoBERTa field-support classifiers, prefer an application-level **60/20/20** split: **1,800 train**, **600 validation**, **600 locked test**.
 - [x] A locked holdout of `n = 1,500` gives about **+/- 2.5 percentage points** conservative 95% margin of error for a binary proportion estimate.
+- [ ] A locked test of `n = 600` gives about **+/- 4.0 percentage points** conservative 95% margin of error for a binary proportion estimate, before finite-population correction.
 - [ ] Explain clearly that `+/- 2.5%` is a 95% margin of error on the final holdout estimate, not a guarantee of production accuracy.
 - [ ] Build 300-500 known-bad synthetic negative cases for false-clear testing.
 - [ ] Explain the "rule of three": zero false clears in 300 known-bad cases implies an approximate 95% upper bound of 1% on the false-clear rate.
@@ -418,6 +431,51 @@ Documentation deliverables:
 
 ---
 
+## Layer 2B - Trainable Field-Support Classifier
+
+**Priority:** P0/P1 support track after corpus expansion
+
+Do not train token-level NER from public COLA data unless human span labels are
+created. The next supervised model should be a field-support classifier because
+public COLA records provide application fields and accepted label artwork, not
+gold token spans.
+
+Target input/output:
+
+```text
+Input:
+  field_name
+  expected application value
+  OCR candidate text or application-level OCR evidence
+  optional OCR engine scores/source/confidence
+
+Output:
+  supports_field = yes/no
+```
+
+Planned model candidates:
+
+- [ ] Create field-support training examples from application-level splits only.
+- [ ] Generate positive pairs from accepted application fields and same-application OCR text.
+- [ ] Generate shuffled negative pairs from same-field values in other applications.
+- [ ] Generate hard negatives for high-risk fields such as alcohol content and net contents.
+- [ ] Train a DistilRoBERTa field-support classifier first.
+- [ ] Train a RoBERTa-base field-support classifier only if DistilRoBERTa shows lift or capacity limits.
+- [ ] Compare both against the deterministic government-safe ensemble and OSA hybrid.
+- [ ] Tune thresholds on validation only, optimizing primarily for false-clear control.
+- [ ] Evaluate exactly once on the locked test after preprocessing, thresholds, and model choice are frozen.
+- [ ] Promote only behind an adapter/feature flag if locked-test F1 improves and false-clear posture remains acceptable.
+- [ ] Keep deterministic rules as the final decision layer even if a classifier is added.
+
+Deployment rule:
+
+```text
+No trained Transformer becomes runtime default unless it beats the measured
+baseline on validation and locked test, fits CPU latency, and has rollback.
+```
+
+---
+
 ## Layer 3 - Deterministic Mismatch Detection
 
 **Priority:** P1 after OCR proof
@@ -469,15 +527,16 @@ Legal guidance is valuable, but it should explain deterministic findings rather 
 2. Use the COLA Cloud public-data bridge only for local development/OCR evaluation, not runtime.
 3. Run an alternate OCR engine sweep on the existing 100-application / 169-image calibration cache before scaling.
 4. Keep docTR as the deployed default unless PaddleOCR/OpenOCR wins the measured comparison.
-5. Build the full 3,000-record public-data plan with exact 1,500 calibration / 1,500 holdout splits.
-6. Fetch/details/images for the calibration split first and tune only on that split.
-7. Freeze OCR engine choice, OCR preprocessing, field-normalization, and pass/review thresholds.
-8. Evaluate the locked 1,500-record holdout and report field-level match rates, latency, and limitations.
-9. Reconcile a small subset back to direct TTB printable forms if the public endpoint stabilizes.
-10. Export 10-25 curated official public fixtures for committed demo/test use.
-11. Build synthetic negative coverage for the highest-risk mismatch cases.
-12. Update README, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the final measurement story.
-13. Redeploy only after local OCR/evaluation changes pass.
+5. Build the full 3,000-record public-data plan without replacement.
+6. If training DistilRoBERTa/RoBERTa, create the application-level 60/20/20 train/validation/locked-test split before generating field-pair examples.
+7. Fetch details/images for train and validation first; keep locked-test untouched until settings are frozen.
+8. Freeze OCR engine choice, OCR preprocessing, field-normalization, model family, and pass/review thresholds.
+9. Evaluate the locked test split and report field-level match rates, false-clear rate, latency, and limitations.
+10. Reconcile a small subset back to direct TTB printable forms if the public endpoint stabilizes.
+11. Export 10-25 curated official public fixtures for committed demo/test use.
+12. Build synthetic negative coverage for the highest-risk mismatch cases.
+13. Update README, `MODEL_ARCHITECTURE.md`, `MODEL_LOG.md`, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the final measurement story.
+14. Redeploy only after local OCR/evaluation changes pass.
 
 ---
 
@@ -545,6 +604,7 @@ Keep this architecture stable:
   - Annualized reviewer-hour estimate.
 - [ ] Add the official public COLA sampling methodology to README if not already current.
 - [x] Add OCR experimentation strategy to README.
+- [x] Add `MODEL_ARCHITECTURE.md` with end-to-end Mermaid diagrams, current measured model layers, and the 60/20/20 trained-classifier plan.
 - [x] Update `TRADEOFFS.md` with the simplified mission: OCR proof first, legal reasoning later.
 - [x] Update `TRADEOFFS.md` with the measured OCR engine sweep and OpenVINO/EC2 m7i future optimization path.
 - [ ] Update `docs/performance.md` with OCR field-matching metrics and latency.
