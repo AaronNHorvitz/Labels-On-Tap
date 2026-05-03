@@ -38,6 +38,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | PaddleOCR sweep | Experimental alternate local OCR candidate | No | 30-image smoke improved F1/accuracy/recall, with higher false-clear rate |
 | OpenOCR / SVTRv2 sweep | Experimental alternate local OCR candidate | No | 30-image smoke was fastest, with lower F1 in first field-support test |
 | PARSeq crop recognizer | Experimental recognizer over detected crops | No | Fast on CPU, but lower field-support F1 in first crop-recognition smoke |
+| ASTER crop recognizer | Experimental rectifying recognizer over detected crops | No | Very fast on CPU, zero false clears, but low recall/F1 in first crop-recognition smoke |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -433,6 +434,67 @@ Decision:
 - The result should not be read as "PARSeq is bad." It means this quick crop contract is not better than current full OCR candidates.
 - A fairer future test would pair PARSeq with a detector/rectifier that produces high-quality word/line crops, or test MMOCR's detector-plus-PARSeq recipe if the dependency stack is acceptable.
 - Small sample sizes increase variance, but this first result does not justify promoting PARSeq over PaddleOCR/OpenOCR/docTR.
+
+### E010 - ASTER Recognition Over OpenOCR Crops
+
+**Date:** May 3, 2026
+**Run output:** `data/work/ocr-engine-sweep/aster-openocr-crops-smoke-30/`
+**Field-support output:** `data/work/ocr-engine-sweep/field-support-metrics/doctr-vs-paddle-vs-openocr-vs-parseq-vs-aster-smoke-30/`
+**Input:** The same 20-application / 30-image smoke set from E006-E009
+**Purpose:** Test ASTER, an attentional scene-text recognizer with flexible rectification, because it directly targets warped/irregular text crops.
+
+Method:
+
+```text
+1. Reuse OpenOCR-detected text boxes from E008.
+2. Crop each detected box with small padding.
+3. Run MMOCR ASTER recognition on the crops.
+4. Aggregate recognized crop text by original label image and TTB ID.
+5. Score field support with the same shuffled-negative metric.
+```
+
+Environment:
+
+```text
+container: python:3.10-slim
+model source: MMOCR 1.0.1 TextRecInferencer(model="ASTER")
+runtime: CPU
+box source: OpenOCR 0.1.5 / SVTRv2 smoke output
+dependency pins: torch 2.0.1 CPU, mmcv 2.0.1, mmdet 3.0.0, numpy<2
+```
+
+Timing / extraction smoke:
+
+| Metric | ASTER Crops |
+|---|---:|
+| Images processed | 30 |
+| Error count | 0 |
+| Mean latency | 119.87 ms/image |
+| Median latency | 111.00 ms/image |
+| Worst latency | 275 ms/image |
+| Mean confidence | 0.7663 |
+| Mean crop count | 20.0 |
+| Mean extracted chars | 281.43 |
+
+Overall field-support result across all fields:
+
+| Metric | docTR | PaddleOCR | OpenOCR | PARSeq AR | PARSeq NAR | ASTER |
+|---|---:|---:|---:|---:|---:|---:|
+| Accuracy | 0.7455 | 0.7723 | 0.7143 | 0.6875 | 0.6875 | 0.6920 |
+| Precision | 0.9825 | 0.9552 | 0.9800 | 0.9773 | 0.9773 | 1.0000 |
+| Recall | 0.5000 | 0.5714 | 0.4375 | 0.3839 | 0.3839 | 0.3839 |
+| Specificity | 0.9911 | 0.9732 | 0.9911 | 0.9911 | 0.9911 | 1.0000 |
+| F1 | 0.6627 | 0.7151 | 0.6049 | 0.5513 | 0.5513 | 0.5548 |
+| False-clear rate | 0.0089 | 0.0268 | 0.0089 | 0.0089 | 0.0089 | 0.0000 |
+
+Decision:
+
+- ASTER is the fastest recognizer-stage experiment so far over OpenOCR crops.
+- ASTER produced zero false clears in this small smoke, which is attractive for the conservative product posture.
+- ASTER recall and F1 were still lower than docTR and PaddleOCR, so it is not promoted as the default OCR path.
+- The result does not invalidate ASTER; it says this quick OpenOCR-box + rectangular-crop contract did not recover more field evidence.
+- A fairer future test would use ASTER in an end-to-end MMOCR detector-plus-recognizer pipeline or with better rotated/curved crop generation.
+- Small sample sizes increase variance, so this remains directional calibration evidence.
 
 ## Current Best Result
 

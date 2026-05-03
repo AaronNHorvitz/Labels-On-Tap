@@ -13,6 +13,7 @@ latency, and failure behavior.
 | PaddleOCR / PP-OCR | First alternate local OCR candidate | 30-image smoke benchmark and field-support metrics recorded |
 | OpenOCR / SVTRv2 | Second alternate local OCR candidate | 30-image smoke benchmark and field-support metrics recorded |
 | PARSeq | Scene-text recognizer over detected crops | AR and NAR crop-recognition smoke benchmarks recorded |
+| ASTER | Rectifying scene-text recognizer over detected crops | MMOCR ASTER crop-recognition smoke benchmark recorded |
 | Graph scorer | Post-OCR field evidence scorer | Implemented under `experiments/graph_ocr/` |
 
 ## Promotion Gate
@@ -89,6 +90,12 @@ its crop benchmark is not a full OCR pipeline benchmark. The first PARSeq run
 uses OpenOCR boxes as the crop source and reports recognizer-plus-cropping
 latency separately from detector-inclusive OCR latency.
 
+ASTER is also a recognizer-stage experiment. It includes a flexible
+rectification mechanism, but still requires detected text crops in this smoke
+contract. The first ASTER run uses OpenOCR boxes as the crop source and reports
+recognizer-plus-cropping latency separately from detector-inclusive OCR
+latency.
+
 ## PARSeq Crop Recognition
 
 Install the optional standalone PARSeq stack in an isolated environment or
@@ -124,6 +131,32 @@ python experiments/ocr_engine_sweep/parseq_crop_benchmark.py \
   --no-decode-ar \
   --refine-iters 2 \
   --run-name parseq-openocr-crops-nar-r2-smoke-30
+```
+
+## ASTER Crop Recognition
+
+Install the optional MMOCR ASTER stack in an isolated Python 3.10 environment
+or container:
+
+```bash
+python -m pip install "pip<25" setuptools wheel
+python -m pip install torch==2.0.1 torchvision==0.15.2 --index-url https://download.pytorch.org/whl/cpu
+python -m pip install openmim
+python -m mim install "mmcv==2.0.1"
+python -m pip install mmdet==3.0.0 mmocr==1.0.1
+python -m pip install --force-reinstall "numpy<2"
+```
+
+Then run ASTER over previously detected OpenOCR boxes:
+
+```bash
+python experiments/ocr_engine_sweep/aster_crop_benchmark.py \
+  --box-run-dir data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30 \
+  --box-engine openocr \
+  --limit 30 \
+  --batch-size 32 \
+  --device cpu \
+  --run-name aster-openocr-crops-smoke-30
 ```
 
 ## PaddleOCR Version Notes
@@ -173,6 +206,18 @@ python experiments/ocr_engine_sweep/field_support_metrics.py \
   --engine-run parseq_ar_openocr_crops=data/work/ocr-engine-sweep/parseq-openocr-crops-ar-smoke-30 \
   --engine-run parseq_nar_openocr_crops=data/work/ocr-engine-sweep/parseq-openocr-crops-nar-r2-smoke-30 \
   --run-name doctr-vs-paddle-vs-openocr-vs-parseq-ar-nar-smoke-30
+```
+
+Including ASTER crop runs:
+
+```bash
+python experiments/ocr_engine_sweep/field_support_metrics.py \
+  --engine-run paddleocr=data/work/ocr-engine-sweep/paddleocr-333-paddle-320-smoke-30-json \
+  --engine-run openocr=data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30 \
+  --engine-run parseq_ar_openocr_crops=data/work/ocr-engine-sweep/parseq-openocr-crops-ar-smoke-30 \
+  --engine-run parseq_nar_openocr_crops=data/work/ocr-engine-sweep/parseq-openocr-crops-nar-r2-smoke-30 \
+  --engine-run aster_openocr_crops=data/work/ocr-engine-sweep/aster-openocr-crops-smoke-30 \
+  --run-name doctr-vs-paddle-vs-openocr-vs-parseq-vs-aster-smoke-30
 ```
 
 This writes summary JSON and per-engine score CSVs under:

@@ -110,7 +110,8 @@ The repository includes a large legal/research corpus and source-backed rule mat
 2. PaddleOCR / PP-OCR local adapter
 3. OpenOCR / SVTRv2 local adapter
 4. PARSeq recognition over detected crops, if recognizer-level accuracy helps
-5. Combined OCR evidence, if two engines find complementary text
+5. ASTER recognition over detected crops, if geometric rectification helps
+6. Combined OCR evidence, if two engines find complementary text
 ```
 
 **Promotion gate:**
@@ -127,7 +128,29 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 **Implication:** The app can pursue better OCR aggressively without destabilizing the deployed demo. Until a candidate wins, docTR remains the safe runtime baseline.
 
-**Current smoke finding:** On the first 20-application / 30-image field-support comparison, PaddleOCR improved F1, accuracy, and recall versus docTR, while docTR preserved the lower false-clear rate. OpenOCR/SVTRv2 was the fastest complete OCR candidate and matched docTR's false-clear rate in the same smoke, but had lower F1. PARSeq was tested as a recognizer over OpenOCR-detected crops. It was fast even in autoregressive mode, but did not improve field-support F1 in that crop setup. Small sample sizes increase variance, so these results are directional calibration evidence only. PaddleOCR remains undecided and promising; it should not be promoted or rejected until a larger calibration run confirms whether the F1 lift survives.
+**Current smoke finding:** On the first 20-application / 30-image field-support comparison, PaddleOCR improved F1, accuracy, and recall versus docTR, while docTR preserved the lower false-clear rate. OpenOCR/SVTRv2 was the fastest complete OCR candidate and matched docTR's false-clear rate in the same smoke, but had lower F1. PARSeq and ASTER were tested as recognizers over OpenOCR-detected crops. Both were fast on CPU, but neither improved field-support F1 in that crop setup. ASTER produced zero false clears in the first smoke, but at the cost of low recall. Small sample sizes increase variance, so these results are directional calibration evidence only. PaddleOCR remains undecided and promising; it should not be promoted or rejected until a larger calibration run confirms whether the F1 lift survives.
+
+Current side-by-side smoke metrics:
+
+| Model | TP | TN | FP | FN | Accuracy | Precision | Recall | F1 | False-clear rate |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| docTR | 56 | 111 | 1 | 56 | 0.7455 | 0.9825 | 0.5000 | 0.6627 | 0.0089 |
+| PaddleOCR | 64 | 109 | 3 | 48 | 0.7723 | 0.9552 | 0.5714 | 0.7151 | 0.0268 |
+| OpenOCR / SVTRv2 | 49 | 111 | 1 | 63 | 0.7143 | 0.9800 | 0.4375 | 0.6049 | 0.0089 |
+| PARSeq AR over OpenOCR crops | 43 | 111 | 1 | 69 | 0.6875 | 0.9773 | 0.3839 | 0.5513 | 0.0089 |
+| PARSeq NAR/refine-2 over OpenOCR crops | 43 | 111 | 1 | 69 | 0.6875 | 0.9773 | 0.3839 | 0.5513 | 0.0089 |
+| ASTER over OpenOCR crops | 43 | 112 | 0 | 69 | 0.6920 | 1.0000 | 0.3839 | 0.5548 | 0.0000 |
+
+Current CPU latency smoke:
+
+| Model | Mean / image | Median / image | Worst / image | Mean / app | Max / app | Notes |
+|---|---:|---:|---:|---:|---:|---|
+| docTR | 800.53 ms | 804.50 ms | 1,592 ms | 1,200.8 ms | 2,216 ms | Complete OCR baseline |
+| PaddleOCR | 1,105.00 ms | 1,096.50 ms | 1,544 ms | 1,657.5 ms | 3,558 ms | Complete OCR candidate |
+| OpenOCR / SVTRv2 | 563.77 ms | 582.50 ms | 1,211 ms | 845.65 ms | 1,383 ms | Complete OCR candidate |
+| PARSeq AR over OpenOCR crops | 293.47 ms | 212.00 ms | 870 ms | 440.2 ms | 870 ms | Recognizer stage only |
+| PARSeq NAR/refine-2 over OpenOCR crops | 215.17 ms | 168.50 ms | 655 ms | 322.75 ms | 655 ms | Recognizer stage only |
+| ASTER over OpenOCR crops | 119.87 ms | 111.00 ms | 275 ms | 179.8 ms | 409 ms | Recognizer stage only |
 
 ---
 
