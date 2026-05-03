@@ -730,6 +730,44 @@ no crop / unreadable crop -> Needs Review
 This solves the MVP requirement without overstating certainty: strong real-COLA
 bold evidence can now clear, while weak evidence still goes to a reviewer.
 
+CNN challenger:
+
+```text
+code:
+  experiments/typography_preflight/train_audit_v6_cnn.py
+  experiments/typography_preflight/evaluate_audit_v6_cnn_thresholds.py
+
+dataset:
+  audit-v6, 9,000 crops
+  train / validation / test = 6,000 / 1,500 / 1,500
+
+model:
+  MobileNetV3-Small
+  ImageNet transfer learning
+  4 classes: bold, not_bold, unreadable_review, not_applicable
+
+test hard-argmax:
+  accuracy: 0.9560
+  macro F1: 0.9686
+  false-clear rate: 0.005507
+
+thresholded clearance:
+  zero validation false-clear threshold: test false-clear 0.000000,
+    true-bold clear rate 0.5220
+  0.005 validation false-clear tolerance: test false-clear 0.002203,
+    true-bold clear rate 0.7432
+
+latency:
+  CPU batch: 2.98 ms/crop
+  CPU single-crop p95: 5.21 ms/crop
+```
+
+Decision: the CNN is a strong offline challenger, but it is not automatically
+promoted. Runtime promotion requires a same-split comparison against the current
+real-adapted logistic bridge and a threshold that preserves the government-safe
+false-clear posture. If promoted later, it should be pass evidence only; all
+non-clear cases still route to `Needs Review`.
+
 ---
 
 ## 9. Domain-NER / BERT Arbiter Experiments

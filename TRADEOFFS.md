@@ -1017,6 +1017,34 @@ This is the practical MVP resolution: strong real-COLA boldness evidence can
 clear the boldness check, while weak/noisy/no-crop evidence remains manual
 review.
 
+**CNN challenger:** After the real-adapted logistic preflight, we also tested
+the heavier visual "nuclear option": a MobileNetV3-Small CNN with ImageNet
+transfer learning trained on the `audit-v6` typography dataset. This is not
+promoted to runtime yet, but it gives a useful bound on whether a real visual
+model can improve the typography gate.
+
+| CNN item | Value |
+|---|---|
+| Code | `experiments/typography_preflight/train_audit_v6_cnn.py` |
+| Threshold sweep | `experiments/typography_preflight/evaluate_audit_v6_cnn_thresholds.py` |
+| Training data | `audit-v6`: 6,000 train / 1,500 validation / 1,500 test crops |
+| Model | MobileNetV3-Small, ImageNet transfer learning |
+| Training hardware | Local RTX 4090 |
+| Training time | About 163 seconds |
+| Hard-argmax test accuracy | 0.9560 |
+| Hard-argmax macro F1 | 0.9686 |
+| Hard-argmax false-clear rate | 0.005507 |
+| CPU batch latency | 2.98 ms/crop |
+| CPU single-crop p95 latency | 5.21 ms/crop |
+
+The important result is the thresholded clearance policy, not the raw argmax
+prediction. With a zero validation false-clear tolerance, the CNN had `0.000000`
+test false-clear and cleared `52.20%` of true-bold test crops. With a `0.005`
+validation tolerance, it had `0.002203` test false-clear and cleared `74.32%`
+of true-bold crops. That is promising, but the promotion gate remains strict:
+compare it against the deployed logistic bridge on the exact same audit-v6 and
+real-COLA holdout policy before allowing it to become runtime evidence.
+
 Reference:
 
 ```text
