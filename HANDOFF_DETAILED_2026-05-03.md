@@ -212,6 +212,39 @@ combined first + extension cohorts:
   overlap between cohorts: 0
 ```
 
+Application-level split manifests were generated after acquisition:
+
+```text
+data/work/cola/evaluation-splits/field-support-v1/
+  train_applications.csv
+  train_ttb_ids.txt
+  validation_applications.csv
+  validation_ttb_ids.txt
+  holdout_applications.csv
+  holdout_ttb_ids.txt
+  all_applications.csv
+  split_summary.json
+```
+
+Split counts and local image coverage:
+
+```text
+train:
+  applications: 2000
+  local label images: 3564
+
+validation:
+  applications: 1000
+  local label images: 1789
+
+locked holdout:
+  applications: 3000
+  local label images: 5082
+
+development-holdout overlap:
+  0 TTB IDs
+```
+
 Important current sample folders:
 
 ```text
@@ -220,6 +253,7 @@ data/work/cola/official-sample-1500/
 data/work/cola/official-sample-1500-balanced/
 data/work/cola/official-sample-3000-balanced/
 data/work/cola/official-sample-next-3000-balanced/
+data/work/cola/evaluation-splits/field-support-v1/
 ```
 
 Current measured calibration source before the full-corpus rerun:
@@ -280,12 +314,13 @@ overlap:
   0 TTB IDs
 ```
 
-Preferred model-selection split inside the development cohort:
+Actual model-selection split inside the development cohort:
 
 ```text
 2000 train applications
 1000 validation/calibration applications
 3000 locked holdout applications in the second cohort
+manifest path: data/work/cola/evaluation-splits/field-support-v1/
 ```
 
 Important leakage rule:
@@ -295,8 +330,10 @@ Split by application/TTB ID **before** generating field-pair examples. The same 
 Recommended training/testing workflow:
 
 ```text
-1. Split the first 3000-record cohort into train and validation.
-2. Generate field-support examples only after the application-level split.
+1. Use the existing split manifests under
+   `data/work/cola/evaluation-splits/field-support-v1/`.
+2. Generate field-support examples only after loading the application-level
+   split manifests.
 3. Train/tune BERT-family arbiters, graph scorer, deterministic ensemble, and
    OCR-engine policies on train/validation only.
 4. Lock the final architecture, features, and thresholds.
@@ -661,6 +698,12 @@ print(f"List records: {usage.list_records.used} / {usage.list_records.limit}")
 PY
 ```
 
+Regenerate the current train/validation/holdout manifests:
+
+```bash
+python scripts/create_colacloud_evaluation_splits.py --force
+```
+
 Run current tests:
 
 ```bash
@@ -686,10 +729,9 @@ curl http://localhost:8000/health
 ## 10. Immediate Next Steps
 
 1. Keep the public deployment stable.
-2. Create application-level split manifests:
-   `2000` train + `1000` validation from `official-sample-3000-balanced`,
-   plus locked `3000` holdout from `official-sample-next-3000-balanced`.
-3. Generate field-support examples only after the application split exists.
+2. Use `data/work/cola/evaluation-splits/field-support-v1/` as the canonical
+   split source.
+3. Generate field-support examples only after loading that application split.
 4. Run docTR/PaddleOCR/OpenOCR over the development cohort and cache outputs.
 5. Train/tune BERT-family field-support classifiers and graph scorer on
    train/validation only.

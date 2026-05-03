@@ -92,6 +92,9 @@ COLA Cloud development bridge:
 - Combined official public label-image corpus: `10,435` local image files.
 - Fetch failures: `0`.
 - Overlap between the two 3,000-record cohorts: `0`.
+- Application-level evaluation split manifests were generated under
+  `data/work/cola/evaluation-splits/field-support-v1/`.
+- Split counts: `2,000` train, `1,000` validation, `3,000` locked holdout.
 - Current OCR/model metrics remain COLA Cloud-derived public calibration
   metrics, not direct TTB attachment-download metrics.
 
@@ -100,6 +103,7 @@ Key local paths:
 ```text
 data/work/cola/official-sample-3000-balanced/
 data/work/cola/official-sample-next-3000-balanced/
+data/work/cola/evaluation-splits/field-support-v1/
 data/work/public-cola/parsed/ocr/evaluations/
 data/work/graph-ocr/
 ```
@@ -234,8 +238,10 @@ Current language should be:
   6,000-record corpus.
 - Use `official-sample-3000-balanced` as the development cohort.
 - Use `official-sample-next-3000-balanced` as the locked holdout cohort.
-- For model selection, split the first cohort into `2,000` train and `1,000`
-  validation/calibration applications.
+- Model-selection split manifests now exist:
+  `data/work/cola/evaluation-splits/field-support-v1/`.
+- The split uses `2,000` train and `1,000` validation/calibration
+  applications from the development cohort.
 - After model family, features, and thresholds are locked, optionally refit
   the chosen model on all `3,000` development applications and evaluate once
   on the untouched `3,000`-application holdout.
@@ -270,8 +276,8 @@ not pixel-level OCR recognizers.
 
 1. Keep the deployed app stable.
 2. Use `MODEL_LOG.md` as the experiment ledger for all OCR/model runs.
-3. Create the application-level development/validation/holdout manifests
-   before generating trained-model field pairs.
+3. Generate field-pair examples from the existing application-level split
+   manifests.
 4. Run docTR/PaddleOCR/OpenOCR cached OCR over the development cohort.
 5. Train/tune DistilRoBERTa/RoBERTa/OSA-style field-support arbiters on the
    development split.
