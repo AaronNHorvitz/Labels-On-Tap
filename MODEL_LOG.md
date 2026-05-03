@@ -42,6 +42,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | FCENet + ASTER | Experimental arbitrary-shape detector plus recognizer | No | Successful run, but too slow on CPU and low F1 in first detector-recognizer smoke |
 | ABINet crop recognizer | Experimental recognizer over detected crops | No | Fast on CPU, zero false clears, but low recall/F1 in first crop-recognition smoke |
 | Deterministic OCR ensemble | Combines docTR, PaddleOCR, and OpenOCR field evidence | No | Government-safe smoke improved F1 to 0.7416 with zero shuffled-negative false clears |
+| WineBERT/o domain NER | Experimental token-classification arbiter over OCR text | No | Fast CPU inference, but no lift over government-safe ensemble and unknown public model license |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -672,6 +673,68 @@ Decision:
 - The government-safe policy is the best current ensemble smoke result because it improves F1 over every single engine while reducing shuffled-negative false clears to zero.
 - The key field-specific guardrail is alcohol content: non-unanimous ABV evidence routes to review instead of automatic support.
 - This is still a 20-application / 30-image smoke result. It justifies a larger calibration run, not a production claim.
+
+### E014 - WineBERT/o Domain NER Over Combined OCR Text
+
+**Date:** May 3, 2026
+**Run outputs:**
+
+```text
+data/work/ocr-engine-sweep/wineberto-entity/wineberto-labels-combined-smoke-30/
+data/work/ocr-engine-sweep/wineberto-entity/wineberto-ner-combined-smoke-30/
+```
+
+**Input:** The same 20-application / 30-image smoke set from E006-E013
+**Purpose:** Test whether a wine-domain BERT token classifier can serve as a post-OCR entity arbiter before deployment consideration.
+
+Models tested:
+
+| Model | Purpose | License posture |
+|---|---|---|
+| `panigrah/wineberto-labels` | Token classifier trained on wine labels, with entities such as producer, wine, region, subregion, country, vintage, and classification. | Public model card lists license as unknown. |
+| `panigrah/wineberto-ner` | Token classifier trained on wine labels plus review-style text. | Public model card lists license as unknown. |
+
+Command pattern:
+
+```bash
+podman run --rm \
+  -e HF_HOME=/app/data/work/ocr-engine-sweep/wineberto-cache/hf \
+  -e HF_HUB_DISABLE_XET=1 \
+  -v "$PWD":/app:Z \
+  -w /app \
+  --entrypoint bash \
+  localhost/labels-on-tap-app:local \
+  -lc "pip install --no-cache-dir 'transformers==4.57.1' safetensors >/tmp/wineberto-pip.log && \
+       python experiments/ocr_engine_sweep/wineberto_entity_benchmark.py \
+         --run-name wineberto-labels-combined-smoke-30"
+```
+
+Overall result:
+
+| Model / policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Mean BERT / app | Max BERT / app |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| WineBERT/o labels, entities only | 0.6607 | 1.0000 | 0.3214 | 1.0000 | 0.4865 | 0.0000 | 261.25 ms | 660 ms |
+| WineBERT/o labels + government-safe ensemble | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 | 261.25 ms | 660 ms |
+| WineBERT/o NER, entities only | 0.5312 | 1.0000 | 0.0625 | 1.0000 | 0.1176 | 0.0000 | 189.30 ms | 432 ms |
+| WineBERT/o NER + government-safe ensemble | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 | 189.30 ms | 432 ms |
+
+Threshold sensitivity for `panigrah/wineberto-labels`:
+
+| Threshold | Strategy | F1 | Recall | False-clear rate |
+|---:|---|---:|---:|---:|
+| 80 | WineBERT/o labels + government-safe ensemble | 0.7302 | 0.6161 | 0.0714 |
+| 85 | WineBERT/o labels + government-safe ensemble | 0.7374 | 0.5893 | 0.0089 |
+| 90 | WineBERT/o labels + government-safe ensemble | 0.7416 | 0.5893 | 0.0000 |
+| 95 | WineBERT/o labels + government-safe ensemble | 0.7416 | 0.5893 | 0.0000 |
+
+Decision:
+
+- Do not promote public WineBERT/o to deployment.
+- It is fast enough on CPU to keep as a research option.
+- It does not improve the measured government-safe ensemble.
+- It does not support ABV or net-contents extraction, two core compliance fields.
+- It is wine-specific and does not cover the full beer/wine/spirits domain.
+- The public license is unknown; a production path would require a clearly licensed or internally trained token classifier.
 
 ## Current Best Result
 

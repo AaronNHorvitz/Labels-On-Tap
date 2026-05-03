@@ -371,6 +371,45 @@ all single engines in this smoke and drove false-clear rate to zero by requiring
 unanimous OCR support for alcohol-content evidence. This should be tested on the
 larger calibration set before any runtime change.
 
+### WineBERT/o Domain-NER Smoke
+
+WineBERT/o was tested as a post-OCR entity arbiter over combined docTR,
+PaddleOCR, and OpenOCR text. The point was to see whether a wine-domain token
+classifier could clean up brand, fanciful-name, class/type, origin, or producer
+evidence before the graph scorer or deterministic validator.
+
+| Model / policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Mean BERT / app | Max BERT / app |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| WineBERT/o labels, entities only | 0.6607 | 1.0000 | 0.3214 | 1.0000 | 0.4865 | 0.0000 | 261.25 ms | 660 ms |
+| WineBERT/o labels + government-safe ensemble | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 | 261.25 ms | 660 ms |
+| WineBERT/o NER, entities only | 0.5312 | 1.0000 | 0.0625 | 1.0000 | 0.1176 | 0.0000 | 189.30 ms | 432 ms |
+| WineBERT/o NER + government-safe ensemble | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 | 189.30 ms | 432 ms |
+
+By-field WineBERT/o-labels entity-only F1:
+
+| Field | F1 | Recall | False-clear rate |
+|---|---:|---:|---:|
+| Brand name | 0.7500 | 0.6000 | 0.0000 |
+| Fanciful name | 0.8235 | 0.7000 | 0.0000 |
+| Class/type | 0.5714 | 0.4000 | 0.0000 |
+| Alcohol content | 0.0000 | 0.0000 | 0.0000 |
+| Net contents | 0.0000 | 0.0000 | 0.0000 |
+| Country of origin | 0.3636 | 0.2222 | 0.0000 |
+| Applicant / producer | 0.0000 | 0.0000 | 0.0000 |
+
+Interpretation:
+
+- WineBERT/o-labels is safe but low recall when used as entity-only evidence.
+- WineBERT/o does not extract ABV or net contents, so it cannot be the main
+  compliance arbiter for this workflow.
+- Hybrid WineBERT/o support tied the government-safe deterministic ensemble but
+  did not improve it.
+- Lowering the threshold to `80` increased recall but raised the false-clear
+  rate to `0.0714`, which is unacceptable for the current government-safe
+  posture.
+- The public model license is listed as unknown, so the deployment path would
+  require replacement with an internally trained or clearly licensed model.
+
 ## May 2 COLA Cloud Stratified Calibration
 
 After the sample-pack smoke test, a bounded COLA Cloud API sampling workflow

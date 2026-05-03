@@ -333,6 +333,41 @@ high-confidence single-engine hit. This policy produced the best safety/F1
 trade-off in the first smoke, but it still needs larger calibration before
 runtime promotion.
 
+## WineBERT/o Entity Benchmark
+
+Run a wine-domain BERT token classifier over combined OCR text:
+
+```bash
+podman run --rm \
+  -e HF_HOME=/app/data/work/ocr-engine-sweep/wineberto-cache/hf \
+  -e HF_HUB_DISABLE_XET=1 \
+  -v "$PWD":/app:Z \
+  -w /app \
+  --entrypoint bash \
+  localhost/labels-on-tap-app:local \
+  -lc "pip install --no-cache-dir 'transformers==4.57.1' safetensors >/tmp/wineberto-pip.log && \
+       python experiments/ocr_engine_sweep/wineberto_entity_benchmark.py \
+         --run-name wineberto-labels-combined-smoke-30"
+```
+
+Alternate model:
+
+```bash
+python experiments/ocr_engine_sweep/wineberto_entity_benchmark.py \
+  --model-id panigrah/wineberto-ner \
+  --run-name wineberto-ner-combined-smoke-30
+```
+
+This writes summary JSON, entity CSV, and score CSV files under:
+
+```text
+data/work/ocr-engine-sweep/wineberto-entity/
+```
+
+The WineBERT/o benchmark intentionally stays out of production dependencies.
+The public Hugging Face model cards list the license as unknown, and the tested
+models do not extract numeric compliance fields such as ABV or net contents.
+
 ## Notes
 
 - This harness measures OCR extraction only. Field-level comparison should use

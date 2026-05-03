@@ -228,6 +228,43 @@ false clears to zero. Small sample sizes increase variance, so this is not a
 final accuracy claim, but it is strong enough to justify a larger calibration
 run before picking a runtime OCR strategy.
 
+#### WineBERT/o Domain-NER Smoke
+
+WineBERT/o was evaluated because it is a domain-specific BERT token classifier
+for wine labels. The closest public model to the proposed idea is
+[`panigrah/wineberto-labels`](https://huggingface.co/panigrah/wineberto-labels),
+whose model card describes training on `50K` wine labels and labels such as
+`producer`, `wine`, `region`, `subregion`, `country`, `vintage`, and
+`classification`. Its public license is listed as `unknown`, so it is suitable
+for a local experiment but not for immediate deployment as a runtime dependency.
+The sibling [`panigrah/wineberto-ner`](https://huggingface.co/panigrah/wineberto-ner)
+was also tested because it covers labels plus review-style text.
+
+The experiment ran WineBERT/o over combined docTR + PaddleOCR + OpenOCR text,
+then scored whether extracted entities supported application fields. Numeric
+fields such as ABV and net contents are not entity types in these models, so
+WineBERT/o cannot replace deterministic OCR field matching.
+
+| Model / policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Mean BERT / app | Max BERT / app |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| WineBERT/o labels, entities only | 0.6607 | 1.0000 | 0.3214 | 1.0000 | 0.4865 | 0.0000 | 261.25 ms | 660 ms |
+| WineBERT/o labels + government-safe ensemble | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 | 261.25 ms | 660 ms |
+| WineBERT/o NER, entities only | 0.5312 | 1.0000 | 0.0625 | 1.0000 | 0.1176 | 0.0000 | 189.30 ms | 432 ms |
+| WineBERT/o NER + government-safe ensemble | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 | 189.30 ms | 432 ms |
+
+Threshold sensitivity did not justify promotion. At field-support threshold
+`80`, WineBERT/o labels plus the ensemble increased recall to `0.6161`, but
+false-clear rate rose to `0.0714`. At thresholds `90` and `95`, it was safe but
+matched the government-safe ensemble exactly rather than improving it.
+
+**Decision:** Do not deploy public WineBERT/o in the Monday prototype. It is
+fast enough to be operationally plausible, but it does not improve the measured
+government-safe ensemble, does not handle core numeric fields, is wine-specific
+in a product that must support beer, wine, and spirits, and has an unknown
+license. The useful future path is to train an internal Treasury/TTB token
+classifier on approved internal/public label text, then compare it against this
+same benchmark harness.
+
 ---
 
 ### 3.2.2 Graph Scorer as Post-OCR Evidence, Not OCR Replacement
