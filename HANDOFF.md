@@ -390,28 +390,29 @@ Corrected audit data:
 
 ```text
 builder: experiments/typography_preflight/build_audit_dataset.py
-inspection_output: data/work/typography-preflight/audit-v4/
-contact_sheet: data/work/typography-preflight/audit-v4/index.html
+inspection_output: data/work/typography-preflight/audit-v5/
+contact_sheet: data/work/typography-preflight/audit-v5/index.html
 ```
 
-`audit-v4` separates labels:
+`audit-v5` separates labels:
 
 ```text
-font_weight_label
-header_text_label
+font_weight_label             bold / not_bold
+header_text_label             correct / incorrect
 quality_label
 visual_font_decision_label
 header_decision_label
 ```
 
-Boundary/whitespace artifacts are routed to `needs_review_unclear`, not clean
-visible `incorrect`. Readable medium/semibold crops are `clearly_not_bold`
-because the requirement is explicit bold type.
+The source `borderline` font class was removed. Generated bold fonts are bold;
+medium/semibold/demibold/light/thin/book/regular faces are not bold.
+`needs_review_unclear` is reserved for unreadable/degraded crops that require a
+human to inspect or reject the submission quality.
 
 Decision:
 
 ```text
-Do not promote the svm-v2 classifier to runtime authority. Inspect audit-v4,
+Do not promote the svm-v2 classifier to runtime authority. Inspect audit-v5,
 then train side-by-side SVM/XGBoost/CatBoost multiclass models only if the
 inspection labels look clean. Keep GOV_WARNING_HEADER_BOLD_REVIEW as Needs
 Review for submission.

@@ -17,7 +17,7 @@
 
 COLAs Online is an Internet-based system that allows registered industry members to apply online for a certificate of label approval, certificate of exemption from label approval, or distinctive liquor bottle approval. Labels On Tap is a reviewer-support triage assistant for that workflow: it compares application data against submitted label artwork, identifies likely compliance problems, and routes uncertain cases to human review.
 
-The highest-risk failure is a **false clear**: a problematic label incorrectly marked as `Pass`. The prototype therefore favors catching possible problems over automatically clearing borderline cases:
+The highest-risk failure is a **false clear**: a problematic label incorrectly marked as `Pass`. The prototype therefore favors catching possible problems over automatically clearing ambiguous cases:
 
 ```text
 clear evidence matches       -> Pass
@@ -255,14 +255,19 @@ test:       separate held-out font families and harder distortions
 
 Synthetic generation is legitimate for this subtask because the label being generated is only the controlled typography distinction. During review, the first binary dataset exposed an important labeling flaw: it mixed source font weight with visual quality and "auto-clearance" policy. Some bold crops were labeled negative only because they were generated with degraded artifacts, and some readable medium/semibold crops were routed to review even though the requirement is explicit bold type.
 
-The corrected audit dataset now separates provenance from model-facing decisions:
+The corrected `audit-v5` dataset now separates provenance from model-facing
+decisions and removes the earlier source `borderline` class. A generated bold
+font is bold. A generated non-bold font is not bold. Medium, semibold,
+demibold, light, thin, book, and regular font faces are non-bold for this
+regulatory target. The third model-facing class is reserved only for visually
+unreadable/degraded crops.
 
 ```text
 font_weight_label:
-  bold / not_bold / borderline
+  bold / not_bold
 
 header_text_label:
-  correct / incorrect / borderline
+  correct / incorrect
 
 quality_label:
   clean / mild / degraded
@@ -288,9 +293,13 @@ Initial synthetic evaluation was completed under `experiments/typography_preflig
 | 0.25% validation false-clear tolerance | 0.1170 | 0.8987 | 0.0626 | 0.0059 | Still too weak for autonomous promotion. |
 | 5% validation false-clear tolerance | 0.7757 | 0.8867 | 0.6894 | 0.0733 | Useful F1, but too many false clears for government posture. |
 
-Measured CPU prediction latency was about `0.09 ms/crop` after feature extraction. The model therefore has essentially no inference cost compared with OCR, but the corrected next step is to train and compare SVM, XGBoost, and CatBoost against the inspected `audit-v4` decision labels before any runtime promotion.
+Measured CPU prediction latency was about `0.09 ms/crop` after feature extraction. The model therefore has essentially no inference cost compared with OCR, but the corrected next step is to train and compare SVM, XGBoost, and CatBoost against the inspected `audit-v5` decision labels before any runtime promotion.
 
-The current inspection dataset is generated under gitignored `data/work/typography-preflight/audit-v4/`. It keeps boundary artifacts and visually ambiguous crops in `needs_review_unclear`, and it treats readable medium/semibold headings as `clearly_not_bold` because the regulation calls for bold type.
+The current inspection dataset is generated under gitignored
+`data/work/typography-preflight/audit-v5/`. It routes blurry, broken, faded,
+cropped, or visually unreadable crops to `needs_review_unclear`. It treats
+readable medium/semibold/demibold headings as `clearly_not_bold` because the
+regulation calls for bold type.
 
 The safe runtime posture is:
 
@@ -298,7 +307,7 @@ The safe runtime posture is:
 |---|---|
 | Strong bold signal | Typography preflight may pass. |
 | Strong non-bold signal | Route to Needs Review or Fail Candidate depending validation. |
-| Low-quality crop, unusual font, glare, curvature, or borderline signal | Needs Review. |
+| Low-quality crop, unusual font, glare, curvature, or unreadable signal | Needs Review. |
 
 The experiment lives under `experiments/typography_preflight/` with generated artifacts under gitignored `data/work/typography-preflight/`. It does not touch OCR conveyor output, the deployed app, or the GPU.
 

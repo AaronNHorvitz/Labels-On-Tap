@@ -996,23 +996,24 @@ experiments/typography_preflight/build_audit_dataset.py
 Current inspection output:
 
 ```text
-data/work/typography-preflight/audit-v4/
-data/work/typography-preflight/audit-v4/index.html
+data/work/typography-preflight/audit-v5/
+data/work/typography-preflight/audit-v5/index.html
 ```
 
 The corrected labels are:
 
 ```text
-font_weight_label             source font provenance
-header_text_label             source text provenance
+font_weight_label             bold / not_bold
+header_text_label             correct / incorrect
 quality_label                 crop quality provenance
 visual_font_decision_label    Model 1 target
 header_decision_label         Model 2 target
 ```
 
-`audit-v4` routes boundary and whitespace artifacts to
-`needs_review_unclear`. It labels readable medium/semibold headings as
-`clearly_not_bold`, because the requirement is explicit bold type. Do not train
+`audit-v5` removes the source `borderline` font class. Generated bold fonts are
+bold; medium/semibold/demibold/light/thin/book/regular fonts are not bold.
+`needs_review_unclear` is reserved for unreadable/degraded crops that require a
+human to inspect or reject the submission quality. Do not train
 the next SVM/XGBoost/CatBoost comparison until this inspection set is reviewed.
 
 Do not commit:

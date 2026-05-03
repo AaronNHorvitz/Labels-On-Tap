@@ -583,9 +583,8 @@ Dataset:
 | Validation | 5,000 |
 | Test | 5,000 |
 
-The split holds out font families and distortion recipes. Negative examples
-include regular, medium/borderline, and degraded/uncertain headings. The primary
-safety metric is false-clear rate: non-bold or uncertain headings classified as
+The split holds out font families and distortion recipes. The primary safety
+metric is false-clear rate: non-bold or unreadable headings classified as
 acceptable bold.
 
 Threshold sweep:
@@ -616,9 +615,10 @@ Interpretation:
 - `GOV_WARNING_HEADER_BOLD_REVIEW` should remain `Needs Review` for submission.
 
 Corrected audit data now exists under
-`data/work/typography-preflight/audit-v4/`. It separates source font weight,
-header text, image quality, visual font decision, and header decision labels.
-Boundary/whitespace artifacts are routed to `needs_review_unclear`, and readable
-medium/semibold headings are labeled `clearly_not_bold` because the requirement
-is explicit bold type. The next performance run should train and compare SVM,
-XGBoost, and CatBoost on these inspected multiclass labels.
+`data/work/typography-preflight/audit-v5/`. It separates source font weight,
+header text, image quality, visual font decision, and header decision labels,
+and it removes the source `borderline` font class. Generated bold fonts are
+bold. Medium, semibold, demibold, light, thin, book, and regular fonts are
+non-bold for this regulatory target. `needs_review_unclear` is reserved for
+unreadable/degraded crops. The next performance run should train and compare
+SVM, XGBoost, and CatBoost on these inspected multiclass labels.

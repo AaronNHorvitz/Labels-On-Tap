@@ -468,8 +468,7 @@ Why this model family fits:
   false clears.
 
 The first dataset is synthetic because the negative cases are not public. It
-renders `GOVERNMENT WARNING:` in bold, regular, medium, and degraded styles
-across many local fonts and distortions.
+renders `GOVERNMENT WARNING:` across many local fonts and distortions.
 
 Manual inspection found that the first binary SVM dataset mixed source font
 weight, visual quality, and auto-clearance policy into one target. That was too
@@ -477,20 +476,23 @@ noisy: a degraded crop could be generated from a bold font but labeled negative,
 and readable medium/semibold crops could be treated as review even though the
 requirement is explicit bold type.
 
-The corrected `audit-v4` dataset separates provenance from decision targets:
+The corrected `audit-v5` dataset separates provenance from decision targets and
+removes the earlier source `borderline` class. A generated bold font is bold. A
+generated non-bold font is not bold. Medium, semibold, demibold, light, thin,
+book, and regular font faces are non-bold for this regulatory target. The third
+model-facing class is reserved for visually unreadable/degraded crops.
 
 | Label | Meaning |
 |---|---|
-| `font_weight_label` | Source font provenance: `bold`, `not_bold`, `borderline`. |
-| `header_text_label` | Source text provenance: `correct`, `incorrect`, `borderline`. |
+| `font_weight_label` | Source font provenance: `bold`, `not_bold`. |
+| `header_text_label` | Source text provenance: `correct`, `incorrect`. |
 | `quality_label` | Crop quality provenance: `clean`, `mild`, `degraded`. |
 | `visual_font_decision_label` | Model 1 target: `clearly_bold`, `clearly_not_bold`, `needs_review_unclear`. |
 | `header_decision_label` | Model 2 target: `correct`, `incorrect`, `needs_review_unclear`. |
 
-Boundary and whitespace artifacts are intentionally routed to
-`needs_review_unclear` for the image classifier. They remain useful deterministic
-string/crop-boundary tests, but they should not be used as clean visible
-`incorrect` header examples.
+Blurry, broken, faded, cropped, or otherwise unreadable crops are intentionally
+routed to `needs_review_unclear`. That third class means the image needs a
+human reviewer; it is not a font-weight compromise bucket.
 
 Implemented split:
 

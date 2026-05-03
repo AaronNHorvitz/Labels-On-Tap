@@ -59,7 +59,7 @@ The corrected audit workflow uses a separate inspection builder:
 ```bash
 data/work/typography-preflight/.venv/bin/python \
   -m experiments.typography_preflight.build_audit_dataset \
-  --output-dir data/work/typography-preflight/audit-v4 \
+  --output-dir data/work/typography-preflight/audit-v5 \
   --samples-per-combo 36 \
   --clean
 ```
@@ -67,25 +67,40 @@ data/work/typography-preflight/.venv/bin/python \
 It writes:
 
 ```text
-data/work/typography-preflight/audit-v4/
+data/work/typography-preflight/audit-v5/
   index.html
   manifest.csv
   summary.json
+  by_quality/
   by_visual_font_decision/
   by_header_decision/
+```
+
+The current inspection dataset is:
+
+```text
+data/work/typography-preflight/audit-v5/
 ```
 
 The corrected labels are:
 
 ```text
-font_weight_label             source font provenance
-header_text_label             source text provenance
+font_weight_label             bold / not_bold
+header_text_label             correct / incorrect
 quality_label                 crop quality provenance
 visual_font_decision_label    clearly_bold / clearly_not_bold / needs_review_unclear
 header_decision_label         correct / incorrect / needs_review_unclear
 ```
 
-Do not train SVM/XGBoost/CatBoost models until the `audit-v4` contact sheet has
+The `audit-v5` rule is intentionally strict:
+
+```text
+Bold / ExtraBold / UltraBold / Black / Heavy font source -> bold
+Regular / Book / Light / Thin / Medium / SemiBold / DemiBold source -> not_bold
+Unreadable, faded, broken, blurry, or heavily degraded crop -> needs_review_unclear
+```
+
+Do not train SVM/XGBoost/CatBoost models until the `audit-v5` contact sheet has
 been visually inspected.
 
 ## Run

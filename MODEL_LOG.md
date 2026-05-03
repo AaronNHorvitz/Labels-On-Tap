@@ -66,22 +66,24 @@ were routed to review even though the requirement is explicit bold type. Treat
 the `svm-v2` numbers as a flawed-target baseline, not as a final verdict on
 SVM viability.
 
-**Corrected audit dataset:** `data/work/typography-preflight/audit-v4/`
+**Corrected audit dataset:** `data/work/typography-preflight/audit-v5/`
 
 The corrected generator is `experiments/typography_preflight/build_audit_dataset.py`.
 It produces a human-inspection dataset with separate labels:
 
 ```text
-font_weight_label             -> bold / not_bold / borderline
-header_text_label             -> correct / incorrect / borderline
+font_weight_label             -> bold / not_bold
+header_text_label             -> correct / incorrect
 quality_label                 -> clean / mild / degraded
 visual_font_decision_label    -> clearly_bold / clearly_not_bold / needs_review_unclear
 header_decision_label         -> correct / incorrect / needs_review_unclear
 ```
 
-`audit-v4` also moves boundary/whitespace artifacts out of the clean visible
-`incorrect` class and into `needs_review_unclear`, because those artifacts can
-be visually ambiguous in a raster crop.
+`audit-v5` removes the source `borderline` font class. Generated bold fonts are
+bold. Medium, semibold, demibold, light, thin, book, and regular fonts are not
+bold for this regulatory target. `needs_review_unclear` is reserved for
+unreadable/degraded crops that require a human to inspect or reject the
+submission quality.
 
 Current runtime behavior:
 
@@ -180,7 +182,7 @@ Interpretation:
 - At useful recall/F1 thresholds, the false-clear rate is too high.
 - Keep boldness as `Needs Review` for the submission.
 - Next improvement is to train side-by-side multiclass SVM/XGBoost/CatBoost
-  models from the inspected `audit-v4` decision labels, then smoke test approved
+  models from the inspected `audit-v5` decision labels, then smoke test approved
   public COLA warning-heading crops as positive examples.
 
 Reference:

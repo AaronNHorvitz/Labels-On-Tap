@@ -4,8 +4,8 @@ This script intentionally does **not** train a classifier. It creates a small,
 balanced set of synthetic ``GOVERNMENT WARNING:`` heading crops with explicit,
 separate provenance labels and model-facing decision labels:
 
-* ``font_weight_label``: ``bold``, ``not_bold``, or ``borderline``
-* ``header_text_label``: ``correct``, ``incorrect``, or ``borderline``
+* ``font_weight_label``: ``bold`` or ``not_bold``
+* ``header_text_label``: ``correct`` or ``incorrect``
 * ``quality_label``: ``clean``, ``mild``, or ``degraded``
 * ``visual_font_decision_label``: ``clearly_bold``, ``clearly_not_bold``, or
   ``needs_review_unclear``
@@ -17,6 +17,12 @@ which caused clearly bold crops to be labeled as negative when they were
 generated with a degraded recipe. This audit dataset fixes that mistake by
 keeping the observable labels separate so a human can inspect them before a
 new SVM/XGBoost/CatBoost experiment is trained.
+
+The current ``audit-v5`` policy is deliberately blunt: generated bold fonts are
+bold; generated non-bold fonts are not bold. Medium, semibold, demibold, light,
+thin, book, and regular fonts are non-bold for this regulatory target. The
+third model-facing class is reserved for unreadable/degraded crops that require
+manual review because the text cannot be seen reliably.
 """
 
 from __future__ import annotations
@@ -37,7 +43,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUTPUT_DIR = ROOT / "data/work/typography-preflight/audit-v4"
+DEFAULT_OUTPUT_DIR = ROOT / "data/work/typography-preflight/audit-v5"
 DEFAULT_FONT_ROOT = Path("/usr/share/fonts")
 
 CORRECT_HEADER = "GOVERNMENT WARNING:"
@@ -90,8 +96,9 @@ BOUNDARY_ARTIFACT_HEADERS = [
     "'GOVERNMENT WARNING:'",
 ]
 
-FONT_WEIGHT_LABELS = ("bold", "not_bold", "borderline")
-HEADER_TEXT_LABELS = ("correct", "incorrect", "borderline")
+FONT_WEIGHT_LABELS = ("bold", "not_bold")
+HEADER_TEXT_LABELS = ("correct", "incorrect")
+QUALITY_LABELS = ("clean", "mild", "degraded")
 
 LATIN_FONT_HINTS = (
     "cantarell",   # Standard UI font
@@ -147,6 +154,7 @@ class AuditSample:
     crop_path: str
     font_weight_view_path: str
     header_text_view_path: str
+    quality_view_path: str
     visual_font_decision_view_path: str
     header_decision_view_path: str
 
@@ -186,6 +194,7 @@ def main() -> None:
         "crops",
         "by_font_weight",
         "by_header_text",
+        "by_quality",
         "by_visual_font_decision",
         "by_header_decision",
     ]:
@@ -239,13 +248,22 @@ def discover_fonts(font_root: Path) -> dict[str, list[FontRecord]]:
 
 
 def infer_weight_label(path: Path) -> str | None:
-    """Infer a simple boldness class from the font filename."""
+    """Infer a strict regulatory boldness class from the font filename.
+
+    Notes
+    -----
+    This intentionally has no "borderline" source class. A fontmaker's
+    medium/semibold/demibold face is not a bold face for this experiment. If a
+    rendered crop is unreadable, that is represented by ``quality_label`` and
+    the model-facing ``needs_review_unclear`` target, not by weakening the
+    source font-weight label.
+    """
 
     name = _normalize_font_name(path)
     if "semibold" in name or "semi-bold" in name or "demibold" in name or "demi-bold" in name:
-        return "borderline"
+        return "not_bold"
     if "medium" in name:
-        return "borderline"
+        return "not_bold"
     if any(token in name for token in ["extrabold", "extra-bold", "ultrabold", "ultra-bold", "black", "heavy"]):
         return "bold"
     if re.search(r"(^|[-_])bold($|[-_.])", name):
@@ -281,60 +299,64 @@ def build_samples(
     samples_per_combo: int,
     rng: random.Random,
 ) -> list[AuditSample]:
-    """Generate a balanced grid of font-weight and header-text samples."""
+    """Generate a balanced grid of font-weight, header text, and quality samples."""
 
     samples: list[AuditSample] = []
     counter = 0
     for font_weight_label in FONT_WEIGHT_LABELS:
         for header_text_label in HEADER_TEXT_LABELS:
-            for _ in range(samples_per_combo):
-                sample_id = f"audit_{counter:05d}"
-                counter += 1
-                font = rng.choice(fonts[font_weight_label])
-                source_text, quality_label = choose_text_and_quality(header_text_label, rng)
-                font_size = rng.randint(24, 46)
-                image = render_heading(source_text, font, font_size)
-                image = apply_quality_recipe(image, quality_label, rng)
+            for quality_label in QUALITY_LABELS:
+                for _ in range(samples_per_combo):
+                    sample_id = f"audit_{counter:05d}"
+                    counter += 1
+                    font = rng.choice(fonts[font_weight_label])
+                    source_text = choose_source_text(header_text_label, quality_label, rng)
+                    font_size = rng.randint(24, 46)
+                    image = render_heading(source_text, font, font_size)
+                    image = apply_quality_recipe(image, quality_label, rng)
 
-                filename = (
-                    f"{sample_id}__fw-{font_weight_label}"
-                    f"__text-{header_text_label}__quality-{quality_label}.png"
-                )
-                crop_path = output_dir / "crops" / filename
-                crop_path.parent.mkdir(parents=True, exist_ok=True)
-                image.save(crop_path)
-
-                font_view = output_dir / "by_font_weight" / font_weight_label / filename
-                text_view = output_dir / "by_header_text" / header_text_label / filename
-                visual_decision = visual_font_decision(font_weight_label, quality_label)
-                header_decision = header_text_decision(header_text_label, quality_label)
-                visual_view = output_dir / "by_visual_font_decision" / visual_decision / filename
-                header_decision_view = output_dir / "by_header_decision" / header_decision / filename
-                link_or_copy(crop_path, font_view)
-                link_or_copy(crop_path, text_view)
-                link_or_copy(crop_path, visual_view)
-                link_or_copy(crop_path, header_decision_view)
-
-                samples.append(
-                    AuditSample(
-                        sample_id=sample_id,
-                        font_weight_label=font_weight_label,
-                        header_text_label=header_text_label,
-                        quality_label=quality_label,
-                        visual_font_decision_label=visual_decision,
-                        header_decision_label=header_decision,
-                        source_text=source_text,
-                        font_path=font.path,
-                        font_family=font.family,
-                        font_style=font.style,
-                        font_size=font_size,
-                        crop_path=str(crop_path.relative_to(output_dir)),
-                        font_weight_view_path=str(font_view.relative_to(output_dir)),
-                        header_text_view_path=str(text_view.relative_to(output_dir)),
-                        visual_font_decision_view_path=str(visual_view.relative_to(output_dir)),
-                        header_decision_view_path=str(header_decision_view.relative_to(output_dir)),
+                    filename = (
+                        f"{sample_id}__fw-{font_weight_label}"
+                        f"__text-{header_text_label}__quality-{quality_label}.png"
                     )
-                )
+                    crop_path = output_dir / "crops" / filename
+                    crop_path.parent.mkdir(parents=True, exist_ok=True)
+                    image.save(crop_path)
+
+                    font_view = output_dir / "by_font_weight" / font_weight_label / filename
+                    text_view = output_dir / "by_header_text" / header_text_label / filename
+                    quality_view = output_dir / "by_quality" / quality_label / filename
+                    visual_decision = visual_font_decision(font_weight_label, quality_label)
+                    header_decision = header_text_decision(header_text_label, quality_label)
+                    visual_view = output_dir / "by_visual_font_decision" / visual_decision / filename
+                    header_decision_view = output_dir / "by_header_decision" / header_decision / filename
+                    link_or_copy(crop_path, font_view)
+                    link_or_copy(crop_path, text_view)
+                    link_or_copy(crop_path, quality_view)
+                    link_or_copy(crop_path, visual_view)
+                    link_or_copy(crop_path, header_decision_view)
+
+                    samples.append(
+                        AuditSample(
+                            sample_id=sample_id,
+                            font_weight_label=font_weight_label,
+                            header_text_label=header_text_label,
+                            quality_label=quality_label,
+                            visual_font_decision_label=visual_decision,
+                            header_decision_label=header_decision,
+                            source_text=source_text,
+                            font_path=font.path,
+                            font_family=font.family,
+                            font_style=font.style,
+                            font_size=font_size,
+                            crop_path=str(crop_path.relative_to(output_dir)),
+                            font_weight_view_path=str(font_view.relative_to(output_dir)),
+                            header_text_view_path=str(text_view.relative_to(output_dir)),
+                            quality_view_path=str(quality_view.relative_to(output_dir)),
+                            visual_font_decision_view_path=str(visual_view.relative_to(output_dir)),
+                            header_decision_view_path=str(header_decision_view.relative_to(output_dir)),
+                        )
+                    )
     return samples
 
 
@@ -343,13 +365,7 @@ def visual_font_decision(font_weight_label: str, quality_label: str) -> str:
 
     The source font weight remains provenance. The model target answers the
     operational question: can an automated preflight make a confident call from
-    this raster crop? Fuzzy or degraded crops are routed to human review.
-
-    Medium and semibold source fonts are intentionally treated as
-    ``clearly_not_bold`` when the raster crop is readable. The source-backed
-    requirement is "bold type"; a medium-weight face is evidence that the
-    heading is not in an explicitly bold face, not evidence that the image is
-    unreadable.
+    this raster crop? Degraded/unreadable crops are routed to human review.
     """
 
     if quality_label == "degraded":
@@ -362,20 +378,19 @@ def visual_font_decision(font_weight_label: str, quality_label: str) -> str:
 def header_text_decision(header_text_label: str, quality_label: str) -> str:
     """Return the human-facing header text decision target."""
 
-    if quality_label == "degraded" or header_text_label == "borderline":
+    if quality_label == "degraded":
         return "needs_review_unclear"
     return header_text_label
 
 
-def choose_text_and_quality(header_text_label: str, rng: random.Random) -> tuple[str, str]:
-    """Choose source text and quality without corrupting font-weight labels."""
+def choose_source_text(header_text_label: str, quality_label: str, rng: random.Random) -> str:
+    """Choose source text without corrupting the source decision labels."""
 
     if header_text_label == "correct":
-        return CORRECT_HEADER, rng.choices(["clean", "mild"], weights=[0.7, 0.3], k=1)[0]
-    if header_text_label == "incorrect":
-        return rng.choice(INCORRECT_HEADERS), rng.choices(["clean", "mild"], weights=[0.7, 0.3], k=1)[0]
-    source_text = rng.choice([CORRECT_HEADER, *INCORRECT_HEADERS, *BOUNDARY_ARTIFACT_HEADERS])
-    return source_text, "degraded"
+        return CORRECT_HEADER
+    if quality_label == "degraded":
+        return rng.choice([*INCORRECT_HEADERS, *BOUNDARY_ARTIFACT_HEADERS])
+    return rng.choice(INCORRECT_HEADERS)
 
 
 def render_heading(source_text: str, font: FontRecord, font_size: int) -> Image.Image:
@@ -471,14 +486,15 @@ def write_summary(path: Path, samples: list[AuditSample], args: argparse.Namespa
             "quality_label": count_by(samples, "quality_label"),
             "visual_font_decision_label": count_by(samples, "visual_font_decision_label"),
             "header_decision_label": count_by(samples, "header_decision_label"),
-            "joint_font_weight_header_text": count_joint(samples),
+            "joint_font_weight_header_text_quality": count_joint(samples),
         },
         "important_policy": [
             "Font weight labels are never overwritten by image quality.",
             "A bold but degraded crop remains font_weight_label=bold.",
+            "Medium, semibold, demibold, light, thin, book, and regular fonts are font_weight_label=not_bold.",
             "The model-facing visual_font_decision_label routes degraded/visually unreliable crops to needs_review_unclear.",
-            "Readable medium and semibold crops are labeled clearly_not_bold because the requirement is explicit bold type.",
-            "Header-text borderline means the crop was intentionally degraded enough to require human review.",
+            "Readable non-bold crops are labeled clearly_not_bold because the requirement is explicit bold type.",
+            "The third class is only for unreadable/degraded crops, not for source font weight ambiguity.",
             "Do not train models from this dataset until a human has inspected representative crops.",
         ],
     }
@@ -488,39 +504,38 @@ def write_summary(path: Path, samples: list[AuditSample], args: argparse.Namespa
 def write_readme(path: Path, samples: list[AuditSample]) -> None:
     """Write a short human guide next to the generated dataset."""
 
-    text = f"""# Typography Audit Dataset v4
+    text = f"""# Typography Audit Dataset v5
 
 This dataset is for human inspection before training a new typography
 preflight model.
 
 Total crops: {len(samples)}
 
-Important correction from `svm-v2`: font weight, header text, and image quality
-are separate labels. A bold crop is still labeled `font_weight_label=bold` even
-when the image is degraded.
+Important correction from `audit-v4`: there is no source `borderline` font
+class. Generated bold fonts are bold. Generated non-bold fonts are not bold.
+Medium, semibold, demibold, light, thin, book, and regular fonts are non-bold
+for this regulatory target.
 
-Important correction from `audit-v1`: the model-facing targets are now explicit:
+Font weight, header text, and image quality are separate labels. A bold crop is
+still labeled `font_weight_label=bold` even when the image is degraded. The
+model-facing decision routes that degraded crop to `needs_review_unclear`
+because the raster evidence is not readable enough for automation.
+
+The model-facing targets are:
 
 - `visual_font_decision_label`
 - `header_decision_label`
 
-These route degraded, fuzzy, tiny, and visually ambiguous crops to
-`needs_review_unclear`.
-
-Important correction from `audit-v2`: medium/semibold source fonts are no longer
-automatically treated as review cases. If the crop is readable, they are labeled
-`clearly_not_bold` because the requirement is explicit bold type.
-
-Important correction from `audit-v3`: boundary and whitespace artifacts are no
-longer included in the visible `incorrect` header class. They are held for the
-degraded/borderline review bucket so the header classifier does not learn from
-visually ambiguous edge artifacts.
+These route degraded, fuzzy, broken, faded, cropped, or visually ambiguous crops
+to `needs_review_unclear`. That third class is about visibility, not font
+weight.
 
 Inspect:
 
 - `index.html` for a browser contact sheet.
-- `by_font_weight/` to review `bold`, `not_bold`, and `borderline` groups.
-- `by_header_text/` to review `correct`, `incorrect`, and `borderline` groups.
+- `by_font_weight/` to review `bold` and `not_bold` groups.
+- `by_header_text/` to review `correct` and `incorrect` groups.
+- `by_quality/` to review `clean`, `mild`, and `degraded` groups.
 - `by_visual_font_decision/` to review the actual Model 1 target groups.
 - `by_header_decision/` to review the actual Model 2 target groups.
 - `manifest.csv` for full provenance.
@@ -553,7 +568,7 @@ def write_contact_sheet(path: Path, samples: list[AuditSample]) -> None:
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Typography Audit Dataset v4</title>
+  <title>Typography Audit Dataset v5</title>
   <style>
     body {{ font-family: system-ui, sans-serif; margin: 24px; color: #111; }}
     table {{ border-collapse: collapse; width: 100%; }}
@@ -564,12 +579,14 @@ def write_contact_sheet(path: Path, samples: list[AuditSample]) -> None:
   </style>
 </head>
 <body>
-  <h1>Typography Audit Dataset v4</h1>
+  <h1>Typography Audit Dataset v5</h1>
   <p>
     Separate labels: <code>font_weight_label</code>,
     <code>header_text_label</code>, and <code>quality_label</code>.
     Model-facing targets are <code>visual_font_decision_label</code>
-    and <code>header_decision_label</code>. This is an inspection set only.
+    and <code>header_decision_label</code>. There is no source borderline
+    font class; unreadable image quality drives <code>needs_review_unclear</code>.
+    This is an inspection set only.
   </p>
   <table>
     <thead>
@@ -611,7 +628,7 @@ def count_joint(samples: Iterable[AuditSample]) -> dict[str, int]:
 
     counts: dict[str, int] = {}
     for sample in samples:
-        key = f"{sample.font_weight_label}|{sample.header_text_label}"
+        key = f"{sample.font_weight_label}|{sample.header_text_label}|{sample.quality_label}"
         counts[key] = counts.get(key, 0) + 1
     return dict(sorted(counts.items()))
 
