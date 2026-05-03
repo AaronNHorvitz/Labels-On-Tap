@@ -652,6 +652,8 @@ Tasks:
 - [x] Report Model 1 metrics for `visual_font_decision_label`.
 - [x] Report Model 2 metrics for `header_decision_label`.
 - [x] Document that XGBoost has the best raw F1, SVM has the safest false-clear/latency posture, and CatBoost is not currently buying enough benefit.
+- [x] Add extended 80/20 typography comparison with LightGBM, Logistic Regression, MLP, and strict-veto ensemble.
+- [x] Document that LightGBM wins raw F1 in the extended run, while strict veto is the safest false-clear posture.
 - [ ] Add validation-threshold tuning so weak `clearly_bold` or `correct` predictions route to `needs_review_unclear`.
 - [ ] Keep `GOV_WARNING_HEADER_BOLD_REVIEW` as Needs Review unless validation/test false-clear behavior justifies promotion.
 

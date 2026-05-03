@@ -45,7 +45,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | WineBERT/o domain NER | Experimental token-classification arbiter over OCR text | No | Fast CPU inference, but no lift over government-safe ensemble and unknown public model license |
 | OSA market-domain NER | Experimental Apache-2.0 token-classification arbiter over OCR text | No | Small lift over government-safe ensemble: F1 0.7486, false-clear rate 0.0000 |
 | FoodBaseBERT-NER | Culinary-domain token-classification control | No | Fast and MIT-licensed, but no lift over government-safe ensemble and standalone F1 0.0522 |
-| OpenCV typography preflight | Experimental warning-heading boldness/header classifier | No | SVM, XGBoost, and CatBoost compared on corrected synthetic audit data; not promoted because hard-argmax false-clear rates are still too high |
+| OpenCV typography preflight | Experimental warning-heading boldness/header classifier | No | SVM/XGBoost/CatBoost/LightGBM/Logistic/MLP plus strict-veto ensemble compared on corrected synthetic audit data; strict veto is safest but not promoted |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -252,6 +252,62 @@ Decision:
   typography preflight.
 - Do not add XGBoost/CatBoost to runtime dependencies unless this layer is
   promoted behind a feature flag.
+
+### E015 - Extended Typography 80/20 Comparison And Strict-Veto Ensemble
+
+**Date added:** May 3, 2026
+**Code path:** `experiments/typography_preflight/compare_extended_models.py`
+**Run output:** `data/work/typography-preflight/model-comparison-extended-80-20-v1/`
+**Purpose:** Compare SVM and XGBoost against LightGBM, Logistic Regression, MLP,
+and a strict-veto ensemble using an 80/20 train/test split.
+
+Dataset:
+
+| Split | Crops |
+|---|---:|
+| Train | 8,000 |
+| Test | 2,000 |
+
+Test metrics:
+
+| Task | Model | Accuracy | Macro F1 | False-Clear Rate | Batch ms/crop | Single-row ms |
+|---|---|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9390 | 0.9385 | 0.0218 | 0.0048 | 0.0780 |
+| Visual font decision | XGBoost | 0.9720 | 0.9720 | 0.0293 | 0.0034 | 0.1120 |
+| Visual font decision | LightGBM | 0.9760 | 0.9760 | 0.0263 | 0.0115 | 1.9275 |
+| Visual font decision | Logistic Regression | 0.9655 | 0.9656 | 0.0195 | 0.0048 | 0.0780 |
+| Visual font decision | MLP | 0.9650 | 0.9650 | 0.0203 | 0.0076 | 0.1463 |
+| Visual font decision | Strict-veto ensemble | 0.9115 | 0.9131 | 0.0038 | 0.0320 | 2.6810 |
+| Header text decision | SVM | 0.8560 | 0.8539 | 0.0766 | 0.0041 | 0.0792 |
+| Header text decision | XGBoost | 0.8845 | 0.8832 | 0.1404 | 0.0033 | 0.1144 |
+| Header text decision | LightGBM | 0.8915 | 0.8911 | 0.1149 | 0.0136 | 1.8772 |
+| Header text decision | Logistic Regression | 0.8815 | 0.8811 | 0.1231 | 0.0045 | 0.0789 |
+| Header text decision | MLP | 0.8840 | 0.8841 | 0.0803 | 0.0071 | 0.1466 |
+| Header text decision | Strict-veto ensemble | 0.7505 | 0.7510 | 0.0360 | 0.0338 | 2.7161 |
+
+Strict-veto policy:
+
+```text
+positive class clears only when all base models predict positive
+unanimous non-positive predictions are preserved
+all disagreements route to needs_review_unclear
+```
+
+Interpretation:
+
+- LightGBM is the raw-F1 winner.
+- Logistic Regression and MLP are strong visual-font candidates, but Logistic
+  Regression hit the configured iteration limit during the run and should not be
+  treated as fully optimized.
+- The strict-veto ensemble is the best safety posture because it sharply lowers
+  false clears while preserving sub-3 ms single-crop CPU inference.
+- The ensemble's lower F1 is expected: it creates a larger review queue.
+
+Decision:
+
+- Keep typography as reviewer-support evidence only.
+- If this layer is promoted later, prefer the strict-veto policy or a
+  validation-tuned reject option over a single hard-argmax model.
 
 ### E001 - Remapped OCR Field-Matching Baseline
 

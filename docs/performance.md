@@ -657,3 +657,40 @@ Interpretation:
 - These are hard-argmax results. They are not safe enough for autonomous
   runtime authority; the next step is validation-threshold tuning to route weak
   `bold` or `correct` predictions to `needs_review_unclear`.
+
+## May 3 Extended Typography 80/20 Comparison
+
+A second CPU-only comparison added LightGBM, Logistic Regression, MLP, and a
+strict-veto ensemble.
+
+```text
+run output: data/work/typography-preflight/model-comparison-extended-80-20-v1/
+train:      8,000 crops
+test:       2,000 crops
+```
+
+Test metrics:
+
+| Task | Model | Accuracy | Macro F1 | Weighted F1 | False-Clear Rate | Train s | Batch ms/crop | Single-row ms |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9390 | 0.9385 | 0.9385 | 0.0218 | 5.7 | 0.0048 | 0.0780 |
+| Visual font decision | XGBoost | 0.9720 | 0.9720 | 0.9720 | 0.0293 | 31.9 | 0.0034 | 0.1120 |
+| Visual font decision | LightGBM | 0.9760 | 0.9760 | 0.9760 | 0.0263 | 32.3 | 0.0115 | 1.9275 |
+| Visual font decision | Logistic Regression | 0.9655 | 0.9656 | 0.9655 | 0.0195 | 97.9 | 0.0048 | 0.0780 |
+| Visual font decision | MLP | 0.9650 | 0.9650 | 0.9650 | 0.0203 | 3.7 | 0.0076 | 0.1463 |
+| Visual font decision | Strict-veto ensemble | 0.9115 | 0.9131 | 0.9131 | 0.0038 | 0.0 | 0.0320 | 2.6810 |
+| Header text decision | SVM | 0.8560 | 0.8539 | 0.8538 | 0.0766 | 4.6 | 0.0041 | 0.0792 |
+| Header text decision | XGBoost | 0.8845 | 0.8832 | 0.8832 | 0.1404 | 29.6 | 0.0033 | 0.1144 |
+| Header text decision | LightGBM | 0.8915 | 0.8911 | 0.8910 | 0.1149 | 32.8 | 0.0136 | 1.8772 |
+| Header text decision | Logistic Regression | 0.8815 | 0.8811 | 0.8811 | 0.1231 | 96.2 | 0.0045 | 0.0789 |
+| Header text decision | MLP | 0.8840 | 0.8841 | 0.8841 | 0.0803 | 3.2 | 0.0071 | 0.1466 |
+| Header text decision | Strict-veto ensemble | 0.7505 | 0.7510 | 0.7510 | 0.0360 | 0.0 | 0.0338 | 2.7161 |
+
+Interpretation:
+
+- LightGBM is the raw-F1 winner on both tasks.
+- Logistic Regression and MLP are strong low-latency visual-font candidates.
+- The strict-veto ensemble is the safety winner: visual false-clear rate fell
+  to `0.0038`, and header false-clear rate fell to `0.0360`.
+- The ensemble lowers raw F1 by sending more cases to review. That is an
+  intentional government-safety trade-off, not an implementation failure.

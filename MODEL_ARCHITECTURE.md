@@ -572,6 +572,52 @@ Architectural interpretation:
   validation-tuned reject option that sends weak `bold` or `correct`
   predictions to `needs_review_unclear`.
 
+Extended 80/20 comparison:
+
+```text
+output: data/work/typography-preflight/model-comparison-extended-80-20-v1/
+train:  8,000 synthetic crops
+test:   2,000 synthetic crops
+```
+
+| Task | Model | Accuracy | Macro F1 | False-Clear Rate | Single-row ms |
+|---|---|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9390 | 0.9385 | 0.0218 | 0.0780 |
+| Visual font decision | XGBoost | 0.9720 | 0.9720 | 0.0293 | 0.1120 |
+| Visual font decision | LightGBM | 0.9760 | 0.9760 | 0.0263 | 1.9275 |
+| Visual font decision | Logistic Regression | 0.9655 | 0.9656 | 0.0195 | 0.0780 |
+| Visual font decision | MLP | 0.9650 | 0.9650 | 0.0203 | 0.1463 |
+| Visual font decision | Strict-veto ensemble | 0.9115 | 0.9131 | 0.0038 | 2.6810 |
+| Header text decision | SVM | 0.8560 | 0.8539 | 0.0766 | 0.0792 |
+| Header text decision | XGBoost | 0.8845 | 0.8832 | 0.1404 | 0.1144 |
+| Header text decision | LightGBM | 0.8915 | 0.8911 | 0.1149 | 1.8772 |
+| Header text decision | Logistic Regression | 0.8815 | 0.8811 | 0.1231 | 0.0789 |
+| Header text decision | MLP | 0.8840 | 0.8841 | 0.0803 | 0.1466 |
+| Header text decision | Strict-veto ensemble | 0.7505 | 0.7510 | 0.0360 | 2.7161 |
+
+Strict-veto ensemble:
+
+```mermaid
+flowchart TD
+    A["Heading crop features"] --> B["SVM"]
+    A --> C["XGBoost"]
+    A --> D["LightGBM"]
+    A --> E["Logistic Regression"]
+    A --> F["MLP"]
+    B --> G{"All models agree<br/>on positive class?"}
+    C --> G
+    D --> G
+    E --> G
+    F --> G
+    G -->|"Yes"| H["Clear positive evidence"]
+    G -->|"No, but unanimous non-positive"| I["Preserve non-positive class"]
+    G -->|"Disagreement"| J["needs_review_unclear"]
+```
+
+The ensemble's value is not maximum F1. Its value is a conservative reviewer
+queue: fewer false clears, more manual review. That is a better fit for a
+government preflight tool than an aggressive single-model argmax.
+
 Reference:
 
 ```text

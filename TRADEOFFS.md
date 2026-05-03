@@ -794,6 +794,38 @@ next required step is validation-threshold tuning so low-confidence `bold` or
 `correct` predictions route to `needs_review_unclear` instead of becoming false
 clears.
 
+**Extended 80/20 comparison:** A second run added LightGBM, Logistic Regression,
+a small MLP, and a strict-veto ensemble over SVM/XGBoost/LightGBM/Logistic
+Regression/MLP.
+
+| Task | Model | Accuracy | Macro F1 | False-Clear Rate | Batch ms/crop | Single-row ms |
+|---|---|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9390 | 0.9385 | 0.0218 | 0.0048 | 0.0780 |
+| Visual font decision | XGBoost | 0.9720 | 0.9720 | 0.0293 | 0.0034 | 0.1120 |
+| Visual font decision | LightGBM | 0.9760 | 0.9760 | 0.0263 | 0.0115 | 1.9275 |
+| Visual font decision | Logistic Regression | 0.9655 | 0.9656 | 0.0195 | 0.0048 | 0.0780 |
+| Visual font decision | MLP | 0.9650 | 0.9650 | 0.0203 | 0.0076 | 0.1463 |
+| Visual font decision | Strict-veto ensemble | 0.9115 | 0.9131 | 0.0038 | 0.0320 | 2.6810 |
+| Header text decision | SVM | 0.8560 | 0.8539 | 0.0766 | 0.0041 | 0.0792 |
+| Header text decision | XGBoost | 0.8845 | 0.8832 | 0.1404 | 0.0033 | 0.1144 |
+| Header text decision | LightGBM | 0.8915 | 0.8911 | 0.1149 | 0.0136 | 1.8772 |
+| Header text decision | Logistic Regression | 0.8815 | 0.8811 | 0.1231 | 0.0045 | 0.0789 |
+| Header text decision | MLP | 0.8840 | 0.8841 | 0.0803 | 0.0071 | 0.1466 |
+| Header text decision | Strict-veto ensemble | 0.7505 | 0.7510 | 0.0360 | 0.0338 | 2.7161 |
+
+The strict-veto ensemble is intentionally conservative:
+
+```text
+positive class clears only if every base model predicts positive
+unanimous non-positive predictions are preserved
+all disagreements route to needs_review_unclear
+```
+
+This is the best fit for a government pilot posture. It lowers raw F1 because it
+creates a larger review queue, but it lowers false clears far more than any
+single hard-argmax model. That makes it more appropriate as reviewer-support
+evidence than as an automatic clearance engine.
+
 The promotion gate is unchanged: no typography model becomes runtime authority unless it improves decision quality while preserving a safe false-clear posture. Until then, `GOV_WARNING_HEADER_BOLD_REVIEW` remains `Needs Review`.
 
 **Runtime implication:** The current safe deployment posture is to treat the SVM as an experimental typography preflight, not as unchecked final authority. Ambiguous crops still route to `Needs Review`, and the deployed app should continue using `GOV_WARNING_HEADER_BOLD_REVIEW` until real warning-heading crops and stronger negative validation support promotion.
