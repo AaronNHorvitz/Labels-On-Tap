@@ -394,6 +394,25 @@ Historical note: OSA outputs currently use the same
 script was built for WineBERT/o. Those outputs are still gitignored experiment
 artifacts, not production runtime assets.
 
+FoodBaseBERT-NER can be tested as the culinary-domain control:
+
+```bash
+podman run --rm \
+  -e HF_HOME=/app/data/work/ocr-engine-sweep/domain-ner-cache/hf \
+  -e HF_HUB_DISABLE_XET=1 \
+  -v "$PWD":/app:Z \
+  -w /app \
+  --entrypoint bash \
+  localhost/labels-on-tap-app:local \
+  -lc "pip install --no-cache-dir 'transformers==4.57.1' safetensors >/tmp/domain-ner-pip.log && \
+       python experiments/ocr_engine_sweep/wineberto_entity_benchmark.py \
+         --model-id Dizex/FoodBaseBERT-NER \
+         --model-label FoodBaseBERT-NER \
+         --model-license mit \
+         --entity-preset food \
+         --run-name foodbasebert-ner-combined-smoke-30"
+```
+
 ## Notes
 
 - This harness measures OCR extraction only. Field-level comparison should use

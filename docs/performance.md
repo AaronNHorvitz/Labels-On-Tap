@@ -458,6 +458,34 @@ Interpretation:
 - This should be tested on the 100-application calibration set before any
   deployment decision.
 
+### FoodBaseBERT-NER Culinary-Domain Control
+
+FoodBaseBERT-NER was tested as a deliberately skeptical "culinary cousin"
+control. It is a MIT-licensed food-entity token classifier, but the model only
+recognizes `FOOD`, so it should not be expected to understand TTB regulatory
+taxonomy.
+
+| Model / policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Mean BERT / app | Max BERT / app |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| FoodBaseBERT-NER, entities only | 0.5134 | 1.0000 | 0.0268 | 1.0000 | 0.0522 | 0.0000 | 286.65 ms | 547 ms |
+| FoodBaseBERT-NER + government-safe ensemble | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 | 286.65 ms | 547 ms |
+
+Threshold sensitivity:
+
+| Threshold | F1 | Recall | False-clear rate |
+|---:|---:|---:|---:|
+| 80 | 0.7166 | 0.5982 | 0.0714 |
+| 85 | 0.7374 | 0.5893 | 0.0089 |
+| 90 | 0.7416 | 0.5893 | 0.0000 |
+| 95 | 0.7345 | 0.5804 | 0.0000 |
+
+Interpretation:
+
+- FoodBaseBERT-NER is fast enough for a post-OCR CPU arbiter.
+- It has almost no standalone recall on alcohol-label field support.
+- At the safe threshold, it does not improve the government-safe ensemble.
+- Lower thresholds reintroduce false clears, so the model is pruned.
+
 ## May 2 COLA Cloud Stratified Calibration
 
 After the sample-pack smoke test, a bounded COLA Cloud API sampling workflow

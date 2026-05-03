@@ -77,6 +77,15 @@ ENTITY_PRESETS = {
         "country_of_origin": {"mrkt_char"},
         "applicant_or_producer": {"prdc_char"},
     },
+    "food": {
+        "brand_name": {"food"},
+        "fanciful_name": {"food"},
+        "class_type": {"food"},
+        "alcohol_content": set(),
+        "net_contents": set(),
+        "country_of_origin": set(),
+        "applicant_or_producer": set(),
+    },
 }
 LOWER_RISK_ENTITY_FIELDS = {"brand_name", "fanciful_name", "class_type", "country_of_origin", "applicant_or_producer"}
 

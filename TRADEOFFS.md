@@ -297,6 +297,37 @@ so the next gate is a 100-application calibration run. The model still lacks
 native ABV/net-contents semantics and its labels are market taxonomy rather than
 TTB regulatory taxonomy.
 
+#### FoodBaseBERT-NER Culinary-Domain Control
+
+FoodBaseBERT-NER was tested as the culinary-domain control because it is a
+clearly licensed token classifier, but its model card says it recognizes only
+one entity type: `FOOD`. That makes it useful as a negative-control check for
+the "nearby food/wine/recipe models might help" hypothesis.
+
+For this smoke, `FOOD` entities were mapped only to brand, fanciful-name, and
+class/type style evidence. Numeric compliance fields and country-of-origin were
+left to the deterministic OCR ensemble.
+
+| Model / policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Mean BERT / app | Max BERT / app |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| FoodBaseBERT-NER, entities only | 0.5134 | 1.0000 | 0.0268 | 1.0000 | 0.0522 | 0.0000 | 286.65 ms | 547 ms |
+| FoodBaseBERT-NER + government-safe ensemble | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 | 286.65 ms | 547 ms |
+
+Threshold sensitivity:
+
+| Threshold | Strategy | F1 | Recall | False-clear rate |
+|---:|---|---:|---:|---:|
+| 80 | FoodBaseBERT-NER + government-safe ensemble | 0.7166 | 0.5982 | 0.0714 |
+| 85 | FoodBaseBERT-NER + government-safe ensemble | 0.7374 | 0.5893 | 0.0089 |
+| 90 | FoodBaseBERT-NER + government-safe ensemble | 0.7416 | 0.5893 | 0.0000 |
+| 95 | FoodBaseBERT-NER + government-safe ensemble | 0.7345 | 0.5804 | 0.0000 |
+
+**Decision:** Prune the culinary-domain path for the Monday prototype.
+FoodBaseBERT-NER is fast enough and MIT-licensed, but it adds no measured lift
+over the existing government-safe ensemble and has almost no standalone recall
+for alcohol regulatory fields. Lowering its threshold creates false clears,
+which is the wrong trade-off for government triage.
+
 ---
 
 ### 3.2.2 Graph Scorer as Post-OCR Evidence, Not OCR Replacement

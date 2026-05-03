@@ -44,6 +44,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | Deterministic OCR ensemble | Combines docTR, PaddleOCR, and OpenOCR field evidence | No | Government-safe smoke improved F1 to 0.7416 with zero shuffled-negative false clears |
 | WineBERT/o domain NER | Experimental token-classification arbiter over OCR text | No | Fast CPU inference, but no lift over government-safe ensemble and unknown public model license |
 | OSA market-domain NER | Experimental Apache-2.0 token-classification arbiter over OCR text | No | Small lift over government-safe ensemble: F1 0.7486, false-clear rate 0.0000 |
+| FoodBaseBERT-NER | Culinary-domain token-classification control | No | Fast and MIT-licensed, but no lift over government-safe ensemble and standalone F1 0.0522 |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -801,6 +802,69 @@ Decision:
 - Thresholds below `90` are unsafe for the current government triage posture because false clears reappear.
 - The Apache-2.0 license is materially cleaner than WineBERT/o's unknown license, but the entity taxonomy is still market/sales oriented rather than TTB regulatory.
 - The next gate is a 100-application calibration run before any deployment decision.
+
+### E016 - FoodBaseBERT-NER Culinary-Domain Control
+
+**Date:** May 3, 2026
+**Run outputs:**
+
+```text
+data/work/ocr-engine-sweep/wineberto-entity/foodbasebert-ner-combined-smoke-30/
+data/work/ocr-engine-sweep/wineberto-entity/foodbasebert-ner-combined-smoke-30-t80/
+data/work/ocr-engine-sweep/wineberto-entity/foodbasebert-ner-combined-smoke-30-t85/
+data/work/ocr-engine-sweep/wineberto-entity/foodbasebert-ner-combined-smoke-30-t95/
+```
+
+**Input:** The same 20-application / 30-image smoke set from E006-E015
+**Purpose:** Test whether a culinary-domain token classifier can add useful post-OCR field evidence, and use it as a negative-control check against domain-adjacent but non-regulatory models.
+
+Model tested:
+
+| Model | Purpose | License posture |
+|---|---|---|
+| `Dizex/FoodBaseBERT-NER` | Token classifier trained to recognize one entity type: `FOOD`. `FOOD` was mapped only to brand/fanciful/class-style support. | Public model card lists MIT. |
+
+Command pattern:
+
+```bash
+podman run --rm \
+  -e HF_HOME=/app/data/work/ocr-engine-sweep/domain-ner-cache/hf \
+  -e HF_HUB_DISABLE_XET=1 \
+  -v "$PWD":/app:Z \
+  -w /app \
+  --entrypoint bash \
+  localhost/labels-on-tap-app:local \
+  -lc "pip install --no-cache-dir 'transformers==4.57.1' safetensors >/tmp/domain-ner-pip.log && \
+       python experiments/ocr_engine_sweep/wineberto_entity_benchmark.py \
+         --model-id Dizex/FoodBaseBERT-NER \
+         --model-label FoodBaseBERT-NER \
+         --model-license mit \
+         --entity-preset food \
+         --run-name foodbasebert-ner-combined-smoke-30"
+```
+
+Overall result:
+
+| Model / policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Mean BERT / app | Max BERT / app |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| FoodBaseBERT-NER, entities only | 0.5134 | 1.0000 | 0.0268 | 1.0000 | 0.0522 | 0.0000 | 286.65 ms | 547 ms |
+| FoodBaseBERT-NER + government-safe ensemble | 0.7946 | 1.0000 | 0.5893 | 1.0000 | 0.7416 | 0.0000 | 286.65 ms | 547 ms |
+
+Threshold sensitivity:
+
+| Threshold | Strategy | F1 | Recall | False-clear rate |
+|---:|---|---:|---:|---:|
+| 80 | FoodBaseBERT-NER + government-safe ensemble | 0.7166 | 0.5982 | 0.0714 |
+| 85 | FoodBaseBERT-NER + government-safe ensemble | 0.7374 | 0.5893 | 0.0089 |
+| 90 | FoodBaseBERT-NER + government-safe ensemble | 0.7416 | 0.5893 | 0.0000 |
+| 95 | FoodBaseBERT-NER + government-safe ensemble | 0.7345 | 0.5804 | 0.0000 |
+
+Decision:
+
+- Prune FoodBaseBERT-NER from Monday runtime consideration.
+- It is fast enough and cleanly licensed, but it has almost no standalone recall on alcohol regulatory fields.
+- It does not improve the government-safe ensemble at the safe threshold.
+- Lower thresholds reintroduce false clears, so the model fails the government triage posture.
 
 ## Current Best Result
 
