@@ -1128,6 +1128,98 @@ podman run --rm -v "$PWD":/app:Z -w /app \
 # 78 passed
 ```
 
+Statistical caveat and next step:
+
+```text
+The runtime model is a bridge model. It is better than positive-only real data
+and better than synthetic-only negatives, but its negative/review side still
+leans on synthetic data. Aaron correctly flagged that the cleaner statistical
+design is a v6 dataset that seeds the synthetic typography generator with real
+COLA visual context and includes real no-warning panels, synthetic non-bold
+mutations, degraded review crops, and a strict application-level split.
+```
+
+Next recommended execution model:
+
+```text
+Use GPT-5.4 High for the v6 dataset/build/train task.
+Use GPT-5.5 Extra High only for architecture review, debugging, and final
+statistical/writeup synthesis.
+```
+
+V6 dataset design:
+
+```text
+root: data/work/typography-preflight/v6/
+
+inputs:
+  real COLA positive warning-heading crops
+  v5/v6 synthetic bold positives
+  v5/v6 synthetic non-bold negatives
+  real-COLA-background mutated non-bold warning crops
+  degraded/unreadable review crops
+  real no-warning image panels from multi-panel applications
+
+split:
+  by TTB ID / application ID only
+  no crop-level leakage across train/validation/test
+```
+
+V6 labels:
+
+| Layer | Question | Labels |
+|---|---|---|
+| Panel warning detection | Does this image panel contain the government warning heading? | `warning_present`, `warning_absent`, `unreadable_review` |
+| Heading text check | If a heading crop exists, is the heading text correct? | `correct_government_warning`, `incorrect_heading_text`, `unreadable_review` |
+| Heading boldness | If a heading crop exists, is the heading bold? | `bold`, `not_bold`, `unreadable_review` |
+
+Multi-panel rule:
+
+```text
+One COLA application can have front/back/neck/side panels.
+Not every panel needs the government warning.
+Scan all panels.
+At the application level, warning evidence clears only if at least one panel
+contains a valid warning heading that clears text/caps/boldness.
+No panel-level warning should not be treated as a failure by itself.
+No application-level valid warning evidence should route to Needs Review or
+Fail depending policy.
+```
+
+V6 model comparison:
+
+```text
+classical:
+  Logistic Regression
+  SVM
+  LightGBM
+  CatBoost if already available
+
+CNN challenger:
+  small ResNet18/MobileNet-style crop classifier
+  task: bold / not_bold / unreadable_review
+  purpose: prove whether image-learned features beat engineered OpenCV features
+  promotion condition: lower false-clear at usable recall and acceptable CPU
+  latency
+```
+
+V6 reporting:
+
+```text
+metrics:
+  false-clear rate
+  macro F1
+  per-class precision/recall
+  real approved bold clear rate
+  review-routing rate
+  CPU mean/p95 latency
+  confusion matrix for each model
+
+contact sheets:
+  one HTML sheet per label bucket
+  include filename, TTB ID, source panel, assigned label, and crop preview
+```
+
 ---
 
 ## 8. COLA Cloud Quota And Pull Strategy

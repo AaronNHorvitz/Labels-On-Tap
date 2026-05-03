@@ -608,6 +608,73 @@ strong bold evidence. It still sends weak/noisy/no-crop evidence to Needs
 Review, which preserves the low false-clear posture.
 ```
 
+Important statistical caveat:
+
+```text
+This is a bridge model, not the final clean typography model. It mixed real
+approved COLA positive heading crops with synthetic negative/review examples,
+which is reasonable for emergency MVP evidence but still leaves a synthetic-
+negative domain gap. The next task is to build a v6 dataset that seeds the
+synthetic typography pipeline with real COLA image context and trains/tests both
+classical models and a small CNN baseline.
+```
+
+## Immediate Next Task - v6 Typography Dataset And CNN Baseline
+
+Use GPT-5.4 High for this task. It is mostly structured engineering: build the
+dataset, generate contact sheets, train models, compare metrics, and document
+the result. Save GPT-5.5 Extra High for architectural judgment, weird failures,
+and final synthesis.
+
+The v6 correction is based on Aaron's concern that the model should not lean on
+positive-only real data or synthetic-only negatives. The correct design is a
+mixed, application-split dataset:
+
+```text
+real COLA positive warning-heading crops
++ v5/v6 synthetic bold positives
++ v5/v6 synthetic non-bold negatives
++ real-COLA-background mutated non-bold crops
++ degraded/unreadable review crops
++ no-warning panel negatives
+```
+
+Separate the problem into layers:
+
+| Layer | Question | Labels |
+|---|---|---|
+| Panel warning detection | Does this image panel contain the government warning heading? | `warning_present`, `warning_absent`, `unreadable_review` |
+| Heading text check | If a heading crop exists, is the heading text correct? | `correct_government_warning`, `incorrect_heading_text`, `unreadable_review` |
+| Heading boldness | If a heading crop exists, is the heading bold? | `bold`, `not_bold`, `unreadable_review` |
+
+Multi-panel application rule:
+
+```text
+Scan every label panel for the application.
+Do not penalize a front/neck/side panel just because it lacks the warning.
+Application-level warning evidence passes when at least one panel contains a
+valid warning heading that clears text/caps/boldness requirements.
+If no panel contains valid warning evidence, route to Needs Review or Fail
+depending the configured policy.
+```
+
+Hard requirements for v6:
+
+- Split by TTB ID/application ID, never by crop.
+- Keep all generated crops, contact sheets, metrics, and trained checkpoints
+  under gitignored `data/work/typography-preflight/v6/`.
+- Commit code/docs/manifests only, not raw public images or model checkpoints,
+  unless a tiny explicit runtime export is intentionally promoted.
+- Generate HTML contact sheets for human inspection before trusting labels.
+- Train classical models first: Logistic Regression, SVM, LightGBM, CatBoost if
+  available.
+- Train a small CNN baseline as a challenger only: ResNet18/MobileNet-style
+  crop classifier for `bold`, `not_bold`, `unreadable_review`.
+- Compare false-clear rate, macro F1, real approved bold clear rate,
+  review-routing rate, and CPU latency.
+- Promote only if the v6 model beats or materially clarifies the current
+  logistic bridge and stays safe on false clears.
+
 Reference framing:
 
 ```text
