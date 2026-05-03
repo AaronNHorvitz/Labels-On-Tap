@@ -39,7 +39,7 @@ The sprint priority is now:
 - [x] `country_of_origin` and `imported` are first-class application fields.
 - [x] Demo fixtures/data scaffold exists.
 - [x] Tests scaffold exists.
-- [x] Last known complete local test run: `pytest -q` passed with 67 tests.
+- [x] Last known complete local test run: `pytest -q` passed with 69 tests.
 - [x] Local Podman image rebuild passed on May 2, 2026.
 - [x] Local container smoke passed on May 2, 2026 for `/health`, `/`, and `/demo/clean`.
 - [x] Public COLA ETL scripts exist for search-result imports, public form fetches, form parsing, label image download, curated fixture export, and stratified sampling.
@@ -73,6 +73,7 @@ The sprint priority is now:
 - [x] DistilRoBERTa was trained/evaluated on the new field-support pair manifests with a 3,000-application locked holdout.
 - [x] RoBERTa-base was trained/evaluated on the same field-support pair manifests as a capacity/control comparison.
 - [x] Current trained text-pair arbiter winner is DistilRoBERTa: holdout F1 **0.999872**, false-clear rate **0.000128**, CPU mean **15.76 ms/pair** on weak field-pair supervision.
+- [x] Armored OCR conveyor layer exists for subprocess-isolated tri-engine OCR runs.
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
 - [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the COLA Cloud-derived 100-application calibration test split.
@@ -443,7 +444,39 @@ Documentation deliverables:
 
 ---
 
-## Layer 2B - Trainable Field-Support Classifier
+## Layer 2B - Armored OCR Conveyor
+
+**Priority:** P0 before max-win tri-engine OCR execution
+
+The max-win architecture is:
+
+```text
+docTR + PaddleOCR + OpenOCR
+  -> DistilRoBERTa field-support arbiter
+  -> graph-aware evidence scorer
+  -> deterministic compliance rules
+```
+
+Before running that over thousands of images, the conveyor protects the run from corrupt files and native OCR crashes.
+
+- [x] Add `docs/ocr-conveyor.md`.
+- [x] Add `scripts/run_ocr_conveyor.py`.
+- [x] Preflight image signatures before OCR.
+- [x] Validate image decode with Pillow before OCR.
+- [x] Write an image manifest under gitignored `data/work/ocr-conveyor/`.
+- [x] Write an OCR chunk job manifest under gitignored `data/work/ocr-conveyor/`.
+- [x] Run OCR chunks in subprocesses so native engine crashes cannot kill the parent run.
+- [x] Record stdout/stderr, return code, row counts, and status per chunk.
+- [x] Support resume by skipping completed chunks unless `--force` is passed.
+- [ ] Run a dry-run conveyor manifest for train/validation.
+- [ ] Run a small real smoke conveyor with all three engines.
+- [ ] Run full train/validation conveyor after smoke passes.
+- [ ] Attach conveyor OCR JSON to field-support pair manifests.
+- [ ] Run holdout conveyor only after preprocessing, model, and threshold choices are frozen.
+
+---
+
+## Layer 2C - Trainable Field-Support Classifier
 
 **Priority:** P0/P1 support track after corpus expansion
 
@@ -542,15 +575,16 @@ Legal guidance is valuable, but it should explain deterministic findings rather 
 3. Keep docTR as the deployed default unless PaddleOCR/OpenOCR or an ensemble wins the measured comparison and fits the CPU SLA.
 4. Use the current 6,000-record public-data corpus without replacement.
 5. Use the current 2,000 train / 1,000 validation / 3,000 locked-holdout split.
-6. Attach OCR evidence to the field-support manifests before training DistilRoBERTa/RoBERTa or graph scorers.
-7. Freeze OCR engine choice, OCR preprocessing, field-normalization, model family, and pass/review thresholds.
-8. Evaluate the locked test split and report field-level match rates, false-clear rate, latency, and limitations.
-9. Keep locked-test applications untouched until settings are frozen.
-10. Reconcile a small subset back to direct TTB printable forms if the public endpoint stabilizes.
-11. Export 10-25 curated official public fixtures for committed demo/test use.
-12. Build synthetic negative coverage for the highest-risk mismatch cases.
-13. Update README, `MODEL_ARCHITECTURE.md`, `MODEL_LOG.md`, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the final measurement story.
-14. Redeploy only after local OCR/evaluation changes pass.
+6. Run the armored OCR conveyor over train/validation before attaching OCR evidence.
+7. Attach OCR evidence to the field-support manifests before retraining DistilRoBERTa or graph scorers.
+8. Freeze OCR engine choice, OCR preprocessing, field-normalization, model family, and pass/review thresholds.
+9. Evaluate the locked test split and report field-level match rates, false-clear rate, latency, and limitations.
+10. Keep locked-test applications untouched until settings are frozen.
+11. Reconcile a small subset back to direct TTB printable forms if the public endpoint stabilizes.
+12. Export 10-25 curated official public fixtures for committed demo/test use.
+13. Build synthetic negative coverage for the highest-risk mismatch cases.
+14. Update README, `MODEL_ARCHITECTURE.md`, `MODEL_LOG.md`, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the final measurement story.
+15. Redeploy only after local OCR/evaluation changes pass.
 
 ---
 

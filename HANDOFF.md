@@ -45,11 +45,13 @@ The app is already deployed and working. The current sprint has shifted from app
 | `MODEL_ARCHITECTURE.md` | End-to-end model architecture, split design, and promotion gates |
 | `MODEL_LOG.md` | OCR/model experiment ledger |
 | `docs/performance.md` | Measured performance and calibration metrics |
+| `docs/ocr-conveyor.md` | Armored tri-engine OCR conveyor design |
 | `TRADEOFFS.md` | Architecture and data trade-offs |
 | `DEMO_SCRIPT.md` | Reviewer demo flow |
 | `PHASE1_REJECTION.md` | Known-bad/rejection checklist |
 | `experiments/graph_ocr/` | Experimental graph-aware OCR evidence scorer |
 | `experiments/field_support/` | Experimental BERT-family field-support classifiers |
+| `scripts/run_ocr_conveyor.py` | Resumable subprocess-isolated OCR runner |
 
 ## Current App State
 
@@ -61,7 +63,7 @@ The app is already deployed and working. The current sprint has shifted from app
 - Batch upload exists.
 - CSV export exists.
 - `country_of_origin` and `imported` are first-class fields.
-- Tests last passed with `67 passed`.
+- Tests last passed with `69 passed`.
 
 Useful verification:
 
@@ -193,6 +195,34 @@ data/work/field-support-models/roberta-base-field-support-v1-e1/
 Next gate: attach docTR/PaddleOCR/OpenOCR candidate evidence to the same pair
 manifests and rerun DistilRoBERTa before making any OCR-quality claim.
 
+## OCR Conveyor Layer
+
+The max-win architecture is still:
+
+```text
+docTR + PaddleOCR + OpenOCR
+  -> DistilRoBERTa field-support arbiter
+  -> graph-aware evidence scorer
+  -> deterministic compliance
+```
+
+Before running it overnight, use the armored conveyor:
+
+```bash
+python scripts/run_ocr_conveyor.py \
+  --split train \
+  --split validation \
+  --engine doctr \
+  --engine paddleocr \
+  --engine openocr \
+  --chunk-size 8 \
+  --timeout-seconds 900
+```
+
+It preflights images, skips corrupt files, runs OCR chunks in subprocesses,
+records stdout/stderr per chunk, and resumes completed jobs. Outputs stay under
+gitignored `data/work/ocr-conveyor/tri-engine-v1/`.
+
 ## GPU Setup
 
 Host:
@@ -307,8 +337,8 @@ not pixel-level OCR recognizers.
 
 1. Keep the deployed app stable.
 2. Use `MODEL_LOG.md` as the experiment ledger for all OCR/model runs.
-3. Attach OCR evidence to the existing field-support pair manifests.
-4. Run docTR/PaddleOCR/OpenOCR cached OCR over the development cohort.
+3. Run the OCR conveyor over train/validation for docTR, PaddleOCR, and OpenOCR.
+4. Attach conveyor OCR evidence to the existing field-support pair manifests.
 5. Rerun DistilRoBERTa on OCR-backed candidate evidence.
 6. Compare them against deterministic ensemble and graph-aware evidence scorer.
 7. Freeze thresholds, then evaluate once on the 3,000-record holdout cohort.

@@ -144,12 +144,12 @@ The evaluation corpus should be built from accepted public COLA records because
 they provide a safe public proxy for the form-data-to-label-artwork matching
 task.
 
-The planned design is a locked application-level split:
+The current evaluation design is a locked application-level split:
 
 ```text
-60% train
-20% validation
-20% locked test
+2,000 train applications
+1,000 validation applications
+3,000 locked holdout applications
 ```
 
 The split must happen at the COLA application level before field-pair examples
@@ -162,9 +162,9 @@ flowchart TD
     B --> C["Stratify by month,<br/>product family, import/domestic,<br/>panel complexity"]
     C --> D["Sample applications<br/>without replacement"]
     D --> E["Application-level split"]
-    E --> F["Train 60%"]
-    E --> G["Validation 20%"]
-    E --> H["Locked test 20%"]
+    E --> F["Train<br/>2,000 applications"]
+    E --> G["Validation<br/>1,000 applications"]
+    E --> H["Locked holdout<br/>3,000 applications"]
     F --> I["Generate field-support examples"]
     G --> J["Tune thresholds and model selection"]
     H --> K["Final reported metrics only"]
@@ -178,6 +178,41 @@ The validation set is used for:
 - preprocessing decisions.
 
 The locked test set is used once after those settings are frozen.
+
+### OCR Conveyor Safety Layer
+
+The max-win experimental path runs three OCR engines before BERT/graph scoring:
+
+```text
+docTR + PaddleOCR + OpenOCR
+  -> DistilRoBERTa field-support arbiter
+  -> graph-aware evidence scorer
+  -> deterministic compliance rules
+```
+
+That path must run through the armored OCR conveyor before final evidence
+attachment. The conveyor preflights image bytes, validates Pillow decode,
+creates a resumable image/job manifest, and executes OCR chunks in subprocesses
+so a native engine failure cannot kill the entire run.
+
+```mermaid
+flowchart TD
+    A["Application split manifests"] --> B["Discover label image files"]
+    B --> C["Signature + Pillow preflight"]
+    C -->|invalid| D["Record skipped image"]
+    C -->|valid| E["OCR chunk manifest"]
+    E --> F["docTR subprocess chunks"]
+    E --> G["PaddleOCR subprocess chunks"]
+    E --> H["OpenOCR subprocess chunks"]
+    F --> I["Normalized OCR JSON + rows.csv"]
+    G --> I
+    H --> I
+    I --> J["OCR evidence attachment"]
+    J --> K["DistilRoBERTa + graph scorer"]
+```
+
+The conveyor is implemented in `scripts/run_ocr_conveyor.py` and documented in
+`docs/ocr-conveyor.md`. Outputs remain under gitignored `data/work/`.
 
 After final test reporting, a production model may be retrained on train plus
 validation, or eventually on all approved labeled internal data, but the

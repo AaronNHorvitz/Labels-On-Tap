@@ -91,7 +91,7 @@ Last known local test state:
 
 ```text
 pytest -q
-67 passed
+69 passed
 ```
 
 Deployment smoke commands:
@@ -784,6 +784,47 @@ Regenerate the field-support target/pair manifests:
 python scripts/build_field_support_dataset.py --force
 ```
 
+Run the armored OCR conveyor for train/validation:
+
+```bash
+python scripts/run_ocr_conveyor.py \
+  --split train \
+  --split validation \
+  --engine doctr \
+  --engine paddleocr \
+  --engine openocr \
+  --chunk-size 8 \
+  --timeout-seconds 900
+```
+
+Dry-run the holdout conveyor manifest only:
+
+```bash
+python scripts/run_ocr_conveyor.py \
+  --split holdout \
+  --engine doctr \
+  --engine paddleocr \
+  --engine openocr \
+  --chunk-size 8 \
+  --dry-run
+```
+
+Do not run the holdout OCR/evaluation until OCR preprocessing, evidence
+attachment, DistilRoBERTa threshold, and graph/compliance settings are frozen.
+The conveyor output is gitignored:
+
+```text
+data/work/ocr-conveyor/tri-engine-v1/
+  manifest/images.csv
+  manifest/jobs.csv
+  jobs/<job_id>/stdout.log
+  jobs/<job_id>/stderr.log
+  jobs/<job_id>/result.json
+  runs/<job_id>/rows.csv
+  runs/<job_id>/ocr/<engine>/*.json
+  summary.json
+```
+
 Rerun the current BERT-family text-pair experiments:
 
 ```bash
@@ -837,8 +878,9 @@ curl http://localhost:8000/health
 1. Keep the public deployment stable.
 2. Use `data/work/cola/evaluation-splits/field-support-v1/` as the canonical
    split source.
-3. Attach OCR evidence to the generated field-support pair manifests.
-4. Run docTR/PaddleOCR/OpenOCR over the development cohort and cache outputs.
+3. Run the armored OCR conveyor over train/validation for docTR, PaddleOCR,
+   and OpenOCR.
+4. Attach conveyor OCR evidence to the generated field-support pair manifests.
 5. Rerun DistilRoBERTa on OCR-backed candidate evidence.
 6. Compare all serious candidates with identical statistics and latency tables.
 7. Freeze thresholds and architecture.

@@ -560,6 +560,7 @@ Operational handoff and experiment tracking:
 | [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) | End-to-end model architecture, evaluation design, and promotion gates. |
 | [MODEL_LOG.md](MODEL_LOG.md) | OCR and graph-evidence experiment ledger. |
 | [TASKS.md](TASKS.md) | Final sprint command center. |
+| [docs/ocr-conveyor.md](docs/ocr-conveyor.md) | Armored tri-engine OCR conveyor for large offline evidence runs. |
 | [docs/performance.md](docs/performance.md) | Measured timings, OCR calibration results, and model metrics. |
 
 ```text
