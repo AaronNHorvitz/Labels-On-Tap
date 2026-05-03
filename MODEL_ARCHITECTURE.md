@@ -98,7 +98,11 @@ There are three separate data classes. They must stay separate.
 
 The official public COLA examples are used for evaluation, not runtime. The app
 should be able to run without COLA Cloud, TTB registry scraping, or any hosted
-data service.
+data service. The current measured OCR/model calibration set is COLA
+Cloud-derived public COLA data because the direct TTB attachment endpoint was
+unstable during the sprint. The direct TTB Public COLA Registry parser remains
+the official printable-form path, but those direct attachment downloads are not
+the source of the current model metrics.
 
 ### Multi-Panel Application Contract
 
@@ -459,4 +463,3 @@ flowchart TD
 A custom HO-GNN/TPS/SVTR curved-text vision model remains a future research
 path. It should only be pursued if mature OCR engines and post-OCR arbitration
 plateau because OCR fails to detect text in the first place.
-

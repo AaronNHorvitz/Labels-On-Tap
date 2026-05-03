@@ -111,7 +111,7 @@ See [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) for the end-to-end diagrams.
 
 **Decision:** Alternate OCR engines such as PaddleOCR and OpenOCR/SVTRv2 should be evaluated as experimental local adapters before they are allowed to replace docTR in the deployed app.
 
-**Why:** The curved-text research strongly suggests that modern pre-trained OCR systems may handle cylindrical, circular, rotated, and irregular label text better than the current baseline. However, the assignment rewards a working, reliable prototype. A promising model should not become the production path until it wins on the same public COLA calibration data and stays inside the latency budget.
+**Why:** The curved-text research strongly suggests that modern pre-trained OCR systems may handle cylindrical, circular, rotated, and irregular label text better than the current baseline. However, the assignment rewards a working, reliable prototype. A promising model should not become the production path until it wins on the same COLA Cloud-derived public calibration data and stays inside the latency budget.
 
 **Candidate order:**
 
@@ -301,7 +301,7 @@ Threshold sensitivity:
 the first BERT-family candidate to show an incremental lift over the
 government-safe deterministic ensemble while preserving zero false clears. The
 measured lift is one additional true positive in `224` field-support examples,
-so the next gate is a 100-application calibration run. The model still lacks
+so the next gate is a COLA Cloud-derived 100-application calibration run. The model still lacks
 native ABV/net-contents semantics and its labels are market taxonomy rather than
 TTB regulatory taxonomy.
 
@@ -344,7 +344,7 @@ which is the wrong trade-off for government triage.
 
 **Why:** OCR engines and graph scorers solve different problems. PaddleOCR/OpenOCR can improve what text is read from a label image. The graph scorer can improve how OCR fragments are assembled and matched to expected application fields. These layers can stack, but they should be measured independently.
 
-**Current evidence:** The first safety-weighted graph scorer improved F1 from `0.7714` to `0.8714` and lowered false-clear rate from `0.0439` to `0.0132` on the initial 100-application calibration test split with shuffled negative examples.
+**Current evidence:** The first safety-weighted graph scorer improved F1 from `0.7714` to `0.8714` and lowered false-clear rate from `0.0439` to `0.0132` on the initial COLA Cloud-derived 100-application calibration test split with shuffled negative examples.
 
 Graph-aware scorer POC:
 
@@ -390,7 +390,7 @@ flowchart TB
 **Future experiment design:**
 
 ```text
-1. Reuse the public COLA calibration set with all associated label panels.
+1. Reuse the COLA Cloud-derived public calibration set with all associated label panels.
 2. Run docTR, PaddleOCR, and OpenOCR/SVTRv2 as parallel local OCR sensors.
 3. Normalize and cluster overlapping OCR boxes across engines.
 4. Weak-label fields from public COLA metadata using conservative fuzzy alignment.
@@ -492,7 +492,7 @@ flowchart TB
 
 **Implication:** The resulting corpus is stronger than a hand-picked demo set, but it is still not a complete population study. It is a practical stratified cluster sample from public registry exports, not a simple random sample of every COLA application. It also cannot include confidential pending, denied, or Needs Correction applications.
 
-**Current local result:** Direct TTB registry exports produced `810` parsed public forms and `1,433` discovered label-panel attachment records. A May 2 audit found that the previously saved direct-registry attachment files were HTML error pages rather than valid raster images, so those attachment rows were marked pending for future redownload. While TTBOnline.gov was unavailable/resetting, the COLA Cloud development bridge produced a separate 1,500-record stratified plan from 7,788 candidates and a 100-record/169-image local docTR calibration set. Bulk data remains under gitignored `data/work/`, and all image paths are validated before being treated as OCR-ready.
+**Current local result:** Direct TTB registry exports produced `810` parsed public forms and `1,433` discovered label-panel attachment records. A May 2 audit found that many previously saved direct-registry attachment files were HTML/error responses rather than valid raster images, so those attachment rows were marked pending for future redownload. The current OCR/model metrics are **not** based on those direct attachment downloads. While TTBOnline.gov was unavailable/resetting, the COLA Cloud development bridge produced a separate 1,500-record stratified plan from 7,788 candidates and a 100-record/169-image local docTR calibration set. Bulk data remains under gitignored `data/work/`, and all image paths are validated before being treated as OCR-ready.
 
 ---
 
@@ -527,7 +527,7 @@ flowchart TB
 
 **Security posture:** API keys must live only in `.env` or local shell environment variables and must never be committed. Bulk downloads, cached API responses, images, and evaluation outputs stay under gitignored `data/work/`. If an API pull is used, it should be logged with source, timestamp, query parameters, counts, and provider plan so the sample can be reproduced or explained.
 
-**Data governance posture:** COLA Cloud is a pragmatic fallback over a weekend outage, not the product architecture. The README and submission notes should state that the deployed prototype remains local-first and can run without COLA Cloud; the commercial data source was used only to obtain public example records/images for OCR evaluation when TTBOnline.gov was unavailable.
+**Data governance posture:** COLA Cloud is a pragmatic fallback over a weekend outage, not the product architecture. The README and submission notes should state that the deployed prototype remains local-first and can run without COLA Cloud; the commercial data source was used only to obtain public example records/images for OCR evaluation when TTBOnline.gov was unavailable. The measured sprint metrics should be described as **COLA Cloud-derived public COLA calibration results**, not as direct-registry TTB download results.
 
 **Evaluation design:** The preferred final measurement corpus is 3,000 public
 COLA applications sampled without replacement. For pure OCR/rule calibration,

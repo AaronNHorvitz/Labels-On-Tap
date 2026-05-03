@@ -38,7 +38,9 @@ The evaluation language follows that product posture:
 | Field extraction accuracy | How often OCR found the right brand, class/type, ABV, net contents, country of origin, or warning text? |
 | Per-label latency | Whether useful feedback returns near the stakeholder target of about five seconds per label after warmup. |
 
-Any sprint metrics should be read as prototype validation, not production certification. The current public-data work uses public COLA registry records as a realistic, safe proxy for COLAs Online application data and uploaded label images.
+Any sprint metrics should be read as prototype validation, not production certification. The current public-data work uses public COLA records as a realistic, safe proxy for COLAs Online application data and uploaded label images.
+
+**Current calibration-source note:** The latest OCR/model metrics are measured on a COLA Cloud-derived public COLA calibration set, not on raw images downloaded directly from `TTBOnline.gov`. The direct TTB Public COLA Registry ETL remains in the repository as the official printable-form path, but the May 2 attachment audit found many direct attachment downloads were HTML/error responses rather than usable raster images. COLA Cloud is being used only as a development bridge to obtain public record metadata and valid public label images while the direct TTB endpoint is unstable.
 
 A production-grade evaluation would use a larger random or stratified holdout set across product types, statuses, dates, form versions, and known regulatory/form-change boundaries. For this take-home, the practical goal is narrower: prove that public COLA application data and label images can be parsed, OCR'd, compared, and evaluated with conservative human-review routing.
 
@@ -67,12 +69,12 @@ The current local data story has two branches:
 
 | Branch | Purpose | Current Result |
 |---|---|---|
-| Direct TTB Public Registry ETL | Preserve the official printable-form path and parser. | `810` parsed public COLA forms and `1,433` discovered attachment records; attachment endpoint was returning HTML errors during the May 2 audit, so invalid files were marked pending rather than treated as images. |
-| COLA Cloud public-data bridge | Obtain validated public label rasters while TTBOnline.gov was unavailable/resetting. | `1,500` selected applications from `7,788` candidates, with the first `100` details and `169` label images evaluated by local docTR. |
+| Direct TTB Public Registry ETL | Preserve the official printable-form path and parser. | `810` parsed public COLA forms and `1,433` discovered attachment records; attachment endpoint returned many HTML/error responses during the May 2 audit, so invalid files were marked pending rather than trusted as images. This branch is not the source of the current model metrics. |
+| COLA Cloud public-data bridge | Obtain validated public label rasters while TTBOnline.gov was unavailable/resetting. | Current source of the measured OCR/model calibration metrics: `1,500` selected applications from `7,788` candidates, with the first `100` details and `169` label images evaluated by local docTR. |
 
 COLA Cloud is not a runtime dependency and its hosted OCR enrichment is not used as Labels On Tap's measured model output. It is a development-only source for public records/images. The deployed app still runs local OCR or deterministic fixture OCR. Bulk forms, API responses, image files, SQLite data, and OCR outputs remain under gitignored `data/work/`.
 
-The current 100-record calibration result is intentionally conservative: all applications route to `Needs Review` unless every attempted field is strongly supported. After fixing the COLA Cloud mapping for `abv`, `volume`, and `volume_unit`, the measured field results are:
+The current 100-record COLA Cloud-derived calibration result is intentionally conservative: all applications route to `Needs Review` unless every attempted field is strongly supported. After fixing the COLA Cloud mapping for `abv`, `volume`, and `volume_unit`, the measured field results are:
 
 | Field | Attempted | Match Rate |
 |---|---:|---:|
@@ -138,7 +140,7 @@ DistilRoBERTa/RoBERTa field-support plan are documented in
 
 | Layer | Role | Current Status | Promotion Gate |
 |---|---|---|---|
-| docTR | Current local OCR baseline with geometry/confidence output. | Implemented and measured on the first 100 public COLA calibration records. | Remains default unless another local engine clearly beats it. |
+| docTR | Current local OCR baseline with geometry/confidence output. | Implemented and measured on the first 100 COLA Cloud-derived public calibration records. | Remains default unless another local engine clearly beats it. |
 | PaddleOCR / PP-OCR | Candidate local OCR engine with orientation, detection, and recognition support for irregular label imagery. | 30-image smoke shows higher F1/accuracy/recall than docTR, with a higher false-clear rate. | Must keep the F1 lift on a larger calibration set while controlling false clears with field-specific thresholds/rules. |
 | OpenOCR / SVTRv2 | Candidate zero-shot irregular-text OCR path, especially interesting for curved/cylindrical text. | 30-image smoke is fastest and normalized to the same OCR schema, but lower F1 than docTR/PaddleOCR in the first field-support test. | Must prove whether speed and curved-text handling translate into better field evidence on a larger sample or as supplemental evidence. |
 | PARSeq | Scene-text recognizer for irregular crops, tested over OpenOCR-detected boxes. | 30-image crop-recognition smoke is fast, including autoregressive mode, but lower F1 than docTR/PaddleOCR/OpenOCR in this setup. | Must be treated as a recognizer-stage experiment unless paired with a detector and measured end-to-end. |
@@ -244,7 +246,7 @@ This could later become a Higher-Order Graph Neural Network or Hypergraph Neural
 
 A first experimental version of this near-term graph layer now exists under
 `experiments/graph_ocr/`. It trains a small PyTorch graph-aware evidence scorer
-over cached local OCR boxes. On the initial 100-application calibration test,
+over cached local OCR boxes. On the initial COLA Cloud-derived 100-application calibration test,
 the safety-weighted GPU run improved F1 from `0.7714` to `0.8714` and reduced
 false-clear rate from `0.0439` to `0.0132` on shuffled negative examples. This
 is a proof of signal, not a final accuracy claim; the full HO-GNN/TPS/SVTR
@@ -554,6 +556,7 @@ Operational handoff and experiment tracking:
 | File | Purpose |
 |---|---|
 | [HANDOFF.md](HANDOFF.md) | Restart guide for a fresh coding session. |
+| [HANDOFF_DETAILED_2026-05-03.md](HANDOFF_DETAILED_2026-05-03.md) | Detailed restart-grade handoff with data-source distinctions, model results, quota strategy, and next steps. |
 | [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) | End-to-end model architecture, evaluation design, and promotion gates. |
 | [MODEL_LOG.md](MODEL_LOG.md) | OCR and graph-evidence experiment ledger. |
 | [TASKS.md](TASKS.md) | Final sprint command center. |

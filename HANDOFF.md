@@ -7,6 +7,10 @@
 
 Read this first if a new Codex session starts cold.
 
+For the full restart-grade handoff, including today's experiment history,
+data-source distinctions, COLA Cloud quota strategy, and next-step playbook,
+read [HANDOFF_DETAILED_2026-05-03.md](HANDOFF_DETAILED_2026-05-03.md).
+
 ## Current Mission
 
 Labels On Tap is a Treasury/TTB take-home prototype. The core proof is:
@@ -82,6 +86,8 @@ COLA Cloud development bridge:
 - `1,500` selected applications from `7,788` candidates.
 - First `100` details fetched.
 - `169` label images OCR'd through local docTR.
+- Current OCR/model metrics are COLA Cloud-derived public calibration metrics,
+  not direct TTB attachment-download metrics.
 
 Key local paths:
 

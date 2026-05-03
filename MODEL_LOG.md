@@ -32,8 +32,8 @@ As sample size grows, measured performance should be expected to move closer to 
 |---|---|---:|---|
 | Synthetic fixtures | Deterministic demo and known-bad checks | No | Committed under `data/fixtures/demo/` |
 | TTB Public COLA Registry ETL | Official printable-form path and parser | No | `810` parsed forms, direct attachment endpoint was unstable |
-| COLA Cloud API | Development-only bridge for public label rasters | No | `1,500` selected records from `7,788` candidates |
-| Cached docTR OCR | Baseline OCR box/text output | No | `100` applications, `169` label images |
+| COLA Cloud API | Development-only bridge for public label rasters | No | Source of current measured OCR/model calibration metrics; `1,500` selected records from `7,788` candidates |
+| Cached docTR OCR | Baseline OCR box/text output | No | `100` COLA Cloud-derived public applications, `169` label images |
 | Local graph scorer | Experimental post-OCR evidence model | No | Best POC run improved F1 and false-clear rate |
 | PaddleOCR sweep | Experimental alternate local OCR candidate | No | 30-image smoke improved F1/accuracy/recall, with higher false-clear rate |
 | OpenOCR / SVTRv2 sweep | Experimental alternate local OCR candidate | No | 30-image smoke was fastest, with lower F1 in first field-support test |
@@ -88,7 +88,7 @@ Notes:
 
 **Date:** May 2, 2026
 **Run output:** `data/work/graph-ocr/calibration-100-poc/`
-**Input:** Same 100-application calibration set
+**Input:** Same COLA Cloud-derived 100-application calibration set
 **Purpose:** Mechanical proof that OCR boxes can be converted to graph examples and trained.
 
 Outcome:
@@ -106,7 +106,7 @@ Decision:
 
 **Date:** May 2, 2026
 **Run output:** `data/work/graph-ocr/gpu-smoke-5/`
-**Input:** Same 100-application calibration set
+**Input:** Same COLA Cloud-derived 100-application calibration set
 **Purpose:** Confirm the local RTX 4090 and CUDA PyTorch stack can train the graph scorer.
 
 Command:
@@ -135,7 +135,7 @@ Decision:
 
 **Date:** May 2, 2026
 **Run output:** `data/work/graph-ocr/gpu-safety-neg2-e40/`
-**Input:** Same 100-application calibration set
+**Input:** Same COLA Cloud-derived 100-application calibration set
 **Purpose:** Test graph scoring with a higher loss penalty for shuffled negative examples and a dev-tuned false-clear cap.
 
 Command:
@@ -175,13 +175,13 @@ Decision:
 
 - This is the best current graph POC.
 - It improves F1 and lowers false clears on shuffled negatives.
-- It is still a 100-application calibration result, not a production claim.
+- It is still a COLA Cloud-derived 100-application calibration result, not a production claim.
 
 ### E005 - Safety-Weighted Graph Scorer, Negative Weight 3.0
 
 **Date:** May 2, 2026
 **Run output:** `data/work/graph-ocr/gpu-safety-neg3-e40/`
-**Input:** Same 100-application calibration set
+**Input:** Same COLA Cloud-derived 100-application calibration set
 **Purpose:** Check whether stronger negative weighting improves safety further.
 
 Command:
@@ -801,7 +801,7 @@ Decision:
 - The lift is small: one additional true positive in `224` field-support examples.
 - Thresholds below `90` are unsafe for the current government triage posture because false clears reappear.
 - The Apache-2.0 license is materially cleaner than WineBERT/o's unknown license, but the entity taxonomy is still market/sales oriented rather than TTB regulatory.
-- The next gate is a 100-application calibration run before any deployment decision.
+- The next gate is a COLA Cloud-derived 100-application calibration run before any deployment decision.
 
 ### E016 - FoodBaseBERT-NER Culinary-Domain Control
 
@@ -880,7 +880,7 @@ false_clear_tolerance: 0.0
 
 This result supports a careful claim:
 
-> A first experimental graph-aware evidence scorer improved field-support classification on the 100-application calibration test split while lowering false clears on shuffled negative examples.
+> A first experimental graph-aware evidence scorer improved field-support classification on the COLA Cloud-derived 100-application calibration test split while lowering false clears on shuffled negative examples.
 
 This result does not support a production claim:
 
@@ -896,7 +896,7 @@ because the lift came from one additional true positive in a small smoke sample.
 ## Known Limitations
 
 - The current graph labels are weak labels from accepted application fields and shuffled negatives, not human-labeled OCR spans.
-- The test split is drawn from the 100-application calibration set, not the planned locked 1,500 holdout.
+- The test split is drawn from the COLA Cloud-derived 100-application calibration set, not the planned locked holdout.
 - The graph scorer and deterministic ensemble cannot recover text no OCR engine detected.
 - Class/type remains difficult and probably needs better product taxonomy handling, better OCR, or field-specific candidate generation.
 - The current model processes variable-size graphs one at a time; batching/padding should be added before larger runs.
@@ -904,7 +904,7 @@ because the lift came from one additional true positive in a small smoke sample.
 
 ## Next Experiments
 
-1. Run docTR, PaddleOCR, OpenOCR, the government-safe ensemble, and OSA hybrid evidence on the 100-application / 169-image calibration set.
+1. Run docTR, PaddleOCR, OpenOCR, the government-safe ensemble, and OSA hybrid evidence on the COLA Cloud-derived 100-application / 169-image calibration set.
 2. Build the expanded application-level public-data split before generating field-pair examples.
 3. For trained Transformer experiments, use `60%` train / `20%` validation / `20%` locked test, with no TTB ID crossing splits.
 4. Train a DistilRoBERTa field-support classifier before RoBERTa-base; tune thresholds on validation only.

@@ -58,16 +58,16 @@ The sprint priority is now:
 - [x] COLA Cloud smoke imported 5 applications and 8 real label images locally.
 - [x] COLA Cloud smoke OCR ran through local docTR in the Podman app image.
 - [x] COLA Cloud balanced plan selected **1,500 applications** from **7,788 candidates** across May 1, 2025 through April 30, 2026.
-- [x] COLA Cloud balanced calibration fetched **100 detail records** and evaluated **169 label images** with local docTR.
+- [x] COLA Cloud-derived public calibration fetched **100 detail records** and evaluated **169 label images** with local docTR.
 - [x] COLA Cloud field mapping now populates `alcohol_content` from `abv` and `net_contents` from `volume` + `volume_unit`.
 - [x] COLA Cloud field evaluation now includes initial class/type synonym expansion.
-- [x] Balanced calibration latency met Sarah's target: mean **1,413 ms/application**, max **3,620 ms/application**.
-- [x] Balanced calibration now measures ABV and net contents: alcohol-content match rate **91.49% of 94 attempted**, net-contents match rate **83.72% of 86 attempted**.
+- [x] COLA Cloud-derived balanced calibration latency met Sarah's target: mean **1,413 ms/application**, max **3,620 ms/application**.
+- [x] COLA Cloud-derived balanced calibration now measures ABV and net contents: alcohol-content match rate **91.49% of 94 attempted**, net-contents match rate **83.72% of 86 attempted**.
 - [x] Sampler supports an exact `calibration` / `holdout` split for the planned **1,500 / 1,500** design.
 - [x] No-network plan-only check produced a **3,000-record** selected sample with exact split counts: **1,500 calibration**, **1,500 holdout**.
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
-- [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the 100-application calibration test split.
+- [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the COLA Cloud-derived 100-application calibration test split.
 - [x] Curved-text OCR research changed the next experiment: evaluate mature pre-trained local OCR engines before attempting a custom HO-GNN/TPS/SVTR vision model.
 - [x] PaddleOCR / PP-OCR is the first alternate OCR engine candidate to benchmark against docTR.
 - [x] OpenOCR / SVTRv2 is the second alternate OCR engine candidate and now has a 30-image smoke benchmark.
@@ -80,13 +80,14 @@ The sprint priority is now:
 - [x] WineBERT/o domain-NER smoke benchmark exists and was run against combined docTR + PaddleOCR + OpenOCR text.
 - [x] WineBERT/o was evaluated for deployment and not promoted because it did not improve the government-safe ensemble, lacks ABV/net-contents coverage, is wine-specific, and has unknown public model licensing.
 - [x] OSA market-domain NER smoke benchmark exists and was run against combined docTR + PaddleOCR + OpenOCR text.
-- [x] OSA was evaluated as a lightweight Apache-2.0 BERT-family arbiter; the first smoke improved hybrid F1 to **0.7486** with false-clear rate **0.0000**, but it is not promoted without a 100-application calibration run.
+- [x] OSA was evaluated as a lightweight Apache-2.0 BERT-family arbiter; the first smoke improved hybrid F1 to **0.7486** with false-clear rate **0.0000**, but it is not promoted without a COLA Cloud-derived 100-application calibration run.
 - [x] FoodBaseBERT-NER culinary-domain control was evaluated and pruned: entity-only F1 **0.0522**, hybrid F1 **0.7416**, false-clear rate **0.0000** at the safe threshold.
 - [x] OpenVINO/ONNX/INT8 on EC2 `m7i` is a future CPU optimization path, not a current Lightsail performance claim.
 - [x] OCR engine sweep scaffold exists under `experiments/ocr_engine_sweep/`.
 - [x] `MODEL_LOG.md` records OCR/model experiments and caveats.
 - [x] `MODEL_ARCHITECTURE.md` records the end-to-end model architecture, train/validation/test plan, and model promotion gates.
 - [x] `HANDOFF.md` records current state, GPU setup, data paths, and restart steps.
+- [x] `HANDOFF_DETAILED_2026-05-03.md` records the full restart-grade state, data-source distinction, model results, quota strategy, and future execution plan.
 - [x] Existing public sampling used deterministic seeds and sampling without replacement.
 - [x] Existing public sampling produced two non-overlapping samples: 300 applications and 500 applications.
 - [x] TTB's public processing-time page reports **57,636 label applications received in 2026 as of May 1, 2026**.
@@ -165,7 +166,7 @@ Use accepted public COLA applications as positive ground truth. The goal is not 
 - [ ] Pause additional TTB registry fetching while the public endpoint is resetting.
 - [ ] When direct TTB endpoint stabilizes, reconcile a subset of COLA Cloud records back to printable public forms where possible.
 - [ ] Retry pending public label image downloads with session warming, Pillow validation, and polite delay/retry settings.
-- [ ] Use COLA Cloud sample pack/API only as development/silver-label fallback; do not make it a runtime dependency.
+- [ ] Use COLA Cloud sample pack/API only as a development public-data bridge; do not make it a runtime dependency.
 - [ ] Pull a bounded COLA Cloud API corpus only after the API key is stored locally in `.env`.
 - [ ] Keep COLA Cloud API requests slow enough to respect the provider burst limit and detail-view quota.
 - [x] Before scaling beyond the 100-record calibration set, map ABV/net-content fields from COLA Cloud details where available.
@@ -341,10 +342,10 @@ Benchmark stages:
 - [x] Run ASTER crop-recognition on the same 30-image mixed-shape smoke benchmark.
 - [x] Run FCENet + ASTER detector-recognizer on the same 30-image mixed-shape smoke benchmark.
 - [x] Run ABINet crop-recognition on the same 30-image mixed-shape smoke benchmark.
-- [ ] Run the same 100-application / 169-image public COLA calibration set used by docTR.
+- [ ] Run the same 100-application / 169-image COLA Cloud-derived public calibration set used by docTR.
 - [x] Compare 30-image smoke against docTR using identical field-support scoring logic.
-- [ ] Compare 100-application calibration set against docTR using identical field-matching logic.
-- [ ] If a candidate wins on the 100-application set, run it on the 1,500-record calibration split.
+- [ ] Compare the 100-application COLA Cloud-derived calibration set against docTR using identical field-matching logic.
+- [ ] If a candidate wins on the 100-application set, run it on the larger COLA Cloud-derived calibration split.
 - [ ] Freeze preprocessing, thresholds, and engine choice before evaluating the 1,500-record locked holdout.
 
 Metrics to compare:

@@ -114,7 +114,7 @@ Measured locally with Podman on port `8001` after rebuilding
 This verifies the local container shape before any AWS redeploy. It is not a
 public latency benchmark.
 
-## May 2 COLA Cloud Sample OCR Smoke
+## May 2 COLA Cloud-Derived Public OCR Smoke
 
 TTBOnline.gov remained unavailable/resetting during the weekend sprint, so the
 COLA Cloud sample pack was used as a development-only fallback corpus. The
@@ -142,8 +142,9 @@ normalization and/or product-class synonym handling.
 
 ## May 2 Graph-Aware OCR Evidence POC
 
-An experimental PyTorch graph scorer was trained on the existing 100-application
-calibration set using cached local OCR boxes. The model does not replace OCR. It
+An experimental PyTorch graph scorer was trained on the existing COLA
+Cloud-derived 100-application calibration set using cached local OCR boxes. The
+model does not replace OCR. It
 scores whether OCR fragments support one expected application field, using
 box-level geometry, KNN graph context, text-similarity features, field type, and
 panel-level summary features.
@@ -159,7 +160,7 @@ The best initial GPU run was:
   --false-clear-tolerance 0.0
 ```
 
-On the held-out test split from the 100-application calibration set:
+On the held-out test split from the COLA Cloud-derived 100-application calibration set:
 
 | Metric | Baseline Fuzzy Matcher | Graph-Aware Scorer |
 |---|---:|---:|
@@ -455,7 +456,7 @@ Interpretation:
 - OSA is Apache-2.0, which is materially cleaner than WineBERT/o's unknown
   license, but the label taxonomy is still sales/market oriented rather than
   TTB-regulatory.
-- This should be tested on the 100-application calibration set before any
+- This should be tested on the COLA Cloud-derived 100-application calibration set before any
   deployment decision.
 
 ### FoodBaseBERT-NER Culinary-Domain Control
@@ -486,7 +487,7 @@ Interpretation:
 - At the safe threshold, it does not improve the government-safe ensemble.
 - Lower thresholds reintroduce false clears, so the model is pruned.
 
-## May 2 COLA Cloud Stratified Calibration
+## May 2 COLA Cloud-Derived Public Stratified Calibration
 
 After the sample-pack smoke test, a bounded COLA Cloud API sampling workflow
 created a 1,500-record stratified evaluation plan under gitignored
@@ -514,7 +515,8 @@ with local docTR inside the Podman app image.
 | Alcohol-content match rate | 91.49% of 94 attempted |
 | Net-contents match rate | 83.72% of 86 attempted |
 
-This is a calibration result, not final model accuracy. It proves that the
+This is a COLA Cloud-derived public calibration result, not final model accuracy
+and not a direct-TTB-download metric. It proves that the
 bounded API corpus, image download, local OCR, and field-comparison pipeline all
 work on recent real public COLA label images within Sarah's 5-second usability
 target.
