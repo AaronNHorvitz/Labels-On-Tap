@@ -189,13 +189,27 @@ Purpose:
 - local OCR and field-matching calibration,
 - not a runtime dependency.
 
-Current local counts:
+Current local counts after the staged May 3 acquisition:
 
 ```text
-selected/list-level IDs across all sample-plan folders: 3987 unique
-current primary selected plan: 3000 records in official-sample-3000-balanced
-fully fetched detail/application records: 202 unique
-downloaded label image files: 338
+official-sample-3000-balanced:
+  selected list IDs: 3000
+  fetched detail/application records: 3000
+  parsed application JSON files: 3000
+  downloaded/mirrored label image files: 5353
+  failures: 0
+
+official-sample-next-3000-balanced:
+  selected list IDs: 3000
+  fetched detail/application records: 3000
+  parsed application JSON files: 3000
+  downloaded/mirrored label image files: 5082
+  failures: 0
+
+combined first + extension cohorts:
+  unique fetched public COLA applications: 6000
+  combined label image files: 10435
+  overlap between cohorts: 0
 ```
 
 Important current sample folders:
@@ -205,15 +219,19 @@ data/work/cola/colacloud-api-detail-probe/
 data/work/cola/official-sample-1500/
 data/work/cola/official-sample-1500-balanced/
 data/work/cola/official-sample-3000-balanced/
+data/work/cola/official-sample-next-3000-balanced/
 ```
 
-Current measured calibration source:
+Current measured calibration source before the full-corpus rerun:
 
 ```text
 data/work/cola/official-sample-1500-balanced/
 100 fetched detail records
 169 label images
 ```
+
+The 100-record metrics are now historical smoke/calibration results. They
+should be superseded by a full-corpus rerun over the 6,000-record acquisition.
 
 Metrics from OCR/model experiments should be described as:
 
@@ -247,30 +265,53 @@ randomness: fixed seed
 replacement: without replacement
 ```
 
-Current preferred split if training a field-support classifier:
+Final current corpus design:
 
 ```text
-60% train
-20% validation
-20% locked test
+development cohort:
+  data/work/cola/official-sample-3000-balanced
+  3000 unique public COLA applications
+
+locked holdout cohort:
+  data/work/cola/official-sample-next-3000-balanced
+  3000 unique public COLA applications
+
+overlap:
+  0 TTB IDs
 ```
 
-Current alternative for pure OCR/rule calibration:
+Preferred model-selection split inside the development cohort:
 
 ```text
-1500 calibration/tuning
-1500 locked holdout
+2000 train applications
+1000 validation/calibration applications
+3000 locked holdout applications in the second cohort
 ```
 
 Important leakage rule:
 
 Split by application/TTB ID **before** generating field-pair examples. The same TTB ID must never appear in train, validation, and test.
 
+Recommended training/testing workflow:
+
+```text
+1. Split the first 3000-record cohort into train and validation.
+2. Generate field-support examples only after the application-level split.
+3. Train/tune BERT-family arbiters, graph scorer, deterministic ensemble, and
+   OCR-engine policies on train/validation only.
+4. Lock the final architecture, features, and thresholds.
+5. Optional production refit: retrain the chosen learned scorer on all 3000
+   development applications while preserving validation-derived or
+   out-of-fold-calibrated thresholds.
+6. Evaluate exactly once on the second 3000-record holdout cohort.
+```
+
 Margin-of-error notes:
 
 ```text
 n = 1500 locked holdout -> about +/- 2.5 percentage points conservative 95% MOE
 n = 600 locked test -> about +/- 4.0 percentage points conservative 95% MOE
+n = 3000 locked test -> about +/- 1.8 percentage points conservative 95% MOE
 ```
 
 Those are sampling margins for binary proportion estimates, not promises of production accuracy.
@@ -461,6 +502,63 @@ rollback exists,
 runtime dependencies are acceptable.
 ```
 
+### 7.1 Full-Corpus Model Statistics Rerun
+
+The project can now rerun the side-by-side statistics table on a much more
+defensible corpus. The realistic rerun scope is:
+
+```text
+OCR sensors:
+  docTR
+  PaddleOCR
+  OpenOCR / SVTRv2
+
+Deterministic / learned arbiters:
+  single-engine deterministic field support
+  government-safe OCR ensemble
+  OSA/domain NER hybrid if dependency path is stable
+  DistilRoBERTa field-support classifier
+  RoBERTa field-support classifier if time allows
+  graph-aware post-OCR evidence scorer
+
+Historical/pruned recognizer experiments:
+  PARSeq
+  ASTER
+  FCENet + ASTER
+  ABINet
+```
+
+The first group should be rerun end-to-end on the larger corpus. The historical
+crop-recognizer and FCENet experiments can be rerun for completeness, but they
+were already pruned from runtime promotion because the tested crop contract had
+severe recall degradation or CPU-latency risk. Do not let those optional reruns
+block the final model decision.
+
+For every candidate that reaches the comparison table, report:
+
+```text
+accuracy
+precision
+recall
+specificity
+F1
+false-clear rate
+confusion counts
+per-field F1
+mean / median / p95 latency
+application-level Pass / Needs Review / Fail rate
+```
+
+Important limitation:
+
+```text
+Official public COLA data provides weak supervision for field-support scoring.
+It does not provide character-level, polygon-level, or word-level OCR ground
+truth. Therefore, it supports training/tuning BERT-style field-support arbiters
+and threshold policies, but not honest claims of fine-tuning OCR recognizers
+unless separate OCR annotations are created.
+```
+
 ---
 
 ## 8. COLA Cloud Quota And Pull Strategy
@@ -480,37 +578,46 @@ Operational interpretation:
 - Downloading image URLs may or may not be separately metered in the product UI, but it is not described as a separate "detail view" in the pricing page. Treat image download volume as bandwidth/time risk, not the primary quota risk, unless the usage endpoint proves otherwise.
 - Always run `client.get_usage()` before and after a small pull to verify real quota movement.
 
-Recommended next pull:
+Current quota after the completed staged acquisition:
 
 ```text
-Do not jump straight to 7500 details.
-Pull in staged batches with usage checks.
+detail views: 6102 / 10000
+list records: 42506 / 1000000
 ```
 
-Suggested stages:
+Completed stages:
 
 ```text
-Stage A: 100 additional details/images
-Stage B: 500 additional details/images
-Stage C: expand to 3000 total fetched details/images
-Stage D: consider 6000 total only if quota, time, and storage are healthy
+Stage A: 100-record safety pull
+Stage B: 600-record checkpoint pull
+Stage C: 1500-record checkpoint pull
+Stage D: complete official-sample-3000-balanced to 3000 records
+Stage E: plan no-overlap official-sample-next-3000-balanced extension
+Stage F: 1000-record extension checkpoint
+Stage G: complete extension to 3000 records
 ```
 
-Why not 7500 immediately:
+Why stop at 6000 for now:
 
 - detail views are valuable and limited,
 - OCR time grows quickly,
-- a 6000-record corpus already supports a strong 3000/3000 calibration/holdout story for deterministic OCR/rule evaluation,
-- if training a classifier, a 6000-record 60/20/20 split gives 3600 train, 1200 validation, and 1200 locked test, which is already credible for a take-home.
+- a 6000-record corpus already supports a strong 3000/3000
+  development/holdout story,
+- the second 3000-record cohort gives a locked test with about `+/- 1.8`
+  percentage-point conservative margin of error for binary proportions near 50%,
+- remaining detail quota should be reserved for recovery pulls, spot checks,
+  curated examples, and any failed-record repair.
 
-Recommended current target:
+Recommended current data policy:
 
 ```text
-6000 total selected public applications if quota allows,
-but first fetch enough to reach 3000 full detail/image records.
+Do not pull more official data until full-corpus OCR/model evaluation proves
+the next bottleneck.
 ```
 
-The existing `official-sample-3000-balanced` folder has a 3000-record selected plan but no fetched details/images yet. Use that as the next controlled expansion point.
+The existing `official-sample-3000-balanced` and
+`official-sample-next-3000-balanced` folders are now the primary official public
+evaluation corpus.
 
 ---
 
@@ -579,15 +686,20 @@ curl http://localhost:8000/health
 ## 10. Immediate Next Steps
 
 1. Keep the public deployment stable.
-2. Check COLA Cloud usage before any new pull.
-3. Confirm how the usage endpoint moves after a 5-10 record detail+image pull.
-4. Expand `official-sample-3000-balanced` in controlled batches.
-5. Keep all new data under `data/work/cola/`.
-6. Run docTR/PaddleOCR/OpenOCR on the larger calibration set only after enough images are fetched.
-7. Do not touch the locked holdout after split creation except for final evaluation.
-8. Convert final metrics into `docs/performance.md`, `MODEL_LOG.md`, `TRADEOFFS.md`, and README.
-9. Build 300-500 synthetic negative cases from `PHASE1_REJECTION.md`.
-10. Keep legal reasoning/guidance last; deterministic evidence first.
+2. Create application-level split manifests:
+   `2000` train + `1000` validation from `official-sample-3000-balanced`,
+   plus locked `3000` holdout from `official-sample-next-3000-balanced`.
+3. Generate field-support examples only after the application split exists.
+4. Run docTR/PaddleOCR/OpenOCR over the development cohort and cache outputs.
+5. Train/tune BERT-family field-support classifiers and graph scorer on
+   train/validation only.
+6. Compare all serious candidates with identical statistics and latency tables.
+7. Freeze thresholds and architecture.
+8. Evaluate once on the 3000-record locked holdout cohort.
+9. Convert final metrics into `docs/performance.md`, `MODEL_LOG.md`,
+   `TRADEOFFS.md`, and README.
+10. Build 300-500 synthetic negative cases from `PHASE1_REJECTION.md`.
+11. Keep legal reasoning/guidance last; deterministic evidence first.
 
 ---
 
@@ -611,6 +723,8 @@ The current OCR metrics came directly from TTB attachment downloads.
 ## 12. Latest Relevant Commits Before This Handoff
 
 ```text
+387b3b9 fix: reuse cached COLA Cloud detail records
+a55bb13 docs: clarify COLA Cloud calibration handoff
 32b714c docs: add model architecture command center
 c740280 test: add FoodBaseBERT NER control
 24fb722 test: add OSA domain NER benchmark
@@ -650,4 +764,3 @@ pytest -q
 ```
 
 Before any data pull, run the COLA Cloud usage check and confirm no live API key is in tracked files.
-

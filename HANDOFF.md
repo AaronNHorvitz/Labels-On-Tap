@@ -83,17 +83,23 @@ COLA Cloud development bridge:
 
 - Used only because TTBOnline.gov was unstable.
 - Not a runtime dependency.
-- `1,500` selected applications from `7,788` candidates.
-- First `100` details fetched.
-- `169` label images OCR'd through local docTR.
-- Current OCR/model metrics are COLA Cloud-derived public calibration metrics,
-  not direct TTB attachment-download metrics.
+- Full staged local corpus now contains `6,000` unique fetched public COLA
+  applications across two non-overlapping cohorts.
+- `official-sample-3000-balanced`: `3,000` application/detail JSONs and
+  `5,353` label images.
+- `official-sample-next-3000-balanced`: `3,000` application/detail JSONs and
+  `5,082` label images.
+- Combined official public label-image corpus: `10,435` local image files.
+- Fetch failures: `0`.
+- Overlap between the two 3,000-record cohorts: `0`.
+- Current OCR/model metrics remain COLA Cloud-derived public calibration
+  metrics, not direct TTB attachment-download metrics.
 
 Key local paths:
 
 ```text
-data/work/cola/official-sample-1500-balanced/
 data/work/cola/official-sample-3000-balanced/
+data/work/cola/official-sample-next-3000-balanced/
 data/work/public-cola/parsed/ocr/evaluations/
 data/work/graph-ocr/
 ```
@@ -224,21 +230,52 @@ The user is worried, correctly, that as sample size grows, performance estimates
 Current language should be:
 
 - The prototype is a reviewer-support triage tool.
-- Current OCR/model numbers are calibration signals.
-- For pure OCR/rule calibration, the older 3,000-record design can use 1,500 calibration and 1,500 locked holdout records.
-- For trained DistilRoBERTa/RoBERTa field-support classifiers, the current preferred design is an application-level `60%` train / `20%` validation / `20%` locked test split.
-- A locked holdout of `1,500` gives about `+/- 2.5 percentage points` conservative 95% margin of error for binary proportions; a locked test of `600` gives about `+/- 4.0 percentage points`.
+- Current OCR/model numbers are calibration signals until rerun on the full
+  6,000-record corpus.
+- Use `official-sample-3000-balanced` as the development cohort.
+- Use `official-sample-next-3000-balanced` as the locked holdout cohort.
+- For model selection, split the first cohort into `2,000` train and `1,000`
+  validation/calibration applications.
+- After model family, features, and thresholds are locked, optionally refit
+  the chosen model on all `3,000` development applications and evaluate once
+  on the untouched `3,000`-application holdout.
+- A locked test of `3,000` gives about `+/- 1.8 percentage points`
+  conservative 95% margin of error for binary proportions near 50%.
 - If larger samples reveal weaker field performance, route uncertain cases to `Needs Review` and document limitations.
 
 Do not say the app is production-ready. Say it demonstrates a measured, auditable path to production readiness.
+
+## Full-Corpus Model Rerun Plan
+
+Yes, the project can rerun the model-statistics table across the candidate
+permutations, but do it in the right order:
+
+1. Recompute cached OCR/evidence for docTR, PaddleOCR, and OpenOCR/SVTRv2 over
+   the development cohort first.
+2. Train/tune BERT-family field-support scorers on the `2,000`/`1,000`
+   train/validation split.
+3. Compare deterministic ensemble, OSA/DistilRoBERTa/RoBERTa-style arbiters,
+   and graph-aware evidence scorer using the same validation examples.
+4. Freeze the final scoring policy and thresholds before touching the locked
+   holdout.
+5. Report the same side-by-side statistics on the holdout: accuracy,
+   precision, recall, specificity, F1, false-clear rate, confusion counts,
+   per-field F1, and latency.
+
+Do not claim OCR engines were fine-tuned unless true OCR labels exist. The
+current official COLA data supports training/tuning the field-support arbiter,
+not pixel-level OCR recognizers.
 
 ## Best Next Steps
 
 1. Keep the deployed app stable.
 2. Use `MODEL_LOG.md` as the experiment ledger for all OCR/model runs.
-3. Scale graph scoring only after more cached OCR exists.
-4. Add batching/padding to speed graph training before large experiments.
-5. Improve class/type with product taxonomy features.
-6. Add PaddleOCR as an alternate local OCR engine and compare against docTR.
-7. Create the application-level split before generating any trained-model field pairs.
-8. Use `MODEL_ARCHITECTURE.md` as the current map for DistilRoBERTa/RoBERTa field-support experiments.
+3. Create the application-level development/validation/holdout manifests
+   before generating trained-model field pairs.
+4. Run docTR/PaddleOCR/OpenOCR cached OCR over the development cohort.
+5. Train/tune DistilRoBERTa/RoBERTa/OSA-style field-support arbiters on the
+   development split.
+6. Compare them against deterministic ensemble and graph-aware evidence scorer.
+7. Freeze thresholds, then evaluate once on the 3,000-record holdout cohort.
+8. Convert final metrics into `MODEL_LOG.md`, `TRADEOFFS.md`,
+   `docs/performance.md`, and the README.
