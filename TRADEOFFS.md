@@ -857,6 +857,45 @@ Ensemble results:
 | Header text decision | XGBoost reject threshold | 0.7571 | 0.7364 | 0.0008 | 0.6656 | 0.6131 | 0.0027 | 0.1 | 2.6884 | 3.0246 |
 | Header text decision | CatBoost stacker | 0.9662 | 0.9662 | 0.0399 | 0.9020 | 0.9020 | 0.0857 | 0.2 | 2.7073 | 3.8643 |
 
+Plain-English classifier definitions:
+
+| Classifier | Question | Classes |
+|---|---|---|
+| Boldness classifier | Is the `GOVERNMENT WARNING:` heading bold? | `Bold`, `Not bold`, `Needs review / cannot tell` |
+| Warning-text classifier | Is the warning heading text correct? | `Correct text`, `Incorrect text`, `Needs review / cannot tell` |
+
+For safety reporting, each three-class classifier is collapsed into a simple
+clear / do-not-clear decision. That makes the confusion matrix plain:
+
+| Classifier | Positive means | Negative means |
+|---|---|---|
+| Boldness classifier | Model clears the crop as `Bold`. | Crop is `Not bold` or `Needs review / cannot tell`. |
+| Warning-text classifier | Model clears the crop as `Correct text`. | Crop is `Incorrect text` or `Needs review / cannot tell`. |
+
+Boldness classifier confusion-matrix definitions:
+
+| Metric | Plain-English meaning |
+|---|---|
+| True Positive (TP) | The heading really is bold, and the model correctly says `Bold`. |
+| True Negative (TN) | The heading is not bold, or the image is unclear, and the model does not clear it as bold. |
+| False Positive (FP) / false clear | The heading is not bold, or the image is unclear, but the model incorrectly says `Bold`. |
+| False Negative (FN) | The heading really is bold, but the model sends it to `Not bold` or `Needs review`. |
+
+Warning-text classifier confusion-matrix definitions:
+
+| Metric | Plain-English meaning |
+|---|---|
+| True Positive (TP) | The heading text really is correct, and the model correctly says `Correct text`. |
+| True Negative (TN) | The heading text is wrong, or the image is unclear, and the model does not clear it as correct. |
+| False Positive (FP) / false clear | The heading text is wrong, or the image is unclear, but the model incorrectly says `Correct text`. |
+| False Negative (FN) | The heading text really is correct, but the model sends it to `Incorrect text` or `Needs review`. |
+
+In this project, **false clear** is the safety metric. It means the model gave a
+clean answer when it should have held the item for review or treated it as a
+problem. A false negative is less dangerous operationally: it sends a good
+submission to review, which costs time but does not accidentally clear a bad
+label.
+
 Interpretation:
 
 - For visual boldness, the learned stackers have the best raw F1, with
