@@ -58,6 +58,31 @@ All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run o
 **Run output:** `data/work/typography-preflight/svm-v2/`
 **Purpose:** Add a low-latency typography preflight for Jenny Park's requirement that `GOVERNMENT WARNING:` be bold, while keeping the current deployed rule conservative.
 
+**May 3 correction:** Manual inspection found that the first `svm-v2` binary
+target mixed source font weight, crop quality, and auto-clearance policy. That
+made the score difficult to interpret: some visually bold crops were labeled
+negative because they were degraded, and some readable medium/semibold crops
+were routed to review even though the requirement is explicit bold type. Treat
+the `svm-v2` numbers as a flawed-target baseline, not as a final verdict on
+SVM viability.
+
+**Corrected audit dataset:** `data/work/typography-preflight/audit-v4/`
+
+The corrected generator is `experiments/typography_preflight/build_audit_dataset.py`.
+It produces a human-inspection dataset with separate labels:
+
+```text
+font_weight_label             -> bold / not_bold / borderline
+header_text_label             -> correct / incorrect / borderline
+quality_label                 -> clean / mild / degraded
+visual_font_decision_label    -> clearly_bold / clearly_not_bold / needs_review_unclear
+header_decision_label         -> correct / incorrect / needs_review_unclear
+```
+
+`audit-v4` also moves boundary/whitespace artifacts out of the clean visible
+`incorrect` class and into `needs_review_unclear`, because those artifacts can
+be visually ambiguous in a raster crop.
+
 Current runtime behavior:
 
 ```text
@@ -148,15 +173,15 @@ mean decision latency: about 0.09 ms/crop
 Interpretation:
 
 - The model class is computationally excellent.
-- The first synthetic classifier is not strong enough for autonomous boldness
-  passing under a government false-clear posture.
+- The first synthetic classifier used a noisy binary target and is not strong
+  enough for autonomous boldness passing under a government false-clear posture.
 - At the safest threshold, it false-clears almost nothing but passes almost no
   bold headings either.
 - At useful recall/F1 thresholds, the false-clear rate is too high.
 - Keep boldness as `Needs Review` for the submission.
-- Next improvement would be better crop isolation, relative comparison against
-  warning body text, richer synthetic typography, and positive smoke tests on
-  approved public COLA warning-heading crops.
+- Next improvement is to train side-by-side multiclass SVM/XGBoost/CatBoost
+  models from the inspected `audit-v4` decision labels, then smoke test approved
+  public COLA warning-heading crops as positive examples.
 
 Reference:
 

@@ -566,6 +566,7 @@ Tasks:
 
 - [x] Create `experiments/typography_preflight/README.md`.
 - [x] Create a synthetic typography dataset generator for `GOVERNMENT WARNING:` crops.
+- [x] Add corrected human-inspection dataset builder: `experiments/typography_preflight/build_audit_dataset.py`.
 - [x] Use local system fonts only.
 - [x] Generate at least **20,000 train**, **5,000 validation**, and **5,000 test** synthetic crops.
 - [x] Hold out font families and distortion recipes across train/validation/test.
@@ -579,6 +580,13 @@ Tasks:
 - [x] Keep all generated crops, features, metrics, and model files under gitignored `data/work/typography-preflight/`.
 - [x] Commit only experiment code/docs, never synthetic image bulk or `.joblib` model artifacts.
 - [x] Update `MODEL_LOG.md`, `TRADEOFFS.md`, `MODEL_ARCHITECTURE.md`, and README after the experiment runs.
+- [x] Document that the first `svm-v2` binary target mixed font weight, image quality, and auto-clearance policy and is now treated as a flawed-target baseline.
+- [x] Generate corrected `audit-v4` inspection data with separate `font_weight_label`, `header_text_label`, `quality_label`, `visual_font_decision_label`, and `header_decision_label`.
+- [x] Move boundary/whitespace artifacts out of clean `incorrect` header examples and into `needs_review_unclear`.
+- [ ] Human-inspect `data/work/typography-preflight/audit-v4/` before training any new classifier.
+- [ ] Train side-by-side multiclass SVM, XGBoost, and CatBoost models against `audit-v4` labels after inspection.
+- [ ] Report Model 1 metrics for `visual_font_decision_label`.
+- [ ] Report Model 2 metrics for `header_decision_label`.
 - [ ] Keep `GOV_WARNING_HEADER_BOLD_REVIEW` as Needs Review unless validation/test false-clear behavior justifies promotion.
 
 Documentation framing:

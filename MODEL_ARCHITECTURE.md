@@ -336,8 +336,9 @@ GOV_WARNING_HEADER_CAPS      -> deterministic capitalization check
 GOV_WARNING_HEADER_BOLD_REVIEW -> human typography review
 ```
 
-The next architecture adds a lightweight OpenCV/SVM typography preflight. The
-experiment is implemented, but it stays outside the deployed runtime until it is
+The next architecture adds a lightweight OpenCV typography preflight. The first
+SVM experiment is implemented, but it stays outside the deployed runtime until
+the corrected decision labels are inspected and a new model comparison is
 validated strongly enough to support autonomous evidence.
 
 ```mermaid
@@ -347,8 +348,8 @@ flowchart TD
     B -->|Yes| D["Heading crop"]
     D --> E["OpenCV preprocessing<br/>grayscale, threshold,<br/>safe deskew/crop cleanup"]
     E --> F["Feature extraction<br/>ink density, edge density,<br/>stroke width, connected components,<br/>skeleton ratio, HOG"]
-    F --> G["Support Vector Machine<br/>CPU-only margin classifier"]
-    G --> H{"Typography signal"}
+    F --> G["SVM / XGBoost / CatBoost<br/>CPU-only typography classifier"]
+    G --> H{"Typography decision"}
     H -->|"Strong bold"| I["Typography preflight supported"]
     H -->|"Strong non-bold"| J["Needs Review / Fail Candidate<br/>depending validation gate"]
     H -->|"Borderline / degraded"| K["Needs Review"]
@@ -357,7 +358,7 @@ flowchart TD
     K --> L
 ```
 
-Why this model class fits:
+Why this model family fits:
 
 - The task is narrow: classify the visual stroke weight of one known phrase.
 - The feature vector can capture the relevant geometry directly.
@@ -369,6 +370,27 @@ Why this model class fits:
 The first dataset is synthetic because the negative cases are not public. It
 renders `GOVERNMENT WARNING:` in bold, regular, medium, and degraded styles
 across many local fonts and distortions.
+
+Manual inspection found that the first binary SVM dataset mixed source font
+weight, visual quality, and auto-clearance policy into one target. That was too
+noisy: a degraded crop could be generated from a bold font but labeled negative,
+and readable medium/semibold crops could be treated as review even though the
+requirement is explicit bold type.
+
+The corrected `audit-v4` dataset separates provenance from decision targets:
+
+| Label | Meaning |
+|---|---|
+| `font_weight_label` | Source font provenance: `bold`, `not_bold`, `borderline`. |
+| `header_text_label` | Source text provenance: `correct`, `incorrect`, `borderline`. |
+| `quality_label` | Crop quality provenance: `clean`, `mild`, `degraded`. |
+| `visual_font_decision_label` | Model 1 target: `clearly_bold`, `clearly_not_bold`, `needs_review_unclear`. |
+| `header_decision_label` | Model 2 target: `correct`, `incorrect`, `needs_review_unclear`. |
+
+Boundary and whitespace artifacts are intentionally routed to
+`needs_review_unclear` for the image classifier. They remain useful deterministic
+string/crop-boundary tests, but they should not be used as clean visible
+`incorrect` header examples.
 
 Implemented split:
 
@@ -397,7 +419,7 @@ support vector machines as margin-based supervised learners; this is a good fit
 when engineered stroke/shape features carry the decision boundary and compute
 cost matters.
 
-Initial measured result:
+Initial measured result from the flawed binary baseline:
 
 | Operating Point | Test F1 | Precision | Recall | False-Clear Rate | Interpretation |
 |---|---:|---:|---:|---:|---|
@@ -414,9 +436,9 @@ mean SVM decision latency: about 0.09 ms/crop
 Conclusion:
 
 ```text
-The model class is computationally viable, but the current synthetic classifier
-is not promoted. It supports a measured path toward typography preflight while
-confirming that boldness should remain Needs Review for the submission.
+The model class is computationally viable, but the first synthetic target was
+too noisy to promote. It supports a measured path toward typography preflight
+while confirming that boldness should remain Needs Review for the submission.
 ```
 
 Reference:

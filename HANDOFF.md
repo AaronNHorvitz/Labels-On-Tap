@@ -307,13 +307,44 @@ zero-validation-false-clear operating point:
   test false-clear rate: 0.0733
 ```
 
+Important correction:
+
+```text
+The svm-v2 run is now treated as a flawed-target baseline.
+Manual inspection found that it mixed source font weight, image quality, and
+auto-clearance policy into one binary label. That made some bold-but-degraded
+crops negative and made some readable medium/semibold crops review cases.
+```
+
+Corrected audit data:
+
+```text
+builder: experiments/typography_preflight/build_audit_dataset.py
+inspection_output: data/work/typography-preflight/audit-v4/
+contact_sheet: data/work/typography-preflight/audit-v4/index.html
+```
+
+`audit-v4` separates labels:
+
+```text
+font_weight_label
+header_text_label
+quality_label
+visual_font_decision_label
+header_decision_label
+```
+
+Boundary/whitespace artifacts are routed to `needs_review_unclear`, not clean
+visible `incorrect`. Readable medium/semibold crops are `clearly_not_bold`
+because the requirement is explicit bold type.
+
 Decision:
 
 ```text
-Do not promote this classifier to runtime authority yet. It proves the
-classical-statistical path is cheap and measurable, but safe thresholds pass too
-few bold headings and useful-F1 thresholds false-clear too often. Keep
-GOV_WARNING_HEADER_BOLD_REVIEW as Needs Review for submission.
+Do not promote the svm-v2 classifier to runtime authority. Inspect audit-v4,
+then train side-by-side SVM/XGBoost/CatBoost multiclass models only if the
+inspection labels look clean. Keep GOV_WARNING_HEADER_BOLD_REVIEW as Needs
+Review for submission.
 ```
 
 Reference framing:

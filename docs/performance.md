@@ -596,7 +596,17 @@ Latency:
 Interpretation:
 
 - The model class is computationally viable.
+- The first `svm-v2` binary target mixed font weight, crop quality, and
+  auto-clearance policy, so this run is now treated as a flawed-target baseline.
 - Safe thresholds currently pass too few bold headings.
 - Useful-F1 thresholds currently false-clear too often.
 - The classifier is not promoted to runtime authority.
 - `GOV_WARNING_HEADER_BOLD_REVIEW` should remain `Needs Review` for submission.
+
+Corrected audit data now exists under
+`data/work/typography-preflight/audit-v4/`. It separates source font weight,
+header text, image quality, visual font decision, and header decision labels.
+Boundary/whitespace artifacts are routed to `needs_review_unclear`, and readable
+medium/semibold headings are labeled `clearly_not_bold` because the requirement
+is explicit bold type. The next performance run should train and compare SVM,
+XGBoost, and CatBoost on these inspected multiclass labels.

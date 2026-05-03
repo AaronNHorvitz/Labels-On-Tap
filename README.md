@@ -183,12 +183,25 @@ validation: held-out font families and distortion recipes
 test:       separate held-out font families and harder distortions
 ```
 
-Synthetic generation is legitimate for this subtask because the label being generated is only the controlled typography distinction:
+Synthetic generation is legitimate for this subtask because the label being generated is only the controlled typography distinction. During review, the first binary dataset exposed an important labeling flaw: it mixed source font weight with visual quality and "auto-clearance" policy. Some bold crops were labeled negative only because they were generated with degraded artifacts, and some readable medium/semibold crops were routed to review even though the requirement is explicit bold type.
+
+The corrected audit dataset now separates provenance from model-facing decisions:
 
 ```text
-acceptable bold GOVERNMENT WARNING:
-vs.
-regular / medium / degraded / uncertain GOVERNMENT WARNING:
+font_weight_label:
+  bold / not_bold / borderline
+
+header_text_label:
+  correct / incorrect / borderline
+
+quality_label:
+  clean / mild / degraded
+
+visual_font_decision_label:
+  clearly_bold / clearly_not_bold / needs_review_unclear
+
+header_decision_label:
+  correct / incorrect / needs_review_unclear
 ```
 
 The primary metric remains government-safe:
@@ -197,7 +210,7 @@ The primary metric remains government-safe:
 false clear = non-bold or uncertain heading classified as acceptable bold
 ```
 
-Initial synthetic evaluation was completed under `experiments/typography_preflight/` using a `20,000` / `5,000` / `5,000` train/validation/test split with held-out font families and distortion recipes. The classifier is extremely fast, but the conservative operating point is not yet useful enough to promote into autonomous runtime passing:
+Initial synthetic evaluation was completed under `experiments/typography_preflight/` using a `20,000` / `5,000` / `5,000` train/validation/test split with held-out font families and distortion recipes. The classifier was extremely fast, but this first run is now treated as a flawed target-definition baseline rather than a final model result:
 
 | Operating Point | Test F1 | Test Precision | Test Recall | Test False-Clear Rate | Meaning |
 |---|---:|---:|---:|---:|---|
@@ -205,7 +218,9 @@ Initial synthetic evaluation was completed under `experiments/typography_preflig
 | 0.25% validation false-clear tolerance | 0.1170 | 0.8987 | 0.0626 | 0.0059 | Still too weak for autonomous promotion. |
 | 5% validation false-clear tolerance | 0.7757 | 0.8867 | 0.6894 | 0.0733 | Useful F1, but too many false clears for government posture. |
 
-Measured CPU prediction latency was about `0.09 ms/crop` after feature extraction. The model therefore has essentially no inference cost compared with OCR, but the safety/recall trade-off means it remains an experimental preflight rather than final authority.
+Measured CPU prediction latency was about `0.09 ms/crop` after feature extraction. The model therefore has essentially no inference cost compared with OCR, but the corrected next step is to train and compare SVM, XGBoost, and CatBoost against the inspected `audit-v4` decision labels before any runtime promotion.
+
+The current inspection dataset is generated under gitignored `data/work/typography-preflight/audit-v4/`. It keeps boundary artifacts and visually ambiguous crops in `needs_review_unclear`, and it treats readable medium/semibold headings as `clearly_not_bold` because the regulation calls for bold type.
 
 The safe runtime posture is:
 

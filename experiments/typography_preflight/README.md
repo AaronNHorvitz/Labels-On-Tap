@@ -49,6 +49,45 @@ Font families and distortion recipes are held out across splits. This makes the
 test stricter than a naive random image split because the model must generalize
 to unseen font families and image artifacts.
 
+The first full SVM run under `data/work/typography-preflight/svm-v2/` is now
+treated as a flawed-target baseline. It mixed source font weight, image quality,
+and auto-clearance policy into one binary label. That caused avoidable label
+noise, such as bold fonts marked negative because the crop was degraded.
+
+The corrected audit workflow uses a separate inspection builder:
+
+```bash
+data/work/typography-preflight/.venv/bin/python \
+  -m experiments.typography_preflight.build_audit_dataset \
+  --output-dir data/work/typography-preflight/audit-v4 \
+  --samples-per-combo 36 \
+  --clean
+```
+
+It writes:
+
+```text
+data/work/typography-preflight/audit-v4/
+  index.html
+  manifest.csv
+  summary.json
+  by_visual_font_decision/
+  by_header_decision/
+```
+
+The corrected labels are:
+
+```text
+font_weight_label             source font provenance
+header_text_label             source text provenance
+quality_label                 crop quality provenance
+visual_font_decision_label    clearly_bold / clearly_not_bold / needs_review_unclear
+header_decision_label         correct / incorrect / needs_review_unclear
+```
+
+Do not train SVM/XGBoost/CatBoost models until the `audit-v4` contact sheet has
+been visually inspected.
+
 ## Run
 
 Install experiment dependencies into a gitignored venv:
@@ -72,7 +111,7 @@ data/work/typography-preflight/.venv/bin/python \
   -m experiments.typography_preflight.train_svm
 ```
 
-The first full run used:
+The first flawed-target full run used:
 
 ```bash
 CUDA_VISIBLE_DEVICES="" \

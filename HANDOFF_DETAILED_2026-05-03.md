@@ -915,6 +915,44 @@ and useful-F1 thresholds false-clear too often.
 Keep GOV_WARNING_HEADER_BOLD_REVIEW as Needs Review for submission.
 ```
 
+Important May 3 correction:
+
+```text
+The first svm-v2 dataset is now considered a flawed-target baseline.
+It mixed source font weight, crop quality, and auto-clearance policy in one
+binary label. A crop could be generated from an explicitly bold font but labeled
+negative because it was degraded, and readable medium/semibold crops were
+sometimes routed to review even though the requirement is explicit bold type.
+```
+
+The corrected inspection builder is:
+
+```text
+experiments/typography_preflight/build_audit_dataset.py
+```
+
+Current inspection output:
+
+```text
+data/work/typography-preflight/audit-v4/
+data/work/typography-preflight/audit-v4/index.html
+```
+
+The corrected labels are:
+
+```text
+font_weight_label             source font provenance
+header_text_label             source text provenance
+quality_label                 crop quality provenance
+visual_font_decision_label    Model 1 target
+header_decision_label         Model 2 target
+```
+
+`audit-v4` routes boundary and whitespace artifacts to
+`needs_review_unclear`. It labels readable medium/semibold headings as
+`clearly_not_bold`, because the requirement is explicit bold type. Do not train
+the next SVM/XGBoost/CatBoost comparison until this inspection set is reviewed.
+
 Do not commit:
 
 ```text
