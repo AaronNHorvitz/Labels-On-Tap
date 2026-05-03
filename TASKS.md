@@ -70,7 +70,7 @@ The sprint priority is now:
 - [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the 100-application calibration test split.
 - [x] Curved-text OCR research changed the next experiment: evaluate mature pre-trained local OCR engines before attempting a custom HO-GNN/TPS/SVTR vision model.
 - [x] PaddleOCR / PP-OCR is the first alternate OCR engine candidate to benchmark against docTR.
-- [x] OpenOCR / SVTRv2 is the second alternate OCR engine candidate if PaddleOCR does not sufficiently improve curved/irregular label text.
+- [x] OpenOCR / SVTRv2 is the second alternate OCR engine candidate and now has a 30-image smoke benchmark.
 - [x] OpenVINO/ONNX/INT8 on EC2 `m7i` is a future CPU optimization path, not a current Lightsail performance claim.
 - [x] OCR engine sweep scaffold exists under `experiments/ocr_engine_sweep/`.
 - [x] `MODEL_LOG.md` records OCR/model experiments and caveats.
@@ -81,7 +81,7 @@ The sprint priority is now:
 - [x] Current month-stratified annual-volume estimate from local daily CSV exports is about **142,510 applications** for May 1, 2025 through April 30, 2026, with an approximate 95% CI of **132,011 to 153,009**.
 - [ ] Public COLA Registry access is currently fragile/resetting; pause further automated registry access until it cools down.
 - [ ] Deployment URL remains live through submission.
-- [ ] TASKS.md is committed after this priority reset.
+- [x] TASKS.md is committed after the latest priority/OCR sweep updates.
 
 ---
 
@@ -249,8 +249,12 @@ Experimental candidates:
 - [x] Run PaddleOCR 3.3.3 / PaddlePaddle 3.2.0 30-image CPU smoke benchmark.
 - [x] Document that PaddleOCR 3.5.0 / PaddlePaddle 3.3.1 hit a CPU oneDNN/PIR runtime issue.
 - [x] Compute side-by-side field-support accuracy, precision, recall, F1, specificity, and false-clear rate for docTR vs PaddleOCR.
+- [x] Add an OpenOCR / SVTRv2 smoke benchmark wrapper under the experiment scaffold.
+- [x] Run OpenOCR 0.1.5 / SVTRv2 30-image CPU smoke benchmark.
+- [x] Compute side-by-side field-support metrics for docTR vs PaddleOCR vs OpenOCR.
+- [x] Record the statistical caveat that small sample sizes increase variance and the current 20-application / 30-image result is directional only.
 - [ ] Promote PaddleOCR into a fuller experimental adapter only if field-level comparison beats or complements docTR.
-- [ ] Add an OpenOCR / SVTRv2 experimental adapter if PaddleOCR is insufficient or install risk is acceptable.
+- [ ] Promote OpenOCR into a fuller experimental adapter only if a larger run shows it beats or complements docTR/PaddleOCR.
 - [ ] Keep the graph-aware scorer as a post-OCR evidence layer, not an OCR replacement.
 - [ ] Keep the full custom HO-GNN/TPS/SVTR model as documented future research unless a mature pre-trained shortcut fails and time remains.
 
@@ -265,7 +269,7 @@ Isolation and dependency safety:
 Normalized output contract:
 
 - [x] Normalize the current docTR/PaddleOCR smoke wrappers to the existing `OCRResult` shape.
-- [ ] Normalize any future OpenOCR wrapper to the existing `OCRResult` shape.
+- [x] Normalize the OpenOCR wrapper to the existing `OCRResult` shape.
 - [x] Preserve `source` as `local docTR`, `local PaddleOCR`, `local OpenOCR`, or equivalent.
 - [x] Preserve per-block text.
 - [x] Preserve per-block confidence when available.
@@ -278,6 +282,7 @@ Benchmark stages:
 - [x] Run a 1-image smoke test for import/runtime sanity.
 - [x] Run a 10-image mixed-shape smoke benchmark before any larger run.
 - [x] Run a 30-image mixed-shape smoke benchmark after the 10-image run.
+- [x] Run OpenOCR on the same 30-image mixed-shape smoke benchmark.
 - [ ] Run the same 100-application / 169-image public COLA calibration set used by docTR.
 - [x] Compare 30-image smoke against docTR using identical field-support scoring logic.
 - [ ] Compare 100-application calibration set against docTR using identical field-matching logic.
@@ -295,9 +300,12 @@ Metrics to compare:
 - [ ] Applicant/producer visibility rate if practical.
 - [ ] Application-level Pass / Needs Review distribution on accepted public records.
 - [x] Initial shuffled-negative false-clear comparison for docTR vs PaddleOCR.
+- [x] Initial shuffled-negative false-clear comparison for docTR vs PaddleOCR vs OpenOCR.
 - [ ] False-clear rate on synthetic known-bad fixtures.
 - [x] Initial per-image latency smoke: 30-image PaddleOCR mean 1,105.00 ms, median 1,096.50 ms, worst 1,544 ms.
-- [x] Initial field-support smoke: PaddleOCR F1 0.7151 vs docTR F1 0.6627, with higher false-clear rate 0.0268 vs 0.0089.
+- [x] Initial per-image latency smoke: 30-image OpenOCR mean 563.77 ms, median 582.50 ms, worst 1,211 ms.
+- [x] Initial field-support smoke: PaddleOCR F1 0.7151 vs docTR F1 0.6627 vs OpenOCR F1 0.6049.
+- [x] Initial field-support smoke: PaddleOCR false-clear rate 0.0268 vs docTR/OpenOCR false-clear rate 0.0089.
 - [ ] Per-application latency across all associated label panels.
 - [ ] OCR failure modes: curved text, rotated text, small warning text, glare, low contrast, multi-panel ambiguity.
 

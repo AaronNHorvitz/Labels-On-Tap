@@ -72,6 +72,17 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--paddle-run-dir", type=Path, default=DEFAULT_RUN_DIR)
     parser.add_argument(
+        "--engine-run",
+        action="append",
+        default=[],
+        metavar="ENGINE=RUN_DIR",
+        help=(
+            "Additional OCR benchmark run directory to compare, for example "
+            "openocr=data/work/ocr-engine-sweep/openocr-smoke-30. "
+            "May be supplied more than once."
+        ),
+    )
+    parser.add_argument(
         "--doctr-cache-list",
         type=Path,
         default=REPO_ROOT / "data" / "work" / "ocr-engine-sweep" / "doctr-cache-list-30.txt",
@@ -118,8 +129,8 @@ def load_doctr_panels(cache_list: Path) -> list[EnginePanel]:
     return panels
 
 
-def load_paddle_panels(run_dir: Path) -> list[EnginePanel]:
-    """Load PaddleOCR benchmark rows and normalized OCR JSON artifacts."""
+def load_benchmark_panels(run_dir: Path) -> list[EnginePanel]:
+    """Load benchmark rows and normalized OCR JSON artifacts."""
 
     rows_path = run_dir / "rows.csv"
     panels: list[EnginePanel] = []
@@ -140,6 +151,25 @@ def load_paddle_panels(run_dir: Path) -> list[EnginePanel]:
                 )
             )
     return panels
+
+
+def parse_engine_runs(args: argparse.Namespace) -> dict[str, Path]:
+    """Return requested benchmark runs keyed by engine name."""
+
+    engine_runs: dict[str, Path] = {}
+    if not args.engine_run:
+        engine_runs["paddleocr"] = args.paddle_run_dir
+        return engine_runs
+
+    for value in args.engine_run:
+        if "=" not in value:
+            raise SystemExit(f"--engine-run must use ENGINE=RUN_DIR format: {value}")
+        engine_name, run_dir = value.split("=", 1)
+        engine_name = engine_name.strip()
+        if not engine_name:
+            raise SystemExit(f"--engine-run has an empty engine name: {value}")
+        engine_runs[engine_name] = Path(run_dir)
+    return engine_runs
 
 
 def aggregate_by_ttb(panels: list[EnginePanel]) -> dict[str, dict]:
@@ -347,26 +377,23 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     doctr_aggregates = aggregate_by_ttb(load_doctr_panels(args.doctr_cache_list))
-    paddle_aggregates = aggregate_by_ttb(load_paddle_panels(args.paddle_run_dir))
-    common_ttbs = sorted(set(doctr_aggregates) & set(paddle_aggregates))
+    engine_aggregates = {"doctr": doctr_aggregates}
+    for engine_name, run_dir in parse_engine_runs(args).items():
+        engine_aggregates[engine_name] = aggregate_by_ttb(load_benchmark_panels(run_dir))
+
+    common_ttb_sets = [set(aggregates) for aggregates in engine_aggregates.values()]
+    common_ttbs = sorted(set.intersection(*common_ttb_sets)) if common_ttb_sets else []
     expected_by_ttb = load_expected_by_ttb(common_ttbs)
 
-    engine_scores = {
-        "doctr": build_scores(
-            engine_name="doctr",
-            aggregates={ttb_id: doctr_aggregates[ttb_id] for ttb_id in common_ttbs},
+    engine_scores = {}
+    for engine_name, aggregates in engine_aggregates.items():
+        engine_scores[engine_name] = build_scores(
+            engine_name=engine_name,
+            aggregates={ttb_id: aggregates[ttb_id] for ttb_id in common_ttbs},
             expected_by_ttb=expected_by_ttb,
             threshold=args.threshold,
             seed=args.seed,
-        ),
-        "paddleocr": build_scores(
-            engine_name="paddleocr",
-            aggregates={ttb_id: paddle_aggregates[ttb_id] for ttb_id in common_ttbs},
-            expected_by_ttb=expected_by_ttb,
-            threshold=args.threshold,
-            seed=args.seed,
-        ),
-    }
+        )
 
     summary = {
         "threshold": args.threshold,
@@ -379,7 +406,7 @@ def main() -> None:
                     scores_excluding(scores, {"applicant_or_producer"})
                 ),
                 "by_field": metrics_by_field(scores),
-                "latency": latency_summary(doctr_aggregates if engine == "doctr" else paddle_aggregates),
+                "latency": latency_summary(engine_aggregates[engine]),
             }
             for engine, scores in engine_scores.items()
         },

@@ -116,15 +116,17 @@ Problem 1: read difficult label text from images
 Problem 2: decide whether the read text supports the application fields
 ```
 
-Labels On Tap currently uses local docTR OCR as the baseline OCR engine and a fixture OCR fallback for deterministic demos. The next experiment is a measured local OCR engine sweep, not a risky replacement of the deployed app.
+Labels On Tap currently uses local docTR OCR as the baseline OCR engine and a fixture OCR fallback for deterministic demos. Alternate engines are being measured in an isolated OCR sweep, not dropped directly into the deployed app.
 
 | Layer | Role | Current Status | Promotion Gate |
 |---|---|---|---|
 | docTR | Current local OCR baseline with geometry/confidence output. | Implemented and measured on the first 100 public COLA calibration records. | Remains default unless another local engine clearly beats it. |
-| PaddleOCR / PP-OCR | Candidate local OCR engine with orientation, detection, and recognition support for irregular label imagery. | Next experiment. | Must improve field-match rates without increasing false-clear risk or missing the five-second per-label target. |
-| OpenOCR / SVTRv2 | Candidate zero-shot irregular-text OCR path, especially interesting for curved/cylindrical text. | Research-backed candidate; not yet integrated. | Must install cleanly, normalize output into the same OCR schema, and benchmark better than docTR/PaddleOCR on COLA images. |
+| PaddleOCR / PP-OCR | Candidate local OCR engine with orientation, detection, and recognition support for irregular label imagery. | 30-image smoke shows higher F1/accuracy/recall than docTR, with a higher false-clear rate. | Must keep the F1 lift on a larger calibration set while controlling false clears with field-specific thresholds/rules. |
+| OpenOCR / SVTRv2 | Candidate zero-shot irregular-text OCR path, especially interesting for curved/cylindrical text. | 30-image smoke is fastest and normalized to the same OCR schema, but lower F1 than docTR/PaddleOCR in the first field-support test. | Must prove whether speed and curved-text handling translate into better field evidence on a larger sample or as supplemental evidence. |
 | Graph-aware evidence scorer | Post-OCR model that scores whether OCR fragments support a target field. | Experimental proof exists under `experiments/graph_ocr/`. | Can only be promoted if it improves matching while lowering or preserving the false-clear rate on held-out data. |
 | HO-GNN / TPS / SVTR custom vision model | Long-term curved-text research path. | Future state only. | Requires annotation strategy, training/evaluation plan, CPU inference proof, and deployment packaging. |
+
+Early OCR-engine metrics are deliberately labeled as smoke results. Small sample sizes increase variance, so the 20-application / 30-image comparison is directional only and must not be treated as a stable engine ranking. That said, the current PaddleOCR F1 lift is meaningful enough to keep PaddleOCR in contention, not reject it.
 
 This sequencing keeps the product disciplined. Better OCR engines can improve what text is read. The graph-aware scorer can improve how OCR fragments are assembled into field evidence. Deterministic validation rules still decide `Pass`, `Needs Review`, or `Fail`.
 

@@ -10,8 +10,8 @@ latency, and failure behavior.
 | Engine | Role | Status |
 |---|---|---|
 | docTR | Current local baseline | Implemented in app runtime |
-| PaddleOCR / PP-OCR | First alternate local OCR candidate | Smoke harness started |
-| OpenOCR / SVTRv2 | Second alternate local OCR candidate | Research candidate |
+| PaddleOCR / PP-OCR | First alternate local OCR candidate | 30-image smoke benchmark and field-support metrics recorded |
+| OpenOCR / SVTRv2 | Second alternate local OCR candidate | 30-image smoke benchmark and field-support metrics recorded |
 | Graph scorer | Post-OCR field evidence scorer | Implemented under `experiments/graph_ocr/` |
 
 ## Promotion Gate
@@ -62,7 +62,26 @@ python experiments/ocr_engine_sweep/benchmark_ocr_engines.py \
   --limit 10
 ```
 
+If OpenOCR is installed:
+
+```bash
+python -m pip install openocr-python==0.1.5
+python experiments/ocr_engine_sweep/benchmark_ocr_engines.py \
+  --engine openocr \
+  --image-glob 'data/work/public-cola/raw/images/*/*' \
+  --limit 10
+```
+
 Outputs are written under gitignored `data/work/ocr-engine-sweep/`.
+
+## Statistical Caution
+
+The initial 20-application / 30-image smoke is intentionally small. Small
+sample sizes increase variance, so early F1, accuracy, recall, and false-clear
+rates are directional calibration evidence only. PaddleOCR's higher F1 in the
+first smoke is a real reason to keep testing it, not enough evidence to promote
+it. OpenOCR's fast latency is also a real reason to keep testing it, not enough
+evidence to pick it despite lower first-pass F1.
 
 ## PaddleOCR Version Notes
 
@@ -91,6 +110,15 @@ classification metrics against cached docTR:
 python experiments/ocr_engine_sweep/field_support_metrics.py \
   --paddle-run-dir data/work/ocr-engine-sweep/paddleocr-333-paddle-320-smoke-30-json \
   --run-name paddle-vs-doctr-smoke-30
+```
+
+Or compare multiple engines:
+
+```bash
+python experiments/ocr_engine_sweep/field_support_metrics.py \
+  --engine-run paddleocr=data/work/ocr-engine-sweep/paddleocr-333-paddle-320-smoke-30-json \
+  --engine-run openocr=data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30 \
+  --run-name doctr-vs-paddle-vs-openocr-smoke-30
 ```
 
 This writes summary JSON and per-engine score CSVs under:

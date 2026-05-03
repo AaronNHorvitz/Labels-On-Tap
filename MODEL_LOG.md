@@ -35,7 +35,8 @@ As sample size grows, measured performance should be expected to move closer to 
 | COLA Cloud API | Development-only bridge for public label rasters | No | `1,500` selected records from `7,788` candidates |
 | Cached docTR OCR | Baseline OCR box/text output | No | `100` applications, `169` label images |
 | Local graph scorer | Experimental post-OCR evidence model | No | Best POC run improved F1 and false-clear rate |
-| PaddleOCR sweep | Experimental alternate local OCR candidate | No | 30-image smoke met latency target but did not clearly beat docTR extraction length |
+| PaddleOCR sweep | Experimental alternate local OCR candidate | No | 30-image smoke improved F1/accuracy/recall, with higher false-clear rate |
+| OpenOCR / SVTRv2 sweep | Experimental alternate local OCR candidate | No | 30-image smoke was fastest, with lower F1 in first field-support test |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -303,8 +304,72 @@ Decision:
 
 - PaddleOCR improves recall, accuracy, and F1 on this small field-support task.
 - docTR is safer on precision, specificity, and false-clear rate.
-- PaddleOCR should not replace docTR as the default yet.
+- PaddleOCR should not replace docTR as the default yet, but it is not rejected.
 - The next practical path is combined evidence with field-specific safety thresholds, especially for alcohol content where PaddleOCR false clears were higher.
+- Small sample sizes increase variance. This 20-application / 30-image smoke is directional only; the F1 gap is promising but not stable enough to declare a final OCR winner.
+
+### E008 - OpenOCR / SVTRv2 CPU Smoke Benchmark
+
+**Date:** May 3, 2026
+**Run output:** `data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30/`
+**Field-support output:** `data/work/ocr-engine-sweep/field-support-metrics/doctr-vs-paddle-vs-openocr-smoke-30/`
+**Input:** The same 20-application / 30-image smoke set from E006 and E007
+**Purpose:** Test OpenOCR/SVTRv2, the research-backed curved/irregular-text candidate, against docTR and PaddleOCR using the same normalized OCR schema and field-support metric.
+
+Environment:
+
+```text
+container: python:3.11-slim
+openocr-python: 0.1.5
+backend: ONNX
+mode: mobile
+det_box_type: poly
+runtime: CPU
+```
+
+OpenOCR timing / extraction smoke:
+
+| Metric | OpenOCR / SVTRv2 |
+|---|---:|
+| Images processed | 30 |
+| Error count | 0 |
+| Mean latency | 563.77 ms/image |
+| Median latency | 582.50 ms/image |
+| Worst latency | 1,211 ms/image |
+| Mean confidence | 0.9356 |
+| Mean text blocks | 20.0 |
+| Mean extracted chars | 376.63 |
+
+Overall field-support result across all fields:
+
+| Metric | docTR | PaddleOCR | OpenOCR |
+|---|---:|---:|---:|
+| Examples | 224 | 224 | 224 |
+| Accuracy | 0.7455 | 0.7723 | 0.7143 |
+| Precision | 0.9825 | 0.9552 | 0.9800 |
+| Recall | 0.5000 | 0.5714 | 0.4375 |
+| Specificity | 0.9911 | 0.9732 | 0.9911 |
+| F1 | 0.6627 | 0.7151 | 0.6049 |
+| False-clear rate | 0.0089 | 0.0268 | 0.0089 |
+
+Excluding `applicant_or_producer`:
+
+| Metric | docTR | PaddleOCR | OpenOCR |
+|---|---:|---:|---:|
+| Accuracy | 0.7989 | 0.8315 | 0.7609 |
+| Precision | 0.9825 | 0.9552 | 0.9800 |
+| Recall | 0.6087 | 0.6957 | 0.5326 |
+| Specificity | 0.9891 | 0.9674 | 0.9891 |
+| F1 | 0.7517 | 0.8050 | 0.6901 |
+| False-clear rate | 0.0109 | 0.0326 | 0.0109 |
+
+Decision:
+
+- OpenOCR is operationally interesting because it is very fast on this CPU smoke and supports a polygon detection mode.
+- It did not beat docTR or PaddleOCR on F1 in this first small field-support test.
+- It matched docTR's low false-clear rate in the shuffled-negative smoke.
+- It remains a candidate for larger samples and possible supplemental evidence, but the current evidence does not justify replacing docTR or PaddleOCR.
+- Small sample sizes increase variance; this is a calibration checkpoint, not a final engine selection.
 
 ## Current Best Result
 

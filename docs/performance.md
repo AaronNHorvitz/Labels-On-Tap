@@ -174,14 +174,14 @@ The graph scorer improved support detection for brand name, fanciful name, and
 net contents while lowering false clears on shuffled negative examples. This is
 an experimental calibration result, not a locked-holdout production claim.
 
-## May 2 PaddleOCR CPU Smoke Benchmark
+## May 2-3 Alternate OCR CPU Smoke Benchmarks
 
 The curved-text OCR research brief suggested that a mature pre-trained OCR
 engine may be more practical than training a custom curved-text model before
 the submission deadline. To test that hypothesis without touching the deployed
-runtime path, an isolated PaddleOCR smoke benchmark was run in a Python 3.11
-container against real public COLA label images that already had cached docTR
-OCR output.
+runtime path, isolated PaddleOCR and OpenOCR/SVTRv2 smoke benchmarks were run
+in Python 3.11 containers against real public COLA label images that already
+had cached docTR OCR output.
 
 The first modern stack installed but was not usable as-is:
 
@@ -193,39 +193,41 @@ The first modern stack installed but was not usable as-is:
 
 Successful 30-image smoke result:
 
-| Metric | Result |
-|---|---:|
-| Images processed | 30 |
-| Error count | 0 |
-| Mean latency | 1,105.00 ms/image |
-| Median latency | 1,096.50 ms/image |
-| Worst latency | 1,544 ms/image |
-| Images under 1.5 seconds | 29 / 30 |
-| Mean confidence | 0.9346 |
-| Mean text blocks | 20.8 |
-| Mean extracted characters | 431.67 |
+| Metric | PaddleOCR 3.3.3 / PaddlePaddle 3.2.0 | OpenOCR 0.1.5 / SVTRv2 |
+|---|---:|---:|
+| Images processed | 30 | 30 |
+| Error count | 0 | 0 |
+| Mean latency | 1,105.00 ms/image | 563.77 ms/image |
+| Median latency | 1,096.50 ms/image | 582.50 ms/image |
+| Worst latency | 1,544 ms/image | 1,211 ms/image |
+| Images under 1.5 seconds | 29 / 30 | 30 / 30 |
+| Mean confidence | 0.9346 | 0.9356 |
+| Mean text blocks | 20.8 | 20.0 |
+| Mean extracted characters | 431.67 | 376.63 |
 
 Cached docTR comparison on the same 30 images:
 
-| Metric | docTR Cached Baseline | PaddleOCR Smoke |
-|---|---:|---:|
-| Mean latency | 800.53 ms/image | 1,105.00 ms/image |
-| Median latency | 804.50 ms/image | 1,096.50 ms/image |
-| Worst latency | 1,592 ms/image | 1,544 ms/image |
-| Mean extracted characters | 436.00 | 431.67 |
-| Mean text blocks | 79.3 | 20.8 |
-| Images where engine extracted more characters | 21 / 30 | 9 / 30 |
+| Metric | docTR Cached Baseline | PaddleOCR Smoke | OpenOCR Smoke |
+|---|---:|---:|---:|
+| Mean latency | 800.53 ms/image | 1,105.00 ms/image | 563.77 ms/image |
+| Median latency | 804.50 ms/image | 1,096.50 ms/image | 582.50 ms/image |
+| Worst latency | 1,592 ms/image | 1,544 ms/image | 1,211 ms/image |
+| Mean extracted characters | 436.00 | 431.67 | 376.63 |
+| Mean text blocks | 79.3 | 20.8 | 20.0 |
 
 Initial interpretation:
 
 - PaddleOCR is viable enough to continue testing because 29 of 30 images were
   under the 1.5-second local CPU target.
-- PaddleOCR did not clearly beat docTR on raw extracted-character count.
-- Character count is only a crude proxy. PaddleOCR produced fewer text blocks,
-  which may mean cleaner line grouping, so the next comparison should be
-  field-level matching rather than extraction length alone.
-- PaddleOCR should remain experimental until it improves field-level match
-  rates or provides complementary evidence when combined with docTR.
+- OpenOCR/SVTRv2 is operationally interesting because it was the fastest engine
+  in the 30-image smoke and normalized cleanly into the same OCR schema.
+- PaddleOCR and OpenOCR did not clearly beat docTR on raw extracted-character
+  count.
+- Character count is only a crude proxy. Alternate engines produced fewer text
+  blocks, which may mean cleaner line grouping or missing fine-grained tokens,
+  so the important comparison is field-support performance.
+- Small sample sizes increase variance. These numbers are directional smoke
+  estimates only, not a stable engine ranking.
 
 ### Field-Support Classification Metrics
 
@@ -238,50 +240,53 @@ field-support score of `90`.
 
 Overall result across all fields:
 
-| Metric | docTR | PaddleOCR |
-|---|---:|---:|
-| Examples | 224 | 224 |
-| Accuracy | 0.7455 | 0.7723 |
-| Precision | 0.9825 | 0.9552 |
-| Recall | 0.5000 | 0.5714 |
-| Specificity | 0.9911 | 0.9732 |
-| F1 | 0.6627 | 0.7151 |
-| False-clear rate | 0.0089 | 0.0268 |
+| Metric | docTR | PaddleOCR | OpenOCR |
+|---|---:|---:|---:|
+| Examples | 224 | 224 | 224 |
+| Accuracy | 0.7455 | 0.7723 | 0.7143 |
+| Precision | 0.9825 | 0.9552 | 0.9800 |
+| Recall | 0.5000 | 0.5714 | 0.4375 |
+| Specificity | 0.9911 | 0.9732 | 0.9911 |
+| F1 | 0.6627 | 0.7151 | 0.6049 |
+| False-clear rate | 0.0089 | 0.0268 | 0.0089 |
 
 Excluding `applicant_or_producer`, which remains a known weak OCR/application
 field in the current data:
 
-| Metric | docTR | PaddleOCR |
-|---|---:|---:|
-| Examples | 184 | 184 |
-| Accuracy | 0.7989 | 0.8315 |
-| Precision | 0.9825 | 0.9552 |
-| Recall | 0.6087 | 0.6957 |
-| Specificity | 0.9891 | 0.9674 |
-| F1 | 0.7517 | 0.8050 |
-| False-clear rate | 0.0109 | 0.0326 |
+| Metric | docTR | PaddleOCR | OpenOCR |
+|---|---:|---:|---:|
+| Examples | 184 | 184 | 184 |
+| Accuracy | 0.7989 | 0.8315 | 0.7609 |
+| Precision | 0.9825 | 0.9552 | 0.9800 |
+| Recall | 0.6087 | 0.6957 | 0.5326 |
+| Specificity | 0.9891 | 0.9674 | 0.9891 |
+| F1 | 0.7517 | 0.8050 | 0.6901 |
+| False-clear rate | 0.0109 | 0.0326 | 0.0109 |
 
 By field:
 
-| Field | docTR F1 | PaddleOCR F1 | docTR Accuracy | PaddleOCR Accuracy | docTR False Clear | PaddleOCR False Clear |
+| Field | docTR F1 | PaddleOCR F1 | OpenOCR F1 | docTR Accuracy | PaddleOCR Accuracy | OpenOCR Accuracy |
 |---|---:|---:|---:|---:|---:|---:|
-| alcohol_content | 0.8333 | 0.8966 | 0.8462 | 0.8846 | 0.0769 | 0.2308 |
-| applicant_or_producer | 0.0000 | 0.0000 | 0.5000 | 0.5000 | 0.0000 | 0.0000 |
-| brand_name | 0.7500 | 0.7097 | 0.8000 | 0.7750 | 0.0000 | 0.0000 |
-| class_type | 0.5714 | 0.5714 | 0.7000 | 0.7000 | 0.0000 | 0.0000 |
-| country_of_origin | 0.7143 | 0.9412 | 0.7778 | 0.9444 | 0.0000 | 0.0000 |
-| fanciful_name | 0.8235 | 0.9474 | 0.8500 | 0.9500 | 0.0000 | 0.0000 |
-| net_contents | 0.8235 | 0.7500 | 0.8500 | 0.8000 | 0.0000 | 0.0000 |
+| alcohol_content | 0.8333 | 0.8966 | 0.8800 | 0.8462 | 0.8846 | 0.8846 |
+| applicant_or_producer | 0.0000 | 0.0000 | 0.0000 | 0.5000 | 0.5000 | 0.5000 |
+| brand_name | 0.7500 | 0.7097 | 0.7097 | 0.8000 | 0.7750 | 0.7750 |
+| class_type | 0.5714 | 0.5714 | 0.4000 | 0.7000 | 0.7000 | 0.6250 |
+| country_of_origin | 0.7143 | 0.9412 | 0.7143 | 0.7778 | 0.9444 | 0.7778 |
+| fanciful_name | 0.8235 | 0.9474 | 0.7500 | 0.8500 | 0.9500 | 0.8000 |
+| net_contents | 0.8235 | 0.7500 | 0.6667 | 0.8500 | 0.8000 | 0.7500 |
 
 Interpretation:
 
-- PaddleOCR improved accuracy, recall, and F1 on this smoke task.
+- PaddleOCR improved accuracy, recall, and F1 on this smoke task. That is a
+  real signal in the current sample and keeps PaddleOCR in contention.
 - docTR preserved higher precision and lower false-clear rate.
+- OpenOCR was faster and matched docTR's low false-clear rate, but it did not
+  beat the other engines on F1 in this first smoke.
 - The alcohol-content false-clear rate for PaddleOCR is too high to promote it
   directly without stricter field-specific thresholds or deterministic checks.
-- The best next experiment is a combined evidence approach: keep docTR as the
-  conservative default, use PaddleOCR as supplemental OCR evidence, and require
-  deterministic rule checks to control false clears.
+- Small sample sizes increase variance. The correct conclusion is not "choose
+  docTR" or "choose PaddleOCR" yet; it is "run the larger calibration set and
+  keep PaddleOCR, OpenOCR, and combined evidence under evaluation."
 
 ## May 2 COLA Cloud Stratified Calibration
 

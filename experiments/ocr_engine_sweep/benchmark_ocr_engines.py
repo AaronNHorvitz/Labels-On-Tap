@@ -244,6 +244,116 @@ class PaddleOCRSmokeEngine:
         return None
 
 
+class OpenOCRSmokeEngine:
+    """Experimental OpenOCR/SVTRv2 wrapper with normalized output.
+
+    Notes
+    -----
+    OpenOCR is intentionally optional. The deployed app does not import it.
+    The smoke benchmark loads it lazily inside an isolated Python 3.11
+    environment so we can test the SVTRv2 path without destabilizing the
+    production dependency set.
+    """
+
+    name = "openocr"
+
+    def __init__(self) -> None:
+        """Import and initialize OpenOCR lazily."""
+
+        try:
+            from openocr import OpenOCR
+        except Exception as exc:  # pragma: no cover - optional dependency
+            raise RuntimeError(f"OpenOCR is not installed: {exc}") from exc
+
+        self._engine = OpenOCR(
+            task="ocr",
+            use_gpu="false",
+            backend="onnx",
+            mode="mobile",
+            det_box_type="poly",
+        )
+
+    def run(self, image_path: Path) -> OCRResult:
+        """Run OpenOCR and normalize its ``system_results``-style output."""
+
+        started = perf_counter()
+        raw_results, time_dicts = self._engine(image_path=str(image_path), rec_batch_num=6)
+        blocks = self._extract_blocks(raw_results, image_path)
+        text = " ".join(block["text"] for block in blocks).strip()
+        confidences = [float(block.get("confidence", 0.0)) for block in blocks]
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+        total_ms = self._extract_total_ms(time_dicts) or int((perf_counter() - started) * 1000)
+        return OCRResult(
+            filename=image_path.name,
+            full_text=text,
+            avg_confidence=avg_confidence,
+            blocks=blocks,
+            source="local OpenOCR/SVTRv2",
+            ocr_ms=total_ms,
+            total_ms=total_ms,
+        )
+
+    def _extract_total_ms(self, time_dicts) -> int | None:
+        """Extract OpenOCR timing in milliseconds when available."""
+
+        if isinstance(time_dicts, list) and time_dicts:
+            value = time_dicts[0].get("time_cost") if isinstance(time_dicts[0], dict) else None
+            if value is not None:
+                return int(float(value) * 1000)
+        return None
+
+    def _extract_blocks(self, raw_results, image_path: Path) -> list[dict]:
+        """Parse OpenOCR results into OCR block dictionaries."""
+
+        candidate_rows = raw_results if isinstance(raw_results, list) else [raw_results]
+        for row in candidate_rows:
+            parsed = self._parse_result_row(row, image_path)
+            if parsed:
+                return parsed
+        return []
+
+    def _parse_result_row(self, row, image_path: Path) -> list[dict]:
+        """Parse one OpenOCR output row.
+
+        OpenOCR's Python API mirrors its ``system_results.txt`` format for OCR:
+        ``filename<TAB>[{transcription, points, score}, ...]``.
+        """
+
+        if isinstance(row, str):
+            if "\t" in row:
+                filename, payload = row.split("\t", 1)
+                if Path(filename).name != image_path.name:
+                    return []
+            else:
+                payload = row
+            try:
+                items = json.loads(payload)
+            except json.JSONDecodeError:
+                return []
+        elif isinstance(row, dict):
+            items = row.get("results") or row.get("ocr") or row.get("res") or []
+        elif isinstance(row, list):
+            items = row
+        else:
+            return []
+
+        blocks: list[dict] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            text = item.get("transcription") or item.get("text")
+            if not text:
+                continue
+            blocks.append(
+                {
+                    "text": str(text),
+                    "confidence": float(item.get("score") or item.get("confidence") or 0.0),
+                    "bbox": item.get("points") or item.get("bbox"),
+                }
+            )
+        return blocks
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
 
@@ -251,7 +361,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--engine",
         action="append",
-        choices=["doctr", "paddleocr"],
+        choices=["doctr", "paddleocr", "openocr"],
         required=True,
         help="OCR engine to run. May be supplied more than once.",
     )
@@ -294,6 +404,8 @@ def make_engine(name: str) -> SmokeEngine:
         return DoctrSmokeEngine()
     if name == "paddleocr":
         return PaddleOCRSmokeEngine()
+    if name == "openocr":
+        return OpenOCRSmokeEngine()
     raise ValueError(f"Unknown engine: {name}")
 
 

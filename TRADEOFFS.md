@@ -126,6 +126,8 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 **Implication:** The app can pursue better OCR aggressively without destabilizing the deployed demo. Until a candidate wins, docTR remains the safe runtime baseline.
 
+**Current smoke finding:** On the first 20-application / 30-image field-support comparison, PaddleOCR improved F1, accuracy, and recall versus docTR, while docTR preserved the lower false-clear rate. OpenOCR/SVTRv2 was the fastest candidate and matched docTR's false-clear rate in the same smoke, but had lower F1. Small sample sizes increase variance, so these results are directional calibration evidence only. PaddleOCR remains undecided and promising; it should not be promoted or rejected until a larger calibration run confirms whether the F1 lift survives.
+
 ---
 
 ### 3.2.2 Graph Scorer as Post-OCR Evidence, Not OCR Replacement
