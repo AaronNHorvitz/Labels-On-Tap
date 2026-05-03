@@ -20,6 +20,18 @@
   </section>
 
   <section class="panel">
+    <h2>Photo OCR Intake Demo</h2>
+    <p>Upload a real bottle, can, or shelf label photo to see raw OCR text and likely field candidates before formal COLA-style verification.</p>
+    <form action="/photo-intake" method="post" enctype="multipart/form-data" class="upload-form">
+      <label class="full">
+        Label photo
+        <input name="label_image" type="file" accept=".jpg,.jpeg,.png" required>
+      </label>
+      <button class="button secondary" type="submit">Parse Photo</button>
+    </form>
+  </section>
+
+  <section class="panel">
     <h2>Single Label Upload</h2>
     <form action="/jobs" method="post" enctype="multipart/form-data" class="upload-form">
       <label>

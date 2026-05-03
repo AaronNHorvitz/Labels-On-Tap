@@ -79,6 +79,7 @@ The correct product language is:
 | Dual-standard validation | Apply fuzzy matching for reviewer-judgment fields and strict checks for deterministic compliance fields. | P0 |
 | Safe uncertainty handling | Route low-confidence OCR, brittle visual checks, and subjective legal risks to Needs Review. | P0 |
 | Human review policy | Support agency-configurable approval gates before final acceptance and/or rejection. | P1 |
+| Photo OCR intake demo | Let evaluators upload a real bottle/can/shelf photo and inspect extracted candidate fields without claiming COLA verification. | P1 |
 | Research corpus | Maintain a legal/regulatory research corpus that maps sources to rules, fixtures, and UI explanations. | P1 |
 | Synthetic fixture generation | Generate controlled negative examples because true rejected/Needs Correction data is not generally public. | P1 |
 
@@ -268,6 +269,16 @@ OCR engine selection should be benchmark-driven. The runtime engine must satisfy
 - Docker reliability.
 - Bounding-box output.
 - Confidence score output.
+
+#### P1.0 Photo OCR intake demo
+
+The app should support a demonstration-only flow for real-world phone photos:
+
+- Upload one bottle, can, or store-shelf label image.
+- Run the same upload preflight and local OCR path.
+- Display likely candidate fields: brand, product type, class/type, alcohol content, net contents, country of origin, and government warning signals.
+- Display OCR source, confidence, OCR lines, and raw OCR text.
+- Clearly state that the result is an extraction aid, not a verification verdict, because no application fields were supplied.
 - Good enough performance for the approximate 5-second per-label target.
 
 #### P0.5 Image and upload preflight
@@ -493,6 +504,7 @@ Metrics:
 | FR-005 | App creates a job ID and redirects immediately to progress page. | P0 |
 | FR-006 | App stores uploaded files under randomized safe paths. | P0 |
 | FR-007 | App rejects unsafe or unsupported files with clear explanation. | P0 |
+| FR-008 | App supports demonstration-only photo OCR intake for one free-form label photo. | P1 |
 
 ### 8.2 OCR and Topology
 
@@ -503,6 +515,7 @@ Metrics:
 | FR-012 | App records processing timing metrics. | P0 |
 | FR-013 | App creates a label topology object from OCR blocks. | P1 |
 | FR-014 | App creates evidence snippets/crops for key failures where feasible. | P1 |
+| FR-015 | App extracts candidate fields from free-form photo OCR text for demonstration only. | P1 |
 
 ### 8.3 Validation
 

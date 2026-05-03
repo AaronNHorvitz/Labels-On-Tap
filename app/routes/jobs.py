@@ -28,10 +28,13 @@ from app.services.job_store import (
     list_results,
     load_manifest,
     load_result,
+    read_json,
     write_result,
+    write_json,
 )
 from app.services.manifest_parser import ManifestParseError, parse_manifest
 from app.services.ocr.fixture_engine import FixtureOCREngine
+from app.services.photo_intake import parse_photo_intake
 from app.services.preflight.file_signature import (
     has_allowed_image_signature,
     is_pillow_decodable_image,
@@ -228,6 +231,77 @@ def create_single_job(
         },
     )
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
+
+
+@router.post("/photo-intake")
+def create_photo_intake_job(
+    label_image: UploadFile = File(...),
+) -> RedirectResponse:
+    """Run demonstration OCR extraction on a free-form label photo.
+
+    Parameters
+    ----------
+    label_image:
+        JPG/PNG bottle, can, or label photo uploaded for OCR exploration.
+
+    Returns
+    -------
+    RedirectResponse
+        Redirects to a demonstration page showing extracted candidate fields.
+
+    Notes
+    -----
+    This is not a COLA verification route. It shows what the OCR layer can
+    extract when no application fields have been provided.
+    """
+
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="_upload-", dir=JOBS_DIR) as temp_dir:
+        upload = _validate_image_upload(label_image, Path(temp_dir))
+        job_id = create_job(label="photo intake demo")
+        dest = _move_validated_upload(job_id, upload)
+
+    item_id = dest.stem
+    fixture_id = Path(upload.original_filename).stem
+    ocr = ocr_engine.run(dest, fixture_id=fixture_id)
+    intake = parse_photo_intake(ocr)
+    intake["job_id"] = job_id
+    intake["item_id"] = item_id
+    intake["original_filename"] = upload.original_filename
+    intake["stored_filename"] = upload.stored_filename
+    intake["upload_size"] = upload.upload_size
+    write_json(job_dir(job_id) / "photo_intake" / f"{item_id}.json", intake)
+    add_manifest_item(
+        job_id,
+        {
+            "item_id": item_id,
+            "filename": upload.original_filename,
+            "original_filename": upload.original_filename,
+            "stored_filename": upload.stored_filename,
+            "upload_size": upload.upload_size,
+            "workflow": "photo_intake_demo",
+        },
+    )
+    return RedirectResponse(url=f"/photo-intake/{job_id}/{item_id}", status_code=303)
+
+
+@router.get("/photo-intake/{job_id}/{item_id}", response_class=HTMLResponse)
+def photo_intake_detail(request: Request, job_id: str, item_id: str) -> HTMLResponse:
+    """Render one photo-intake OCR extraction result."""
+
+    path = job_dir(job_id) / "photo_intake" / f"{item_id}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Photo intake result not found")
+    return templates.TemplateResponse(
+        request,
+        "photo_intake.html",
+        {
+            "job_id": job_id,
+            "item_id": item_id,
+            "manifest": load_manifest(job_id),
+            "intake": read_json(path),
+        },
+    )
 
 
 @router.post("/jobs/batch")

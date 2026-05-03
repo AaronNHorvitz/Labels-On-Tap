@@ -61,6 +61,8 @@ The app is already deployed and working. The current sprint has shifted from app
 - AWS Lightsail deployment is live.
 - Fixture demos work.
 - Upload preflight exists.
+- Photo OCR intake demo exists for real bottle/can/shelf photos without
+  application fields.
 - Batch upload exists.
 - CSV export exists.
 - `country_of_origin` and `imported` are first-class fields.

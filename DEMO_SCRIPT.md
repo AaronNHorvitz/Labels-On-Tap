@@ -72,6 +72,7 @@ https://www.labelsontap.ai
 ```text
 - Simple reviewer-oriented interface.
 - One-click evaluator demo buttons.
+- Photo OCR Intake Demo for real bottle/can/shelf photos.
 - Manual upload option.
 - Pass / Needs Review / Fail vocabulary.
 - Planned reviewer-policy queues before final acceptance or rejection.
@@ -85,6 +86,10 @@ https://www.labelsontap.ai
 Optional policy framing:
 
 > In a production pilot, the raw system verdict would feed configurable reviewer queues. The agency could require human approval before rejection, before acceptance, or both. My recommended default is review before rejection on, review before acceptance off, so routine clean matches can move quickly while adverse or uncertain cases remain human-confirmed.
+
+Optional real-photo framing:
+
+> The photo intake demo is intentionally separate from verification. It lets us upload a real bottle or shelf photo, run local OCR, and inspect likely extracted fields. Formal COLA verification still requires application fields to compare against.
 
 ---
 

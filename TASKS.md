@@ -38,6 +38,7 @@ The sprint priority is now:
 - [x] Deployment architecture is Docker Compose + Caddy on AWS Lightsail.
 - [x] Current deployment target remains AWS for submission; Azure is a documented portability path if time allows.
 - [x] The app has demo routes, job pages, detail pages, single-label upload, manifest-backed batch upload, and CSV export.
+- [x] Demonstration-only photo OCR intake route exists for real bottle/can/shelf photos without application fields.
 - [x] `country_of_origin` and `imported` are first-class application fields.
 - [x] Demo fixtures/data scaffold exists.
 - [x] Tests scaffold exists.
@@ -283,6 +284,33 @@ Reviewer-ready output requirements:
 - [ ] Recommended reviewer action.
 - [ ] Final reviewer action / override note when a human decision has been recorded.
 - [ ] Latency.
+
+---
+
+## Layer 2 Photo OCR Intake Demo
+
+**Priority:** P1 demonstration aid, not official verification
+
+This capability supports Aaron's local phone-photo benchmark and live demos with
+store-shelf bottle/can photos. It is not a replacement for COLA application
+comparison because no application fields are supplied.
+
+- [x] Add home-page photo intake upload form.
+- [x] Add `POST /photo-intake` route.
+- [x] Add `GET /photo-intake/{job_id}/{item_id}` result page.
+- [x] Reuse upload preflight, randomized filenames, and local OCR / fixture OCR fallback.
+- [x] Extract candidate fields from raw OCR text:
+  - [x] brand candidate,
+  - [x] product type candidate,
+  - [x] class/type candidate,
+  - [x] alcohol-content candidate,
+  - [x] net-contents candidate,
+  - [x] country-of-origin candidate,
+  - [x] government-warning signals.
+- [x] Display candidate values, confidence, method, evidence, OCR lines, and raw OCR text.
+- [x] Clearly label the feature as demonstration-only OCR extraction, not COLA verification.
+- [ ] Add a manual "promote candidate to verification form" helper if time allows.
+- [ ] Run a small private local-photo benchmark under `data/work/local-photo-benchmark/` after EXIF/location stripping.
 
 ---
 

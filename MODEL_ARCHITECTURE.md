@@ -139,6 +139,7 @@ There are three separate data classes. They must stay separate.
 | Data Class | Purpose | Runtime Dependency | Storage |
 |---|---|---:|---|
 | User/demo uploads | Actual app workflow and one-click demos | Yes | `data/jobs/` at runtime |
+| Photo intake uploads | Demonstration-only OCR extraction from free-form bottle/can/shelf photos | Yes for demo | `data/jobs/` at runtime |
 | Synthetic fixtures | Known Pass/Needs Review/Fail regression tests | Yes for demos/tests | `data/fixtures/demo/` |
 | Official public COLA examples | OCR and field-matching evaluation corpus | No | gitignored `data/work/` |
 
@@ -149,6 +150,27 @@ Cloud-derived public COLA data because the direct TTB attachment endpoint was
 unstable during the sprint. The direct TTB Public COLA Registry parser remains
 the official printable-form path, but those direct attachment downloads are not
 the source of the current model metrics.
+
+### Photo OCR Intake Contract
+
+Photo intake is a demonstration-only branch for real-world phone photos where no
+application fields are supplied yet.
+
+```mermaid
+flowchart TD
+    A["Bottle/can/shelf photo upload"] --> B["Upload preflight"]
+    B --> C["Local OCR / fixture fallback"]
+    C --> D["Regex + heuristic field extraction"]
+    D --> E["Candidate fields<br/>brand, product type, class/type,<br/>ABV, net contents, origin"]
+    D --> F["Government warning signals"]
+    E --> G["Photo intake result page"]
+    F --> G
+    G --> H["Human can review candidates<br/>before using normal verification"]
+```
+
+This branch does not produce a COLA verification verdict. It proves the OCR and
+field-extraction layer can work on real photos, then keeps formal verification
+dependent on application fields or a manifest.
 
 ### Multi-Panel Application Contract
 

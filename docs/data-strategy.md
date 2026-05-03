@@ -78,6 +78,11 @@ Tests and one-click demos should not depend on live scraping or public-registry 
 
 Phone photos from store visits are useful for OCR stress testing, glare/blur/angle checks, and synthetic negative cases. They should not be committed to git.
 
+The app now has a demonstration-only photo intake workflow that can run local OCR
+on these images and display candidate fields. That workflow is useful for manual
+inspection and demo storytelling, but formal verification still requires
+application fields or a manifest.
+
 Use:
 
 ```text

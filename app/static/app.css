@@ -74,6 +74,10 @@ p {
   border-radius: 8px;
 }
 
+.panel.notice {
+  border-left: 6px solid var(--blue);
+}
+
 .demo-actions {
   display: flex;
   flex-wrap: wrap;
@@ -254,6 +258,13 @@ pre {
   padding: 1rem;
   background: #f3efe6;
   border-radius: 6px;
+}
+
+.ocr-lines {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.4rem;
 }
 
 @media (max-width: 760px) {

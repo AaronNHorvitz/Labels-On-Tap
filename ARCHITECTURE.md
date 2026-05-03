@@ -175,6 +175,7 @@ No Kubernetes, no serverless, no separate React build, and no cloud ML APIs are 
 │                                                                    │
 │  API / Route Layer                                                 │
 │    - upload routes                                                 │
+│    - photo intake route                                            │
 │    - demo routes                                                   │
 │    - job status routes                                             │
 │    - CSV export                                                    │
@@ -321,6 +322,9 @@ Primary pages:
 
 ```text
 GET /                      Home and upload page
+POST /photo-intake          Demonstration-only photo OCR extraction
+GET /photo-intake/{job_id}/{item_id}
+                             Photo OCR candidate-field page
 GET /jobs/{job_id}          Batch/single job status page
 GET /jobs/{job_id}/status   HTMX partial for progress/results
 GET /jobs/{job_id}/csv      CSV export
@@ -332,9 +336,10 @@ Primary UX flows:
 
 ```text
 1. One-click evaluator demo
-2. Single label verification
-3. Batch multi-file verification
-4. Result review and CSV export
+2. Demonstration-only photo OCR intake
+3. Single label verification
+4. Batch multi-file verification
+5. Result review and CSV export
 ```
 
 ### 5.2 One-click evaluator demos
@@ -863,7 +868,22 @@ The key product behavior is that source-backed risk does not become an unsupport
 8. User downloads CSV export.
 ```
 
-### 10.3 Status endpoint behavior
+### 10.3 Photo intake flow
+
+```text
+1. User uploads one real bottle/can/shelf photo.
+2. App runs the same upload preflight and randomized storage path.
+3. App runs fixture OCR fallback or local OCR.
+4. App extracts likely field candidates with lightweight regex/heuristics.
+5. User sees candidate fields, warning signals, OCR lines, and raw OCR text.
+6. No Pass / Needs Review / Fail verification verdict is issued because no
+   application fields were supplied.
+```
+
+Photo intake is a demo and benchmarking aid. It is useful for Aaron's local
+phone-photo label set, but it stays separate from COLA-style verification.
+
+### 10.4 Status endpoint behavior
 
 ```text
 GET /jobs/{job_id}/status

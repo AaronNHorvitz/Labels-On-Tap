@@ -127,6 +127,23 @@ requirements without changing OCR, model, or compliance-rule code.
 
 ---
 
+### 2.5 Photo Intake As OCR Demonstration, Not Verification
+
+**Decision:** The app includes a demonstration-only photo intake workflow for
+real bottle, can, or store-shelf photos.
+
+**Why:** Aaron has a private local set of real alcohol-label phone photos. Those
+images are useful for showing raw OCR behavior, glare/angle failure modes, and
+candidate field extraction. They are not COLA applications and do not contain
+trusted application fields.
+
+**Implication:** Photo intake displays candidate fields and OCR evidence, but it
+does not return a COLA verification verdict. Formal Pass / Needs Review / Fail
+requires application fields or a manifest so the system can compare expected
+values to label evidence.
+
+---
+
 ## 3. Architecture Trade-Offs
 
 ### 3.1 Local-First OCR Instead of Hosted ML APIs

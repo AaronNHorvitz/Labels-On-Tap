@@ -96,6 +96,22 @@ def test_single_upload_randomizes_storage_and_preserves_original_filename():
     assert result.ocr["source"] == "fixture ground truth"
 
 
+def test_photo_intake_upload_extracts_candidate_fields():
+    client = TestClient(app)
+    response = client.post(
+        "/photo-intake",
+        files={"label_image": ("clean_malt_pass.png", DEMO_FIXTURE.read_bytes(), "image/png")},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "Photo OCR Intake" in response.text
+    assert "Demonstration Only" in response.text
+    assert "OLD RIVER BREWING" in response.text
+    assert "5% ALC/VOL" in response.text
+    assert "fixture ground truth" in response.text
+
+
 def test_single_upload_rejects_bad_signature():
     client = TestClient(app)
     response = client.post(

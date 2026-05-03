@@ -410,6 +410,7 @@ This is not part of the current measured runtime claim. It is recorded as a futu
 - FastAPI app with server-rendered Jinja2 templates and local HTMX.
 - Local CSS with high-contrast Pass / Needs Review / Fail states.
 - Single-label upload form with product/application fields.
+- Demonstration-only photo OCR intake for real bottle/can/shelf photos.
 - Manifest-backed batch upload for multiple label images.
 - Fixture-backed one-click demos for evaluator review.
 - Filesystem job/result store under `data/jobs/`.
@@ -658,6 +659,37 @@ Supported image extensions are:
 ```
 
 Current upload preflight rejects unsupported extensions, path components, double extensions, oversize files, files whose signature does not match JPG/PNG, and corrupt images that Pillow cannot decode. Accepted uploads are stored under randomized server-side filenames while preserving the original filename as metadata.
+
+### Photo OCR Intake Demo
+
+The home page includes a demonstration-only photo intake form for real bottle,
+can, or store-shelf photos where no COLA application fields are available yet.
+
+Routes:
+
+```text
+POST /photo-intake
+GET  /photo-intake/{job_id}/{item_id}
+```
+
+The intake route runs the same upload preflight and local OCR path, then displays
+likely field candidates:
+
+```text
+brand_name_candidate
+product_type_candidate
+class_type_candidate
+alcohol_content_candidate
+net_contents_candidate
+country_of_origin_candidate
+government warning signals
+raw OCR lines
+```
+
+This is intentionally not a verification result. It is an OCR extraction aid for
+demonstrations and local-photo benchmarking. Formal COLA-style verification
+still requires application fields or a manifest so the app can compare expected
+values against label evidence.
 
 ### Result Review
 
@@ -1044,8 +1076,10 @@ Manual manifest upload is wired into the home page batch form. The fixture gener
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/` | GET | Home page, demo buttons, single upload form |
+| `/` | GET | Home page, demo buttons, photo intake, single upload form |
 | `/health` | GET | Health check |
+| `/photo-intake` | POST | Create a demonstration-only photo OCR intake job |
+| `/photo-intake/{job_id}/{item_id}` | GET | Photo OCR intake candidate-field page |
 | `/jobs` | POST | Create a single-label job |
 | `/jobs/batch` | POST | Create a manifest-backed batch job |
 | `/jobs/{job_id}` | GET | Job result table |

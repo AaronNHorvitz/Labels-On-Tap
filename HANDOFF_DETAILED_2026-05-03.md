@@ -101,6 +101,19 @@ FastAPI app container
 filesystem job store
 ```
 
+Implemented demo workflows:
+
+```text
+one-click fixture demos
+single-label upload with application fields
+manifest-backed batch upload
+photo OCR intake demo for free-form bottle/can/shelf photos
+```
+
+The photo OCR intake route is demonstration-only. It displays likely fields from
+OCR text, but it does not issue Pass / Needs Review / Fail because no COLA-style
+application fields are supplied.
+
 Runtime stack:
 
 ```text
