@@ -9,13 +9,16 @@ clear future path to background workers if batch sizes grow.
 
 from __future__ import annotations
 
+from io import BytesIO
 from dataclasses import dataclass, replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from PIL import Image
 
 from app.config import JOBS_DIR, MAX_MANIFEST_BYTES, MAX_UPLOAD_BYTES, ROOT
 from app.schemas.application import ColaApplication
@@ -175,6 +178,130 @@ def _manifest_item_to_application(item: ManifestItem) -> ColaApplication:
 
     payload = item.model_dump() if hasattr(item, "model_dump") else item.dict()
     return ColaApplication(**payload)
+
+
+def _find_manifest_item(job_id: str, item_id: str) -> dict:
+    """Return the manifest row for an item, if present."""
+
+    manifest = load_manifest(job_id)
+    for item in manifest.get("items", []):
+        if item.get("item_id") == item_id:
+            return item
+    return {}
+
+
+def _safe_upload_path(job_id: str, filename: str) -> Path:
+    """Resolve a stored upload filename without allowing path traversal."""
+
+    safe_name = Path(filename).name
+    if safe_name != filename:
+        raise HTTPException(status_code=400, detail="Invalid upload filename")
+    path = job_dir(job_id) / "uploads" / safe_name
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Upload image not found")
+    return path
+
+
+def _upload_filename_for_item(job_id: str, item_id: str, result_filename: str) -> str | None:
+    """Find the stored upload filename for an item detail page."""
+
+    item = _find_manifest_item(job_id, item_id)
+    return item.get("stored_filename") or item.get("filename") or result_filename
+
+
+def _normalize_letters(text: str) -> str:
+    """Uppercase text and keep only letters for heading detection."""
+
+    return "".join(ch for ch in text.upper() if ch.isalpha())
+
+
+def _bbox_bounds(bbox: object, *, image_width: int, image_height: int) -> tuple[float, float, float, float] | None:
+    """Return normalized bbox bounds for two-point boxes or four-point polygons."""
+
+    if not isinstance(bbox, list):
+        return None
+    points: list[tuple[float, float]] = []
+    for point in bbox:
+        if isinstance(point, (list, tuple)) and len(point) >= 2:
+            try:
+                points.append((float(point[0]), float(point[1])))
+            except (TypeError, ValueError):
+                continue
+    if not points:
+        return None
+    if max(max(abs(x), abs(y)) for x, y in points) > 1.5:
+        points = [(x / max(image_width, 1), y / max(image_height, 1)) for x, y in points]
+    xs = [point[0] for point in points]
+    ys = [point[1] for point in points]
+    return max(0.0, min(xs)), max(0.0, min(ys)), min(1.0, max(xs)), min(1.0, max(ys))
+
+
+def _warning_blocks(result: Any) -> list[dict[str, Any]]:
+    """Return OCR blocks that appear to support the government warning heading."""
+
+    blocks = result.ocr.get("blocks", []) if isinstance(result.ocr, dict) else []
+    matches: list[dict[str, Any]] = []
+    for index, block in enumerate(blocks):
+        text = str(block.get("text") or "")
+        normalized = _normalize_letters(text)
+        if "GOVERNMENTWARNING" in normalized or "GOVERNMENT" in normalized or "WARNING" in normalized:
+            matches.append(
+                {
+                    "index": index,
+                    "text": text,
+                    "confidence": block.get("confidence"),
+                    "bbox": block.get("bbox"),
+                    "has_bbox": block.get("bbox") is not None,
+                }
+            )
+    return matches
+
+
+def _warning_crop_bounds(result: Any, image_path: Path) -> tuple[int, int, int, int] | None:
+    """Compute a reviewer-visible crop around detected warning-heading OCR boxes."""
+
+    blocks = _warning_blocks(result)
+    if not blocks:
+        return None
+    with Image.open(image_path) as image:
+        width, height = image.size
+    bounds: list[tuple[float, float, float, float]] = []
+    for block in blocks:
+        bbox = _bbox_bounds(block.get("bbox"), image_width=width, image_height=height)
+        if bbox is not None:
+            bounds.append(bbox)
+    if not bounds:
+        return None
+    x1 = min(bound[0] for bound in bounds)
+    y1 = min(bound[1] for bound in bounds)
+    x2 = max(bound[2] for bound in bounds)
+    y2 = max(bound[3] for bound in bounds)
+    crop_height = max((y2 - y1) * height, 1.0)
+    pad_x = max(8, int(round(crop_height * 0.8)))
+    pad_y = max(6, int(round(crop_height * 0.6)))
+    return (
+        max(0, int(round(x1 * width)) - pad_x),
+        max(0, int(round(y1 * height)) - pad_y),
+        min(width, int(round(x2 * width)) + pad_x),
+        min(height, int(round(y2 * height)) + pad_y),
+    )
+
+
+def _warning_evidence_context(job_id: str, item_id: str, result: Any) -> dict[str, Any]:
+    """Build image, OCR, and crop metadata for the item detail evidence panel."""
+
+    upload_filename = _upload_filename_for_item(job_id, item_id, result.filename)
+    image_path = _safe_upload_path(job_id, upload_filename) if upload_filename else None
+    blocks = _warning_blocks(result)
+    crop_available = bool(image_path and _warning_crop_bounds(result, image_path))
+    return {
+        "upload_filename": upload_filename,
+        "image_url": f"/jobs/{job_id}/uploads/{upload_filename}" if upload_filename else None,
+        "warning_crop_url": f"/jobs/{job_id}/items/{item_id}/warning-crop.png" if crop_available else None,
+        "warning_blocks": blocks,
+        "warning_text_detected": bool(blocks),
+        "ocr_block_count": len(result.ocr.get("blocks", [])) if isinstance(result.ocr, dict) else 0,
+    }
 
 
 @router.post("/jobs")
@@ -509,11 +636,38 @@ def job_status(request: Request, job_id: str):
 def item_detail(request: Request, job_id: str, item_id: str):
     """Render per-item evidence, OCR text, and rule checks."""
 
+    result = load_result(job_id, item_id)
     return templates.TemplateResponse(
         request,
         "item_detail.html",
-        {"job_id": job_id, "result": load_result(job_id, item_id)},
+        {"job_id": job_id, "result": result, "evidence": _warning_evidence_context(job_id, item_id, result)},
     )
+
+
+@router.get("/jobs/{job_id}/uploads/{filename}")
+def job_upload_image(job_id: str, filename: str) -> FileResponse:
+    """Serve the stored label image for a job item evidence page."""
+
+    return FileResponse(_safe_upload_path(job_id, filename))
+
+
+@router.get("/jobs/{job_id}/items/{item_id}/warning-crop.png")
+def warning_heading_crop(job_id: str, item_id: str) -> Response:
+    """Serve a crop around OCR-detected government-warning heading evidence."""
+
+    result = load_result(job_id, item_id)
+    upload_filename = _upload_filename_for_item(job_id, item_id, result.filename)
+    if not upload_filename:
+        raise HTTPException(status_code=404, detail="Upload image not found")
+    image_path = _safe_upload_path(job_id, upload_filename)
+    crop_bounds = _warning_crop_bounds(result, image_path)
+    if crop_bounds is None:
+        raise HTTPException(status_code=404, detail="Warning heading crop not available")
+    with Image.open(image_path) as image:
+        crop = image.convert("RGB").crop(crop_bounds)
+        buffer = BytesIO()
+        crop.save(buffer, format="PNG")
+    return Response(content=buffer.getvalue(), media_type="image/png")
 
 
 @router.get("/jobs/{job_id}/results.csv")

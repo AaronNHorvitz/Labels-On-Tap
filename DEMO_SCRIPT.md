@@ -127,7 +127,7 @@ Overall verdict: Pass
 
 ```text
 - The app compares label text to application data.
-- The result page shows checked rules, evidence text, and source-backed reasoning.
+- The result page shows checked rules, evidence text, the submitted label image, warning-related OCR blocks, and source-backed reasoning.
 - This is the routine matching work Sarah described.
 ```
 
@@ -562,7 +562,7 @@ A successful demo means the evaluator sees:
 - An imported country-of-origin check produces Pass.
 - A low-confidence or typography-limited case produces Needs Review.
 - A batch-style triage view appears.
-- A result detail page explains evidence and reviewer action.
+- A result detail page explains evidence and reviewer action, including the submitted label image and OCR warning evidence when available.
 - The repo documents trade-offs and source-backed rule design.
 ```
 

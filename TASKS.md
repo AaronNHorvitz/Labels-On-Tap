@@ -38,6 +38,7 @@ The sprint priority is now:
 - [x] Deployment architecture is Docker Compose + Caddy on AWS Lightsail.
 - [x] Current deployment target remains AWS for submission; Azure is a documented portability path if time allows.
 - [x] The app has demo routes, job pages, detail pages, single-label upload, manifest-backed batch upload, and CSV export.
+- [x] Item detail pages show the submitted label image, warning-related OCR blocks, OCR text, rule evidence, and a warning-heading crop when OCR geometry is available.
 - [x] Demonstration-only photo OCR intake route exists for real bottle/can/shelf photos without application fields.
 - [x] Local COLA Cloud-derived public example demo exists for side-by-side application field vs OCR evidence review.
 - [x] `country_of_origin` and `imported` are first-class application fields.

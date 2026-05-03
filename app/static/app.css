@@ -273,6 +273,12 @@ pre {
   gap: 1rem;
 }
 
+.evidence-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.95fr) minmax(320px, 1.05fr);
+  gap: 1rem;
+}
+
 .label-panel {
   min-width: 0;
   padding: 1rem;
@@ -290,6 +296,10 @@ pre {
   border-radius: 6px;
 }
 
+.compact-table {
+  font-size: 0.9rem;
+}
+
 @media (max-width: 760px) {
   .site-header,
   .intro,
@@ -300,6 +310,7 @@ pre {
   .upload-form,
   .summary-grid,
   .detail-grid,
+  .evidence-grid,
   .panel-grid {
     grid-template-columns: 1fr;
   }

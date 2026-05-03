@@ -24,6 +24,51 @@
   </section>
 
   <section class="panel">
+    <h2>Label Image And Detected Warning Evidence</h2>
+    <div class="evidence-grid">
+      <div class="label-panel">
+        <h3>Submitted Label</h3>
+        {% if evidence.image_url %}
+        <img src="{{ evidence.image_url }}" alt="Submitted label image for {{ result.filename }}">
+        {% else %}
+        <p>No stored label image is available for this result.</p>
+        {% endif %}
+      </div>
+      <div class="label-panel">
+        <h3>Government Warning Detection</h3>
+        {% if evidence.warning_crop_url %}
+        <img src="{{ evidence.warning_crop_url }}" alt="Detected government warning heading crop">
+        {% else %}
+        <p>No warning-heading crop is available from OCR geometry for this item.</p>
+        {% endif %}
+        <p>OCR blocks: {{ evidence.ocr_block_count }} · Warning-related blocks: {{ evidence.warning_blocks|length }}</p>
+        {% if evidence.warning_blocks %}
+        <table class="compact-table">
+          <thead>
+            <tr>
+              <th>Block</th>
+              <th>Text</th>
+              <th>Confidence</th>
+              <th>Box</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for block in evidence.warning_blocks %}
+            <tr>
+              <td>{{ block.index }}</td>
+              <td>{{ block.text }}</td>
+              <td>{{ "%.2f"|format(block.confidence) if block.confidence is not none else "n/a" }}</td>
+              <td>{{ "yes" if block.has_bbox else "no" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>Rule Checks</h2>
     <div class="checks">
       {% for check in result.checks %}

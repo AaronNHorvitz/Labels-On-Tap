@@ -2,9 +2,11 @@ from fastapi.testclient import TestClient
 
 from app.config import JOBS_DIR, ROOT
 from app.main import app
+from app.schemas.application import ColaApplication
 from app.schemas.ocr import OCRResult
 from app.services.cola_cloud_demo import ColaCloudDemoSource, ColaCloudPanel
-from app.services.job_store import load_manifest, load_result
+from app.services.job_store import add_manifest_item, create_job, load_manifest, load_result, save_upload, write_result
+from app.services.rules.registry import verify_label
 
 
 DEMO_FIXTURE = ROOT / "data/fixtures/demo/clean_malt_pass.png"
@@ -70,6 +72,52 @@ def test_item_detail_page_shows_rule_evidence_and_actions():
     assert "Evidence text" in detail.text
     assert "Reviewer action:" in detail.text
     assert "Sources:" in detail.text
+    assert "Label Image And Detected Warning Evidence" in detail.text
+    assert "Submitted Label" in detail.text
+    assert f"/jobs/{job_id}/uploads/warning_missing_comma_fail.png" in detail.text
+
+    image_response = client.get(f"/jobs/{job_id}/uploads/warning_missing_comma_fail.png")
+    assert image_response.status_code == 200
+
+
+def test_item_detail_shows_warning_crop_when_ocr_boxes_exist():
+    client = TestClient(app)
+    job_id = create_job("boxed warning unit")
+    image_path = save_upload(job_id, DEMO_FIXTURE, "boxed_warning.png")
+    ocr = OCRResult(
+        fixture_id="boxed_warning",
+        filename=image_path.name,
+        full_text="GOVERNMENT WARNING: Alcohol content.",
+        avg_confidence=0.98,
+        blocks=[
+            {"text": "GOVERNMENT", "confidence": 0.98, "bbox": [[0.10, 0.62], [0.31, 0.66]]},
+            {"text": "WARNING:", "confidence": 0.98, "bbox": [[0.33, 0.62], [0.52, 0.66]]},
+        ],
+        source="unit boxed OCR",
+        total_ms=12,
+    )
+    application = ColaApplication(
+        filename="boxed_warning.png",
+        product_type="malt_beverage",
+        brand_name="OLD RIVER BREWING",
+        class_type="Ale",
+        alcohol_content="5% ALC/VOL",
+        net_contents="1 Pint",
+    )
+    result = verify_label(job_id, "boxed_warning", application, ocr)
+    write_result(result)
+    add_manifest_item(job_id, {"item_id": "boxed_warning", "filename": "boxed_warning.png"})
+
+    detail = client.get(f"/jobs/{job_id}/items/boxed_warning")
+    assert detail.status_code == 200
+    assert "Detected government warning heading crop" in detail.text
+    assert "/jobs/" in detail.text
+    assert "GOVERNMENT" in detail.text
+    assert "WARNING:" in detail.text
+
+    crop = client.get(f"/jobs/{job_id}/items/boxed_warning/warning-crop.png")
+    assert crop.status_code == 200
+    assert crop.headers["content-type"] == "image/png"
 
 
 def test_single_upload_randomizes_storage_and_preserves_original_filename():

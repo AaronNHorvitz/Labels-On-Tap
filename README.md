@@ -836,7 +836,7 @@ Each job page shows:
 - links to item detail pages,
 - CSV export.
 
-The item detail page shows application fields, OCR source, per-rule verdicts, expected/observed values, source refs, reviewer actions, and the full OCR text used for the decision.
+The item detail page shows application fields, the submitted label image, warning-related OCR blocks, a warning-heading crop when OCR geometry is available, OCR source, per-rule verdicts, expected/observed values, source refs, reviewer actions, and the full OCR text used for the decision.
 
 ### Batch Review
 
