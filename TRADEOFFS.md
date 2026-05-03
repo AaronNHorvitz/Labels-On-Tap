@@ -213,7 +213,53 @@ Graph-aware scorer POC:
 
 ---
 
-### 3.2.3 OpenVINO / EC2 m7i Optimization Is a Future Path
+### 3.2.3 LayoutLMv3 Ensemble Arbitration Is a Future Iteration
+
+**Decision:** LayoutLMv3 should be treated as a future ensemble-arbitration experiment, not part of the Monday runtime path.
+
+**Why:** The alcohol-domain NLP research brief reframes the OCR problem correctly: docTR, PaddleOCR, and OpenOCR/SVTRv2 should not be treated as single points of failure. They can be treated as noisy sensors that emit candidate text, confidence, and geometry. A layout-aware model such as LayoutLMv3 could then arbitrate disagreements using text tokens, normalized 2D bounding boxes, and image patches together.
+
+This does not replace OCR. It sits between OCR and deterministic compliance logic:
+
+```mermaid
+flowchart TB
+    A["COLA label image"] --> B1["docTR OCR<br/>text + boxes + confidence"]
+    A --> B2["PaddleOCR<br/>text + boxes + confidence"]
+    A --> B3["OpenOCR / SVTRv2<br/>text + boxes + confidence"]
+
+    B1 --> C["Box normalization + deduplication<br/>0-1000 coordinate scale"]
+    B2 --> C
+    B3 --> C
+    A --> D["Raw image patches"]
+
+    C --> E["LayoutLMv3 ensemble arbiter<br/>tokens + 2D boxes + image patches"]
+    D --> E
+
+    E --> F["Field evidence JSON<br/>brand, class/type, ABV,<br/>net contents, origin"]
+    F --> G["Graph-aware field scorer"]
+    F --> H["Deterministic source-backed rules"]
+    G --> I["Pass / Needs Review / Fail"]
+    H --> I
+    I --> J["Reviewer evidence and action"]
+```
+
+**Future experiment design:**
+
+```text
+1. Reuse the public COLA calibration set with all associated label panels.
+2. Run docTR, PaddleOCR, and OpenOCR/SVTRv2 as parallel local OCR sensors.
+3. Normalize and cluster overlapping OCR boxes across engines.
+4. Weak-label fields from public COLA metadata using conservative fuzzy alignment.
+5. Fine-tune LayoutLMv3 for token classification or field extraction.
+6. Compare against the best single OCR engine, deterministic fuzzy matching, and the graph-aware scorer.
+7. Promote only if it improves F1 while preserving or lowering false-clear rate and staying inside the CPU latency budget.
+```
+
+**Implication:** LayoutLMv3 is a strong candidate for the next serious research iteration because it directly addresses the two-dimensional label-layout problem. However, it requires label alignment, model training, latency measurement, and a clean deployment story. Until those are measured, the current runtime should remain OCR + deterministic rules + optional graph-aware scoring rather than a multimodal ensemble arbiter.
+
+---
+
+### 3.2.4 OpenVINO / EC2 m7i Optimization Is a Future Path
 
 **Decision:** ONNX/OpenVINO/INT8 optimization should be documented as a future deployment path, not claimed as current live performance.
 
