@@ -10,6 +10,7 @@ values, and reviewer action text that can be shown directly in the UI.
 from __future__ import annotations
 
 from time import perf_counter
+from typing import Any
 
 from app.config import OCR_CONFIDENCE_THRESHOLD
 from app.schemas.application import ColaApplication
@@ -79,6 +80,7 @@ def verify_label(
     item_id: str,
     application: ColaApplication,
     ocr: OCRResult,
+    typography: dict[str, Any] | None = None,
 ) -> VerificationResult:
     """Run all implemented checks for one label.
 
@@ -92,6 +94,9 @@ def verify_label(
         Structured application fields.
     ocr:
         Normalized OCR output from fixture OCR or local docTR.
+    typography:
+        Optional warning-heading typography assessment. When present, the rule
+        engine can clear confident boldness evidence or route it to review.
 
     Returns
     -------
@@ -128,24 +133,14 @@ def verify_label(
             )
         )
         checks.append(
-            check(
-                "GOV_WARNING_HEADER_BOLD_REVIEW",
-                "Government warning heading boldness manual review",
-                "cv_typography",
-                "needs_review",
-                "Manual typography verification required. This prototype verifies warning text and capitalization but does not make a definitive font-weight determination from raster images.",
-                expected="Bold GOVERNMENT WARNING heading",
-                observed="Raster image typography not machine-certified",
-                evidence_text=warning_heading(text) or "",
-                source_refs=["SRC_27_CFR_PART_16"],
-                reviewer_action="Confirm the warning heading is bold during human review.",
-                confidence=ocr.avg_confidence,
-            )
+            check_warning_boldness(typography, text, ocr.avg_confidence)
         )
     else:
         warning = extract_warning_block(text)
         checks.append(check_warning_caps(text))
         checks.append(check_warning_exact(warning))
+        if typography is not None:
+            checks.append(check_warning_boldness(typography, text, ocr.avg_confidence))
         checks.append(check_abv(text))
         checks.append(check_malt_net_contents(application, text))
         checks.append(check_brand(application, text, ocr.avg_confidence))
@@ -235,6 +230,61 @@ def check_warning_caps(text: str) -> RuleCheck:
         evidence_text=heading,
         source_refs=["SRC_27_CFR_PART_16"],
         reviewer_action=None if verdict == "pass" else "Change the warning heading to GOVERNMENT WARNING:",
+    )
+
+
+def check_warning_boldness(
+    typography: dict[str, Any] | None,
+    text: str,
+    confidence: float,
+) -> RuleCheck:
+    """Check whether the warning heading is confidently bold.
+
+    Notes
+    -----
+    The typography model is a low-latency preflight. It clears strong bold
+    evidence and routes uncertain crops to Needs Review; it does not issue an
+    automatic fail from one raster crop.
+    """
+
+    if typography and typography.get("verdict") == "pass":
+        probability = typography.get("probability")
+        threshold = typography.get("threshold")
+        return check(
+            "GOV_WARNING_HEADER_BOLD_REVIEW",
+            "Government warning heading boldness",
+            "cv_typography",
+            "pass",
+            "Government warning heading is confidently classified as bold.",
+            expected="Bold GOVERNMENT WARNING heading",
+            observed=f"bold_probability={probability}; threshold={threshold}",
+            evidence_text=typography.get("matched_text") or warning_heading(text) or "",
+            source_refs=["SRC_27_CFR_PART_16"],
+            reviewer_action=None,
+            score=probability,
+            confidence=confidence,
+        )
+
+    observed = "Raster image typography not machine-certified"
+    if typography:
+        observed = (
+            f"bold_probability={typography.get('probability')}; "
+            f"threshold={typography.get('threshold')}; "
+            f"crop_available={typography.get('crop_available')}"
+        )
+    return check(
+        "GOV_WARNING_HEADER_BOLD_REVIEW",
+        "Government warning heading boldness manual review",
+        "cv_typography",
+        "needs_review",
+        "Manual typography verification required. The warning heading was not confidently cleared as bold.",
+        expected="Bold GOVERNMENT WARNING heading",
+        observed=observed,
+        evidence_text=(typography or {}).get("matched_text") or warning_heading(text) or "",
+        source_refs=["SRC_27_CFR_PART_16"],
+        reviewer_action="Confirm the warning heading is bold before clearing this application.",
+        score=(typography or {}).get("probability"),
+        confidence=confidence,
     )
 
 

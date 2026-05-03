@@ -44,7 +44,7 @@ The sprint priority is now:
 - [x] `country_of_origin` and `imported` are first-class application fields.
 - [x] Demo fixtures/data scaffold exists.
 - [x] Tests scaffold exists.
-- [x] Last known complete local test run: `pytest -q` passed with 75 tests.
+- [x] Last known complete local container test run: `pytest -q` passed with 78 tests.
 - [x] Local Podman image rebuild passed on May 2, 2026.
 - [x] Local container smoke passed on May 2, 2026 for `/health`, `/`, and `/demo/clean`.
 - [x] Public COLA ETL scripts exist for search-result imports, public form fetches, form parsing, label image download, curated fixture export, and stratified sampling.
@@ -89,7 +89,7 @@ The sprint priority is now:
 - [x] OpenCV typography preflight experiments are implemented under `experiments/typography_preflight/`.
 - [x] Typography preflight synthetic SVM run completed with **20,000 train**, **5,000 validation**, and **5,000 test** crops.
 - [x] Typography preflight measured about **0.09 ms/crop** SVM decision latency.
-- [x] Typography preflight is **not promoted**: safe thresholds have low recall, while useful-F1 thresholds have too many false clears.
+- [x] Initial synthetic-only typography preflight was **not promoted**: safe thresholds had low recall, while useful-F1 thresholds had too many false clears.
 - [x] Corrected typography comparison trained SVM, XGBoost, and CatBoost on `audit-v5`; XGBoost wins raw F1, SVM wins false-clear/latency, and no hard-argmax model is promoted.
 - [x] Extended typography comparison trained SVM, LightGBM, Logistic Regression, MLP, strict-veto, logistic stacker, LightGBM reject-threshold stacker, XGBoost reject-threshold stacker, and CatBoost stacker on a **40,000 train / 10,000 test** geometry-stress split.
 - [x] Latest typography result: visual strict-veto is the safety winner (**0.0024** false-clear), visual CatBoost stacker is the raw-F1 winner (**0.9878** macro F1), and header text still requires review-first/reject-threshold handling.
@@ -97,7 +97,10 @@ The sprint priority is now:
 - [x] Real approved COLA typography smoke found **124 warning-heading crops** across **68 / 100 applications**; PaddleOCR found 62 crops, OpenOCR found 59, and docTR found 3 with the current crop-isolation method.
 - [x] Real approved COLA typography smoke showed classifier latency is not the blocker: most stackers ran around **3-5 ms/crop p95**, with strict-veto boldness at **13.9 ms/crop p95**.
 - [x] Real approved COLA typography smoke showed the synthetic-trained typography classifiers are **not MVP-runtime-ready**: they route most real approved warning crops to `Needs Review` and should stay outside final decision authority.
-- [x] Boldness remains `Needs Review` until the typography preflight is validated on real COLA warning-heading crops with a safe false-clear rate.
+- [x] Corrected heading-only real approved COLA cropper ran across the full train/validation cached OCR set: **3,000 applications**, **5,179 valid images**, **4,362 heading crops**, and **2,356 applications with at least one heading crop**.
+- [x] Real-adapted deployable logistic boldness model was trained from **3,083 approved COLA heading crops** plus synthetic negative/review crops and evaluated on **768 held-out approved COLA heading crops**.
+- [x] Runtime boldness threshold is **0.9546**, selected from validation at `<= 0.001` false-clear tolerance; synthetic holdout false-clear rate is **0.0018** and held-out approved COLA crop clear rate is **92.19%**.
+- [x] Typography preflight is now promoted only as reviewer-support evidence: confident bold crops can pass `GOV_WARNING_HEADER_BOLD_REVIEW`; uncertain or missing crops still route to `Needs Review`.
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
 - [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the COLA Cloud-derived 100-application calibration test split.
@@ -650,6 +653,12 @@ Tasks:
 - [x] Real positive smoke result: **68 / 100 applications** had an isolated heading crop; **124 crops** were classified.
 - [x] Real positive smoke result: boldness stackers cleared only **1-8%** of applications depending policy; warning-text stackers cleared only **0-3%** of applications depending policy.
 - [x] Real positive smoke result: CPU classification latency was acceptable, but synthetic-to-real crop transfer was too conservative for MVP promotion.
+- [x] Fix real-COLA heading cropper so OCR lines containing `GOVERNMENT WARNING:` plus body text are trimmed to the heading only.
+- [x] Add word-window grouping so docTR-style split boxes (`GOVERNMENT` + `WARNING:`) can still form one heading crop.
+- [x] Re-run heading-only cropper on the train/validation cache: **4,362** crops across **2,356 / 3,000** applications with heading evidence.
+- [x] Train real-adapted logistic boldness model using approved COLA heading crops as real positive examples and synthetic non-bold/degraded crops as negative/review safety examples.
+- [x] Export the runtime model to `app/models/typography/boldness_logistic_v1.json` so the web app does not require scikit-learn/joblib at inference time.
+- [x] Promote the real-adapted model to runtime as conservative evidence: confident bold crops pass, anything uncertain still routes to `Needs Review`.
 - [x] Keep all generated crops, features, metrics, and model files under gitignored `data/work/typography-preflight/`.
 - [x] Commit only experiment code/docs, never synthetic image bulk or `.joblib` model artifacts.
 - [x] Update `MODEL_LOG.md`, `TRADEOFFS.md`, `MODEL_ARCHITECTURE.md`, and README after the experiment runs.
@@ -669,7 +678,7 @@ Tasks:
 - [x] Train and compare SVM, LightGBM, Logistic Regression, MLP, strict-veto ensemble, calibrated logistic stacker, LightGBM reject-threshold stacker, XGBoost reject-threshold stacker, and CatBoost stacker.
 - [x] Add validation-threshold tuning for LightGBM and XGBoost stackers so weak positive predictions route to `needs_review_unclear`.
 - [x] Document that visual boldness has a viable future reviewer-assist path, but header text correctness still false-clears too often unless the reject-threshold model sends many cases to review.
-- [x] Keep `GOV_WARNING_HEADER_BOLD_REVIEW` as Needs Review unless validation/test false-clear behavior justifies promotion.
+- [x] Keep synthetic-only typography stackers out of runtime; promote only the real-adapted logistic preflight as conservative evidence with Needs Review fallback.
 
 Documentation framing:
 

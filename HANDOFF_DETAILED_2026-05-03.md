@@ -126,6 +126,7 @@ HTMX
 local CSS
 docTR OCR adapter
 fixture OCR fallback
+real-adapted warning-heading boldness preflight
 RapidFuzz deterministic field matching
 source-backed rule outputs
 filesystem JSON result storage
@@ -135,7 +136,7 @@ Last known local test state:
 
 ```text
 pytest -q
-75 passed
+78 passed
 ```
 
 Deployment smoke commands:
@@ -808,8 +809,9 @@ Python environment.
 
 Jenny Park explicitly called out that the government warning heading must be
 both all caps and bold. The all-caps requirement is already a deterministic
-rule. Boldness is currently handled as `GOV_WARNING_HEADER_BOLD_REVIEW`, which
-routes the issue to manual typography review.
+rule. Boldness is now handled as `GOV_WARNING_HEADER_BOLD_REVIEW` with a
+real-adapted runtime preflight: confident heading crops can pass, while
+uncertain/no-crop evidence still routes to manual typography review.
 
 The experiment is a classical OpenCV/SVM typography preflight. It does not touch
 the OCR conveyor, does not use the GPU, and should not be integrated into
@@ -971,10 +973,9 @@ mean SVM decision latency: about 0.09 ms/crop
 Decision:
 
 ```text
-Do not promote the SVM typography preflight to runtime authority yet.
+Do not promote the synthetic-only SVM typography preflight to runtime authority.
 It is computationally viable, but safe thresholds pass too few bold headings,
 and useful-F1 thresholds false-clear too often.
-Keep GOV_WARNING_HEADER_BOLD_REVIEW as Needs Review for submission.
 ```
 
 Important May 3 correction:
@@ -1065,8 +1066,67 @@ most real approved COLA heading crops to Needs Review. Boldness policies clear
 only 1-8% of applications, and warning-text policies clear only 0-3%.
 ```
 
-Decision: keep `GOV_WARNING_HEADER_BOLD_REVIEW` as human review for tonight's
-MVP. Do not wire the typography stackers into final runtime authority.
+Decision: keep the synthetic-only typography stackers out of final runtime
+authority. The real-adapted runtime correction below supersedes this first
+smoke for the MVP.
+
+Important runtime correction:
+
+```text
+The synthetic-only stackers above were not promoted. The runtime MVP now uses a
+narrower logistic model trained with real approved COLA heading crops as
+positive examples and synthetic non-bold/degraded crops as negative/review
+examples.
+```
+
+Runtime files:
+
+```text
+app/models/typography/boldness_logistic_v1.json
+app/services/typography/warning_heading.py
+app/services/typography/features.py
+app/services/typography/boldness.py
+```
+
+Corrected cropper changes:
+
+```text
+trim OCR lines to only the GOVERNMENT WARNING: heading prefix
+group docTR split word boxes such as GOVERNMENT + WARNING:
+normalize real crops toward black text on white
+route missing/noisy crops to Needs Review
+```
+
+Real-adapted model summary:
+
+```text
+real positive train crops: 3,083 approved COLA warning headings
+real positive holdout crops: 768 approved COLA warning headings
+synthetic negatives/review: non-bold and degraded warning headings
+model: Logistic Regression exported to JSON coefficients
+selected threshold: 0.9545819397993311
+validation false-clear rate: 0.000624
+synthetic holdout false-clear rate: 0.001800
+synthetic holdout F1: 0.865570
+approved COLA holdout clear rate: 0.921875
+```
+
+Runtime behavior:
+
+```text
+probability >= 0.9546 -> pass GOV_WARNING_HEADER_BOLD_REVIEW
+probability <  0.9546 -> Needs Review
+no crop / unreadable crop -> Needs Review
+```
+
+Container verification:
+
+```bash
+podman run --rm -v "$PWD":/app:Z -w /app \
+  localhost/labels-on-tap-app:local pytest -q
+
+# 78 passed
+```
 
 ---
 

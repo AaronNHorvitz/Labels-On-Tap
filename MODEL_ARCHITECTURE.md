@@ -428,18 +428,21 @@ government warning heading must be exactly `GOVERNMENT WARNING:` and must be
 bold. OCR can tell us what the text says. It does not reliably prove font
 weight on noisy raster label images.
 
-The current deployed compliance posture is conservative:
+The current deployed compliance posture is conservative but no longer blind to
+boldness evidence:
 
 ```text
 GOV_WARNING_EXACT_TEXT       -> deterministic text check
 GOV_WARNING_HEADER_CAPS      -> deterministic capitalization check
-GOV_WARNING_HEADER_BOLD_REVIEW -> human typography review
+GOV_WARNING_HEADER_BOLD_REVIEW -> real-adapted typography preflight, then review if uncertain
 ```
 
-The next architecture adds a lightweight OpenCV typography preflight. The first
-SVM experiment is implemented, and the corrected `audit-v5` dataset has now
-been used for a side-by-side SVM/XGBoost/CatBoost comparison. This stays outside
-the deployed runtime until threshold tuning proves a safe false-clear posture.
+The runtime architecture adds a lightweight OpenCV typography preflight. Early
+synthetic-only SVM/XGBoost/CatBoost/ensemble models were intentionally held out
+of production because they did not transfer cleanly to real approved COLA
+heading crops. The deployed preflight is a narrower real-adapted logistic model:
+approved COLA heading crops supply real positive examples, while synthetic
+non-bold/degraded crops preserve false-clear testing.
 
 ```mermaid
 flowchart TD
@@ -448,7 +451,7 @@ flowchart TD
     B -->|Yes| D["Heading crop"]
     D --> E["OpenCV preprocessing<br/>grayscale, threshold,<br/>safe deskew/crop cleanup"]
     E --> F["Feature extraction<br/>ink density, edge density,<br/>stroke width, connected components,<br/>skeleton ratio, HOG"]
-    F --> G["SVM / XGBoost / CatBoost<br/>CPU-only typography classifier"]
+    F --> G["Real-adapted logistic classifier<br/>CPU-only JSON coefficients"]
     G --> H{"Typography decision"}
     H -->|"Strong bold"| I["Typography preflight supported"]
     H -->|"Strong non-bold"| J["Needs Review / Fail Candidate<br/>depending validation gate"]
@@ -658,11 +661,12 @@ The Elements of Statistical Learning: Data Mining, Inference, and Prediction.
 2nd ed., Springer, 2009.
 ```
 
-Promotion gate:
+Original promotion gate:
 
 ```text
 The typography preflight can become runtime evidence only if validation/test
-false-clear behavior is safe. Until then, boldness remains Needs Review.
+false-clear behavior is safe. The first synthetic-only models failed this gate;
+the real-adapted logistic model below is the first runtime promotion.
 ```
 
 Real approved COLA smoke:
@@ -685,8 +689,46 @@ This real-positive smoke test says the classifier stage is fast enough, but the
 synthetic typography training distribution does not transfer cleanly enough to
 real approved COLA warning crops. It also shows that heading crop isolation is
 part of the problem: PaddleOCR and OpenOCR found nearly all current crops, while
-docTR found very few with the current block-matching method. The architecture
-therefore keeps warning boldness as human review for the MVP.
+docTR found very few with the first block-matching method.
+
+Runtime correction:
+
+```text
+cropper: experiments/typography_preflight/real_cola_smoke.py
+runtime crop service: app/services/typography/warning_heading.py
+runtime model: app/models/typography/boldness_logistic_v1.json
+runtime classifier: app/services/typography/boldness.py
+
+corrected cropper:
+  trims OCR lines to the GOVERNMENT WARNING: prefix
+  groups split docTR word boxes such as GOVERNMENT + WARNING:
+  normalizes crops toward black text on white
+
+training/evaluation:
+  real positive train crops: 3,083 approved COLA warning headings
+  real positive holdout crops: 768 approved COLA warning headings
+  synthetic negatives/review examples: non-bold and degraded headings
+  model family: Logistic Regression over OpenCV/HOG features
+  exported dependency profile: JSON coefficients, numpy, OpenCV
+
+selected threshold:
+  threshold: 0.9545819397993311
+  validation false-clear rate: 0.000624
+  synthetic holdout false-clear rate: 0.001800
+  synthetic holdout F1: 0.865570
+  approved COLA holdout clear rate: 0.921875
+```
+
+Runtime decision:
+
+```text
+probability >= 0.9546 -> pass GOV_WARNING_HEADER_BOLD_REVIEW
+probability <  0.9546 -> Needs Review
+no crop / unreadable crop -> Needs Review
+```
+
+This solves the MVP requirement without overstating certainty: strong real-COLA
+bold evidence can now clear, while weak evidence still goes to a reviewer.
 
 ---
 

@@ -112,6 +112,17 @@ Any sprint metrics should be read as prototype validation, not production certif
 
 **Current calibration-source note:** The latest OCR/model metrics are measured on a COLA Cloud-derived public COLA calibration set, not on raw images downloaded directly from `TTBOnline.gov`. The direct TTB Public COLA Registry ETL remains in the repository as the official printable-form path, but the May 2 attachment audit found many direct attachment downloads were HTML/error responses rather than usable raster images. COLA Cloud is being used only as a development bridge to obtain public record metadata and valid public label images while the direct TTB endpoint is unstable.
 
+**Current typography-preflight note:** Jenny's stakeholder note explicitly says
+`GOVERNMENT WARNING:` must be all caps and bold. The app now includes a
+CPU-safe, real-adapted logistic typography preflight for that narrow boldness
+question. It first isolates the warning-heading crop from OCR geometry, then
+classifies whether that crop is confidently bold. At the selected validation
+threshold (`0.9546`), the model preserved a validation false-clear rate below
+`0.001`, measured a synthetic holdout false-clear rate of `0.0018`, and cleared
+`92.19%` of held-out approved public COLA heading crops. Anything below the
+threshold still routes to `Needs Review`; the model is not allowed to reject a
+label by itself from one raster crop.
+
 A production-grade evaluation would use a larger random or stratified holdout set across product types, statuses, dates, form versions, and known regulatory/form-change boundaries. For this take-home, the practical goal is narrower: prove that public COLA application data and label images can be parsed, OCR'd, compared, and evaluated with conservative human-review routing.
 
 ---
@@ -319,8 +330,9 @@ enough to make typography a final automated authority:
 For this experiment, false clear means a non-bold or unreadable heading was
 predicted as `clearly_bold`, or an incorrect/unreadable heading was predicted
 as `correct`. The next step is threshold tuning against validation so weak
-model confidence routes to `needs_review_unclear`; until that safety gate is
-met, warning boldness remains a human-review check.
+model confidence routes to `needs_review_unclear`. The synthetic-only models
+did not pass the safety gate; the later real-adapted logistic preflight is the
+runtime path described below.
 
 An extended 80/20 comparison then added LightGBM, Logistic Regression, MLP, and
 a strict-veto ensemble:
@@ -356,10 +368,10 @@ was more nuanced:
 | Visual font decision | CatBoost stacker | 0.9878 | 0.0080 | Strict-veto ensemble | 0.9440 | 0.0024 | 2.4952 |
 | Header text decision | CatBoost stacker | 0.9020 | 0.0857 | XGBoost reject threshold | 0.6131 | 0.0027 | 3.0246 |
 
-The practical conclusion did not change: visual boldness has a credible future
-reviewer-assist path, but header text correctness and boldness remain
-human-review defaults in the deployed app until real COLA warning-heading crops
-validate the same false-clear posture.
+The practical conclusion changed after the real-COLA cropper was fixed: the
+synthetic-only typography stackers stay out of runtime, but a narrower
+real-adapted logistic boldness preflight is now safe enough to use as
+reviewer-support evidence.
 
 A real approved-COLA smoke test then checked that transfer assumption directly.
 Using cached docTR, PaddleOCR, and OpenOCR output from `100` approved
@@ -371,19 +383,34 @@ p95 per crop, but the synthetic-trained typography models cleared only `1-8%`
 of applications for boldness and `0-3%` for warning text, routing nearly
 everything else to review.
 
-That result is useful because it prevents an unsafe promotion. The typography
-models are documented as future reviewer-assist work, while the MVP keeps
-`GOV_WARNING_HEADER_BOLD_REVIEW` as a human-review outcome.
+That result was useful because it prevented an unsafe promotion. The fix was to
+improve the evidence: trim OCR lines to the `GOVERNMENT WARNING:` prefix, group
+split word boxes, and train a smaller logistic model with real approved COLA
+heading crops as positives.
+
+Runtime typography result:
+
+| Item | Value |
+|---|---|
+| Runtime model | `app/models/typography/boldness_logistic_v1.json` |
+| Selected threshold | `0.9546` |
+| Validation false-clear rate | `0.000624` |
+| Synthetic holdout false-clear rate | `0.001800` |
+| Approved-COLA holdout clear rate | `0.921875` |
+| Runtime behavior | Confident bold crop passes; uncertain/no-crop evidence goes to Needs Review. |
 
 The safe runtime posture is:
 
 | Typography Evidence | Runtime Action |
 |---|---|
 | Strong bold signal | Typography preflight may pass. |
-| Strong non-bold signal | Route to Needs Review or Fail Candidate depending validation. |
+| Weak or non-bold signal | Needs Review. |
 | Low-quality crop, unusual font, glare, curvature, or unreadable signal | Needs Review. |
 
-The experiment lives under `experiments/typography_preflight/` with generated artifacts under gitignored `data/work/typography-preflight/`. It does not touch OCR conveyor output, the deployed app, or the GPU.
+The experiments live under `experiments/typography_preflight/` with generated
+artifacts under gitignored `data/work/typography-preflight/`. The deployed
+runtime uses only the exported JSON coefficients and OpenCV/numpy feature
+extractor, not scikit-learn/joblib.
 
 Before any OCR engine becomes the default runtime path, it must pass the same checklist:
 
@@ -568,7 +595,7 @@ The prototype is built around the four stakeholder voices in the prompt, plus th
 | Sarah Chen, Deputy Director of Label Compliance | Reduce routine matching work and make high-volume review easier. | One-click demos, single-label upload, manifest-backed batch upload, result tables, CSV export, and a fixture-backed batch triage demo. |
 | Marcus Williams, IT / Infrastructure | Avoid blocked hosted ML endpoints and keep deployment straightforward. | FastAPI, Docker Compose, Caddy, local OCR adapter, fixture fallback, filesystem storage, and no hosted ML/OCR runtime. |
 | Dave Morrison, Senior Compliance Agent | Avoid false failures for harmless differences like case, punctuation, and OCR noise. | RapidFuzz-based brand matching, normalization for fuzzy fields, and Needs Review for ambiguous scores. |
-| Jenny Park, Junior Compliance Agent | Catch exact checklist failures, especially government warning wording and capitalization. | Strict canonical warning check, strict `GOVERNMENT WARNING:` heading check, and manual typography review fallback for boldness. |
+| Jenny Park, Junior Compliance Agent | Catch exact checklist failures, especially government warning wording, capitalization, and bold heading typography. | Strict canonical warning check, strict `GOVERNMENT WARNING:` heading check, and a real-adapted boldness preflight that clears strong evidence or routes uncertainty to review. |
 | Evaluator / hiring panel | See a working app quickly and understand the engineering trade-offs. | Five-minute demo path, generated fixtures, tests, architecture docs, trade-offs, and source-backed rule explanations. |
 
 The result is intentionally narrow: it demonstrates the highest-signal workflow first instead of spreading effort across a large unfinished compliance surface.
@@ -583,7 +610,7 @@ Labels On Tap uses different standards for different kinds of checks.
 |---|---|---|
 | Strict deterministic checks | Government warning exact text, warning heading capitalization, prohibited `ABV` shorthand, malt `16 fl. oz.` net contents issue | Fail when the source-backed mismatch is clear and OCR confidence is adequate. |
 | Fuzzy application-field checks | Brand name, country of origin for imports | Pass on strong match, Needs Review on ambiguity, Fail only on clear mismatch or conflicting evidence. |
-| Manual-review checks | Low OCR confidence, raster typography/boldness, missing warning isolation | Needs Review instead of pretending the image evidence is stronger than it is. |
+| Manual-review checks | Low OCR confidence, uncertain raster typography/boldness, missing warning isolation | Needs Review instead of pretending the image evidence is stronger than it is. |
 
 Every rule check returns:
 
@@ -610,7 +637,7 @@ Implemented rule behavior in brief:
 | `COUNTRY_OF_ORIGIN_MATCH` | Applies to imported products; passes on clear expected-country match, needs review when missing/low confidence, fails on conflicting country evidence. |
 | `GOV_WARNING_EXACT_TEXT` | Compares warning text to canonical wording with whitespace normalization only. |
 | `GOV_WARNING_HEADER_CAPS` | Requires the heading to be exactly `GOVERNMENT WARNING:`. |
-| `GOV_WARNING_HEADER_BOLD_REVIEW` | Routes font-weight verification to manual review instead of brittle raster hard-fail logic. |
+| `GOV_WARNING_HEADER_BOLD_REVIEW` | Uses the real-adapted heading-crop classifier to clear strong bold evidence; uncertain evidence still routes to manual review. |
 | `ALCOHOL_ABV_PROHIBITED` | Flags `ABV` / `A.B.V.` shorthand near an alcohol percentage. |
 | `MALT_NET_CONTENTS_16OZ_PINT` | For malt beverages, flags `16 fl. oz.` style wording when `1 Pint` is expected. |
 | `OCR_LOW_CONFIDENCE` | Routes low-confidence OCR output to Needs Review. |

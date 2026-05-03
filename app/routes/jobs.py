@@ -55,6 +55,8 @@ from app.services.preflight.upload_policy import (
     validate_upload_name,
 )
 from app.services.rules.registry import verify_label
+from app.services.typography.boldness import assess_warning_heading_boldness
+from app.services.typography.warning_heading import detect_warning_heading_crop
 
 
 router = APIRouter()
@@ -287,13 +289,46 @@ def _warning_crop_bounds(result: Any, image_path: Path) -> tuple[int, int, int, 
     )
 
 
+def _assess_warning_typography(image_path: Path, ocr: Any) -> dict[str, Any]:
+    """Run the deployable warning-heading boldness preflight.
+
+    Notes
+    -----
+    Typography failures must never crash the review flow. A classifier or crop
+    error becomes Needs Review, which is the conservative compliance outcome.
+    """
+
+    try:
+        assessment, _ = assess_warning_heading_boldness(image_path, ocr)
+        return assessment.to_dict()
+    except Exception as exc:  # pragma: no cover - defensive web-route armor
+        return {
+            "verdict": "needs_review",
+            "probability": None,
+            "threshold": None,
+            "crop_available": False,
+            "model_name": "real-adapted-logistic-warning-heading-boldness",
+            "model_version": "v1",
+            "matched_text": "",
+            "match_score": None,
+            "ocr_confidence": None,
+            "crop_ms": 0.0,
+            "classification_ms": 0.0,
+            "message": f"Typography preflight unavailable: {exc}",
+            "reviewer_action": "Review the warning heading manually.",
+        }
+
+
 def _warning_evidence_context(job_id: str, item_id: str, result: Any) -> dict[str, Any]:
     """Build image, OCR, and crop metadata for the item detail evidence panel."""
 
     upload_filename = _upload_filename_for_item(job_id, item_id, result.filename)
     image_path = _safe_upload_path(job_id, upload_filename) if upload_filename else None
     blocks = _warning_blocks(result)
-    crop_available = bool(image_path and _warning_crop_bounds(result, image_path))
+    try:
+        crop_available = bool(image_path and detect_warning_heading_crop(image_path, result.ocr))
+    except Exception:  # pragma: no cover - defensive evidence rendering
+        crop_available = False
     return {
         "upload_filename": upload_filename,
         "image_url": f"/jobs/{job_id}/uploads/{upload_filename}" if upload_filename else None,
@@ -351,7 +386,8 @@ def create_single_job(
     item_id = dest.stem
     fixture_id = Path(upload.original_filename).stem
     ocr = ocr_engine.run(dest, fixture_id=fixture_id)
-    result = verify_label(job_id, item_id, application, ocr)
+    typography = _assess_warning_typography(dest, ocr)
+    result = verify_label(job_id, item_id, application, ocr, typography=typography)
     write_result(result)
     add_manifest_item(
         job_id,
@@ -588,7 +624,8 @@ def create_batch_job(
             application = _manifest_item_to_application(item)
             fixture_id = item.fixture_id or Path(item.filename).stem
             ocr = ocr_engine.run(dest, fixture_id=fixture_id)
-            result = verify_label(job_id, item_id, application, ocr)
+            typography = _assess_warning_typography(dest, ocr)
+            result = verify_label(job_id, item_id, application, ocr, typography=typography)
             write_result(result)
             add_manifest_item(
                 job_id,
@@ -660,13 +697,15 @@ def warning_heading_crop(job_id: str, item_id: str) -> Response:
     if not upload_filename:
         raise HTTPException(status_code=404, detail="Upload image not found")
     image_path = _safe_upload_path(job_id, upload_filename)
-    crop_bounds = _warning_crop_bounds(result, image_path)
-    if crop_bounds is None:
+    try:
+        evidence = detect_warning_heading_crop(image_path, result.ocr)
+    except Exception as exc:  # pragma: no cover - defensive evidence rendering
+        raise HTTPException(status_code=404, detail="Warning heading crop not available") from exc
+    if evidence is None:
         raise HTTPException(status_code=404, detail="Warning heading crop not available")
-    with Image.open(image_path) as image:
-        crop = image.convert("RGB").crop(crop_bounds)
-        buffer = BytesIO()
-        crop.save(buffer, format="PNG")
+    crop = evidence.crop.convert("RGB")
+    buffer = BytesIO()
+    crop.save(buffer, format="PNG")
     return Response(content=buffer.getvalue(), media_type="image/png")
 
 

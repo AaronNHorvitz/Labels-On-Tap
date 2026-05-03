@@ -45,7 +45,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | WineBERT/o domain NER | Experimental token-classification arbiter over OCR text | No | Fast CPU inference, but no lift over government-safe ensemble and unknown public model license |
 | OSA market-domain NER | Experimental Apache-2.0 token-classification arbiter over OCR text | No | Small lift over government-safe ensemble: F1 0.7486, false-clear rate 0.0000 |
 | FoodBaseBERT-NER | Culinary-domain token-classification control | No | Fast and MIT-licensed, but no lift over government-safe ensemble and standalone F1 0.0522 |
-| OpenCV typography preflight | Experimental warning-heading boldness/header classifier | No | SVM/XGBoost/CatBoost/LightGBM/Logistic/MLP plus strict-veto ensemble compared on corrected synthetic audit data; strict veto is safest but not promoted |
+| OpenCV typography preflight | Warning-heading boldness classifier | Limited | Synthetic-only models were not promoted; real-adapted logistic boldness preflight is now runtime evidence with Needs Review fallback |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -90,7 +90,7 @@ Current runtime behavior:
 ```text
 GOV_WARNING_EXACT_TEXT          -> deterministic strict text check
 GOV_WARNING_HEADER_CAPS         -> deterministic capitalization check
-GOV_WARNING_HEADER_BOLD_REVIEW  -> Needs Review / manual typography check
+GOV_WARNING_HEADER_BOLD_REVIEW  -> real-adapted boldness preflight; Needs Review if uncertain
 ```
 
 Model:
@@ -247,7 +247,7 @@ Interpretation:
 
 Decision:
 
-- Keep `GOV_WARNING_HEADER_BOLD_REVIEW` as `Needs Review` in the deployed app.
+- Keep these synthetic-only models out of the deployed app.
 - Treat the SVM and XGBoost results as viable candidates for a later thresholded
   typography preflight.
 - Do not add XGBoost/CatBoost to runtime dependencies unless this layer is
@@ -1349,6 +1349,67 @@ crop location, pass-through behavior, and latency. They cannot estimate the
 dangerous false-clear case. Synthetic non-bold, incorrect, and unreadable
 negative crops remain necessary for false-clear testing.
 
+### E020 - Real-Adapted Runtime Warning Boldness Preflight
+
+**Date:** 2026-05-03
+**Status:** Promoted as conservative runtime evidence
+**Code path:** `app/services/typography/`
+**Model export:** `app/models/typography/boldness_logistic_v1.json`
+**Source experiment:** `experiments/typography_preflight/real_cola_smoke.py`
+
+Purpose:
+
+Fix the flawed real-COLA smoke by correcting the evidence, not by adding a
+heavier model. The earlier stackers saw contaminated crops: headings mixed with
+body text, tiny partial crops, and split word boxes. The corrected cropper trims
+OCR lines to the `GOVERNMENT WARNING:` prefix, groups docTR-style split boxes,
+and normalizes crops toward black text on white before feature extraction.
+
+Training/evaluation design:
+
+```text
+real positive train crops: 3,083 approved COLA warning headings
+real positive holdout crops: 768 approved COLA warning headings
+synthetic negative/review crops: non-bold and degraded warning headings
+model family: Logistic Regression over OpenCV/HOG features
+runtime dependency profile: JSON coefficients + numpy + OpenCV
+```
+
+Selected threshold:
+
+| Threshold policy | Threshold | Validation false-clear | Synthetic test false-clear | Synthetic test F1 | Real positive holdout clear |
+|---|---:|---:|---:|---:|---:|
+| `<= 0.001` validation false-clear tolerance | 0.954582 | 0.000624 | 0.001800 | 0.865570 | 0.921875 |
+
+Operational behavior:
+
+```text
+probability >= 0.9546 -> GOV_WARNING_HEADER_BOLD_REVIEW passes
+probability <  0.9546 -> Needs Review
+missing/noisy crop       -> Needs Review
+```
+
+Runtime sanity check:
+
+```text
+real approved COLA heading crop:
+  probability: 0.999944
+  verdict: pass
+  crop + classify time in container: about 37 ms
+
+container tests:
+  podman run --rm -v "$PWD":/app:Z -w /app \
+    localhost/labels-on-tap-app:local pytest -q
+  result: 78 passed
+```
+
+Decision:
+
+- Promote this model only as a warning-heading boldness preflight.
+- Do not use it to automatically reject labels.
+- Confident bold evidence can clear the boldness check.
+- Uncertain, unreadable, or unisolated evidence remains `Needs Review`.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:
@@ -1375,9 +1436,9 @@ best BERT-assisted OCR-smoke result is `E015`, using OSA market-domain NER plus
 the government-safe ensemble. The current best trained text-pair arbiter result
 is `E017`, where DistilRoBERTa beat RoBERTa-base on the 3,000-application
 locked holdout with lower CPU latency. The current best typography-preflight
-result is `E018`: strict-veto is the safety winner for visual boldness, while
-header text correctness remains review-only unless a conservative reject
-threshold is acceptable.
+result is `E020`: the real-adapted logistic model can clear strong
+`GOVERNMENT WARNING:` boldness evidence while preserving Needs Review fallback
+for weak crops.
 
 ## Known Limitations
 

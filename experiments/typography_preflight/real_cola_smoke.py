@@ -167,8 +167,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--app-limit", type=int, default=100)
     parser.add_argument("--engines", nargs="+", default=["doctr", "paddleocr", "openocr"])
-    parser.add_argument("--crop-padding", type=float, default=0.35)
-    parser.add_argument("--heading-width-factor", type=float, default=1.2)
+    parser.add_argument("--crop-padding-x", type=float, default=0.30)
+    parser.add_argument("--crop-padding-top", type=float, default=0.20)
+    parser.add_argument("--crop-padding-bottom", type=float, default=0.05)
+    parser.add_argument("--heading-width-factor", type=float, default=1.08)
     parser.add_argument("--min-heading-score", type=float, default=0.72)
     return parser.parse_args()
 
@@ -235,7 +237,9 @@ def find_heading_crops(
                 image,
                 candidate["bbox"],
                 candidate["text"],
-                padding_factor=args.crop_padding,
+                padding_x_factor=args.crop_padding_x,
+                padding_top_factor=args.crop_padding_top,
+                padding_bottom_factor=args.crop_padding_bottom,
                 heading_width_factor=args.heading_width_factor,
             )
             crop_rel = Path("crops") / record.ttb_id / f"{engine}__{Path(record.image_path).stem}.png"
@@ -313,10 +317,20 @@ def crop_candidate_heading(
     bbox: list[list[float]],
     text: str,
     *,
-    padding_factor: float,
+    padding_x_factor: float,
+    padding_top_factor: float,
+    padding_bottom_factor: float,
     heading_width_factor: float,
 ) -> Image.Image:
-    """Crop the heading portion of a normalized OCR block bbox."""
+    """Crop only the visible ``GOVERNMENT WARNING:`` heading.
+
+    Real OCR engines often return a single line containing both the bold
+    heading and the regular-weight body text, e.g. ``GOVERNMENT WARNING:
+    (1) ACCORDING...``. The typography model should never see that whole line
+    when answering the boldness question. This cropper trims the OCR box to the
+    heading prefix and uses asymmetric vertical padding so the next line of the
+    warning paragraph does not contaminate the crop.
+    """
 
     width, height = image.size
     x1, y1, x2, y2 = bbox_bounds(bbox, image_width=width, image_height=height)
@@ -327,24 +341,70 @@ def crop_candidate_heading(
     block_width = max(right - left, 1.0)
     block_height = max(bottom - top, 1.0)
 
-    normalized = "".join(ch for ch in text.upper() if ch.isalpha())
-    target_len = len("GOVERNMENTWARNING")
-    if len(normalized) > target_len:
-        right = left + block_width * min(1.0, (target_len / len(normalized)) * heading_width_factor)
+    prefix_fraction = heading_prefix_fraction(text)
+    if prefix_fraction < 0.98:
+        right = left + block_width * min(1.0, prefix_fraction * heading_width_factor)
 
-    pad_x = max(6.0, block_height * padding_factor)
-    pad_y = max(4.0, block_height * padding_factor)
+    pad_x = max(3.0, block_height * padding_x_factor)
+    pad_top = max(2.0, block_height * padding_top_factor)
+    pad_bottom = max(1.0, block_height * padding_bottom_factor)
     left = min(max(left, 0.0), float(width - 1))
     right = min(max(right, left + 1.0), float(width))
     top = min(max(top, 0.0), float(height - 1))
     bottom = min(max(bottom, top + 1.0), float(height))
     crop_box = (
         max(0, int(round(left - pad_x))),
-        max(0, int(round(top - pad_y))),
+        max(0, int(round(top - pad_top))),
         min(width, int(round(right + pad_x))),
-        min(height, int(round(bottom + pad_y))),
+        min(height, int(round(bottom + pad_bottom))),
     )
-    return image.crop(crop_box)
+    return normalize_heading_crop(image.crop(crop_box))
+
+
+def heading_prefix_fraction(text: str) -> float:
+    """Estimate how much of an OCR line belongs to the warning heading."""
+
+    if not text:
+        return 1.0
+    raw = text.strip()
+    upper = raw.upper()
+    colon_index = upper.find(":")
+    if colon_index >= 0:
+        prefix_end = colon_index + 1
+        return min(1.0, max(0.05, prefix_end / max(len(raw), 1)))
+
+    mapped: list[tuple[int, str]] = [(idx, ch) for idx, ch in enumerate(upper) if ch.isalpha()]
+    normalized = "".join(ch for _, ch in mapped)
+    target = "GOVERNMENTWARNING"
+    found = normalized.find(target)
+    if found >= 0:
+        raw_end = mapped[min(len(mapped) - 1, found + len(target) - 1)][0] + 1
+        return min(1.0, max(0.05, raw_end / max(len(raw), 1)))
+    if len(normalized) > len(target):
+        return min(1.0, max(0.05, len(target) / len(normalized)))
+    return 1.0
+
+
+def normalize_heading_crop(crop: Image.Image) -> Image.Image:
+    """Normalize real crops toward black text on white, tightly framed."""
+
+    gray = np.array(crop.convert("L"))
+    if gray.size == 0:
+        return crop
+    border = np.concatenate([gray[0, :], gray[-1, :], gray[:, 0], gray[:, -1]])
+    if float(np.median(border)) < 128.0:
+        gray = 255 - gray
+    blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+    _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    ys, xs = np.where(binary > 0)
+    if len(xs) == 0 or len(ys) == 0:
+        return Image.fromarray(gray)
+    pad = 2
+    x1 = max(0, int(xs.min()) - pad)
+    x2 = min(gray.shape[1], int(xs.max()) + pad + 1)
+    y1 = max(0, int(ys.min()) - pad)
+    y2 = min(gray.shape[0], int(ys.max()) + pad + 1)
+    return Image.fromarray(gray[y1:y2, x1:x2])
 
 
 def bbox_bounds(

@@ -31,6 +31,17 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 **OCR smoke-test synthesis:** The 30-image OCR smoke test carries inherent statistical variance, but it achieved its primary engineering objective: rapid architectural pruning. It identified the strongest near-term production candidates as complete OCR engines, especially docTR, PaddleOCR, and OpenOCR/SVTRv2, while showing that crop-dependent recognizers such as PARSeq, ASTER, and ABINet did not improve field-support performance under the tested OpenOCR-box crop contract. It also showed that FCENet + ASTER, while useful as an arbitrary-shape text detection research checkpoint, missed the CPU latency target for this compliance workflow. By isolating these failure modes early, the project narrowed the production path without spending the remaining sprint on full-scale calibration of architectures that did not earn promotion in the smoke test.
 
+**Typography-preflight synthesis:** The first synthetic-only boldness models
+were correctly rejected because they did not transfer to real approved COLA
+warning crops. The fix was not more model complexity; it was better evidence.
+The app now isolates the actual `GOVERNMENT WARNING:` heading, trims away body
+text, groups split docTR word boxes, and runs a real-adapted logistic model
+exported as JSON coefficients. At the selected validation threshold (`0.9546`),
+the model measured validation false-clear `0.000624`, synthetic holdout
+false-clear `0.001800`, and approved-COLA real-positive holdout clear rate
+`0.921875`. Confident bold evidence can pass; anything uncertain remains
+`Needs Review`.
+
 **Model architecture synthesis:** The next trainable-model path should be a
 field-support classifier, not token-level NER. Public COLA data provides
 application fields and accepted label images, but not human token-span labels.
@@ -110,7 +121,7 @@ requirements without changing OCR, model, or compliance-rule code.
 - Country of origin check for imports
 - Government warning exact text
 - Government warning heading capitalization
-- Government warning boldness routed to Needs Review
+- Government warning boldness preflighted from an isolated heading crop; uncertain crops still route to Needs Review
 - ABV / A.B.V. prohibited alcohol-content wording
 - Malt beverage 16 fl. oz. → 1 Pint rule
 - OCR low-confidence / image-quality Needs Review
@@ -671,16 +682,22 @@ sampling margin for held-out evaluation, not a production guarantee.
 
 ---
 
-### 5.2 Government Warning Boldness: Manual Review Now, SVM Preflight Next
+### 5.2 Government Warning Boldness: Real-Adapted Preflight With Review Fallback
 
-**Decision:** The MVP does not make a definitive font-weight determination from arbitrary raster images.
+**Decision:** The MVP now makes a narrow, evidence-limited font-weight
+preflight for the isolated `GOVERNMENT WARNING:` heading. It can clear strong
+bold evidence, but uncertain/no-crop evidence still routes to `Needs Review`.
 
 **Why:** Bold detection from JPG/PNG label artwork is brittle. Lighting, compression, DPI, glare, and image scaling can make stroke-width estimates unreliable.
 
-**Implication:** The app strictly validates warning text and heading capitalization, then routes boldness to **Needs Review** with a clear message:
+**Implication:** The app strictly validates warning text and heading
+capitalization, then uses the typography preflight only when OCR geometry
+isolates a heading crop. It does not turn one weak raster crop into an automatic
+rejection.
 
 ```text
-Manual typography verification required. This prototype verifies warning text and capitalization but does not make a definitive font-weight determination from raster images.
+confident bold crop -> GOV_WARNING_HEADER_BOLD_REVIEW passes
+uncertain crop / no crop -> Needs Review
 ```
 
 **Experiment added:** An isolated OpenCV typography preflight for the `GOVERNMENT WARNING:` heading now exists under `experiments/typography_preflight/`.
@@ -933,9 +950,14 @@ creates a larger review queue, but it lowers false clears far more than any
 single hard-argmax model. That makes it more appropriate as reviewer-support
 evidence than as an automatic clearance engine.
 
-The promotion gate is unchanged: no typography model becomes runtime authority unless it improves decision quality while preserving a safe false-clear posture. Until then, `GOV_WARNING_HEADER_BOLD_REVIEW` remains `Needs Review`.
+The promotion gate is unchanged: no typography model becomes runtime evidence
+unless it improves decision quality while preserving a safe false-clear posture.
+The synthetic-only models did not pass that gate. The real-adapted logistic
+model below is the first limited runtime promotion.
 
-**Runtime implication:** The current safe deployment posture is to treat the SVM as an experimental typography preflight, not as unchecked final authority. Ambiguous crops still route to `Needs Review`, and the deployed app should continue using `GOV_WARNING_HEADER_BOLD_REVIEW` until real warning-heading crops and stronger negative validation support promotion.
+**Runtime implication:** The current safe deployment posture is to treat the
+typography model as reviewer-support evidence, not unchecked final authority.
+Ambiguous crops still route to `Needs Review`.
 
 **Real approved COLA smoke test:** We then ran the trained typography stackers
 against cached real-COLA OCR output from 100 approved applications and 203 label
@@ -969,6 +991,31 @@ for an automated typography clearance feature and too immature for runtime
 authority. That is not a failure of the MVP. It is the reason the MVP keeps
 boldness as a human-review item instead of making a brittle raster font-weight
 claim.
+
+**Runtime correction:** The follow-up run fixed the evidence problem by trimming
+real OCR lines to only the heading prefix and by grouping split docTR word boxes
+such as `GOVERNMENT` + `WARNING:`. A deployable logistic model was then trained
+from real approved COLA heading crops plus synthetic negative/review crops and
+exported as JSON coefficients.
+
+| Runtime item | Value |
+|---|---|
+| Model file | `app/models/typography/boldness_logistic_v1.json` |
+| Cropper | `app/services/typography/warning_heading.py` |
+| Feature extractor | `app/services/typography/features.py` |
+| Runtime classifier | `app/services/typography/boldness.py` |
+| Real positive train crops | 3,083 approved COLA warning headings |
+| Real positive holdout crops | 768 approved COLA warning headings |
+| Selected threshold | 0.9545819397993311 |
+| Validation false-clear rate | 0.000624 |
+| Synthetic holdout false-clear rate | 0.001800 |
+| Synthetic holdout F1 | 0.865570 |
+| Approved-COLA holdout clear rate | 0.921875 |
+| Runtime dependency profile | numpy + OpenCV, no scikit-learn/joblib |
+
+This is the practical MVP resolution: strong real-COLA boldness evidence can
+clear the boldness check, while weak/noisy/no-crop evidence remains manual
+review.
 
 Reference:
 

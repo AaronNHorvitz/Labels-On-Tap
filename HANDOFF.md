@@ -68,7 +68,10 @@ The app is already deployed and working. The current sprint has shifted from app
 - `country_of_origin` and `imported` are first-class fields.
 - Current runtime reports raw triage verdicts; configurable reviewer-policy
   queues are documented but not implemented yet.
-- Tests last passed with `75 passed`.
+- Runtime includes a narrow real-adapted typography preflight for
+  `GOVERNMENT WARNING:` boldness. Confident heading crops can clear the
+  boldness check; missing/uncertain crops still route to Needs Review.
+- Tests last passed in the local app container with `78 passed`.
 
 Useful verification:
 
@@ -324,9 +327,10 @@ Outputs stay under gitignored `data/work/ocr-conveyor/`.
 ## Typography Preflight Plan
 
 Jenny Park's stakeholder note says `GOVERNMENT WARNING:` must be all caps and
-bold. The all-caps requirement is already deterministic. Boldness is currently
-handled as `GOV_WARNING_HEADER_BOLD_REVIEW`, which routes typography judgment to
-human review.
+bold. The all-caps requirement is deterministic. Boldness now has a narrow
+runtime preflight under `GOV_WARNING_HEADER_BOLD_REVIEW`: confident real-adapted
+heading crops can pass, while missing or uncertain crops still route to human
+review.
 
 The isolated OpenCV typography preflight is now implemented and measured:
 
@@ -529,9 +533,9 @@ All learned stacker latency is end-to-end from raw engineered features.
 Decision:
 
 ```text
-Do not promote any typography classifier to runtime authority yet. Treat SVM
-and ensemble policies as viable candidates for a later thresholded preflight.
-Keep GOV_WARNING_HEADER_BOLD_REVIEW as Needs Review for submission.
+Do not promote the synthetic-only typography stackers to runtime authority.
+They remain useful historical experiments, but the runtime path is the
+real-adapted logistic preflight described below.
 ```
 
 Real approved COLA smoke:
@@ -553,6 +557,55 @@ most policies, but they do not transfer cleanly enough from synthetic crops to
 real approved COLA crops. Boldness policies clear only 1-8% of applications.
 Warning-text policies clear only 0-3% of applications. Keep typography as
 human review for the MVP.
+```
+
+Real-adapted runtime correction:
+
+```text
+script: experiments/typography_preflight/real_cola_smoke.py
+runtime model: app/models/typography/boldness_logistic_v1.json
+runtime services:
+  app/services/typography/warning_heading.py
+  app/services/typography/features.py
+  app/services/typography/boldness.py
+
+corrected cropper run:
+  applications: 3,000 train/validation apps
+  valid images: 5,179
+  warning-heading crops: 4,362
+  applications with heading crop: 2,356
+
+model:
+  real positive train crops: 3,083 approved COLA warning headings
+  real positive holdout crops: 768 approved COLA warning headings
+  synthetic negative/review crops: non-bold and degraded warning-heading crops
+  model family: Logistic Regression exported to JSON coefficients
+  runtime dependency: numpy + OpenCV only, no scikit-learn/joblib
+
+selected threshold:
+  threshold: 0.9545819397993311
+  validation false-clear rate: 0.000624
+  synthetic holdout false-clear rate: 0.001800
+  synthetic holdout F1: 0.865570
+  approved COLA real-positive holdout clear rate: 0.921875
+
+sanity check:
+  a real approved COLA PaddleOCR heading crop returned pass with probability
+  0.999944 and about 37 ms combined crop/classify time in the app container.
+
+test check:
+  podman run --rm -v "$PWD":/app:Z -w /app \
+    localhost/labels-on-tap-app:local pytest -q
+  result: 78 passed
+```
+
+Interpretation:
+
+```text
+This solves the immediate MVP failure mode. The app no longer treats boldness
+as impossible to automate; it uses real approved COLA warning headings to clear
+strong bold evidence. It still sends weak/noisy/no-crop evidence to Needs
+Review, which preserves the low false-clear posture.
 ```
 
 Reference framing:
