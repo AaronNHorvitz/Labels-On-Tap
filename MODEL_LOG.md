@@ -1503,6 +1503,124 @@ Important design notes:
 - The prior training-style `data/work/typography-preflight/v6/` folder is a
   byproduct; the intended inspection artifact is `audit-v6/`.
 
+### E022 - Audit-v6 MobileNetV3 CNN Boldness Challenger
+
+**Date:** 2026-05-03
+**Status:** Offline challenger trained; not promoted to runtime
+**Code paths:**
+
+```text
+experiments/typography_preflight/train_audit_v6_cnn.py
+experiments/typography_preflight/evaluate_audit_v6_cnn_thresholds.py
+```
+
+**Local output:**
+
+```text
+data/work/typography-preflight/cnn-audit-v6-mobilenet-v1/
+```
+
+Purpose:
+
+Test the "nuclear option" CNN approach against `audit-v6` after the classical
+OpenCV-feature models exposed the synthetic-to-real transfer problem. This run
+uses transfer learning rather than training from scratch.
+
+Model:
+
+```text
+MobileNetV3-Small
+ImageNet pretrained weights
+4 classes: bold / not_bold / unreadable_review / not_applicable
+GPU training device: local RTX 4090
+```
+
+Dataset:
+
+| Split | Images |
+|---|---:|
+| Train | 6,000 |
+| Validation | 1,500 |
+| Test | 1,500 |
+
+Training:
+
+```text
+epochs: 8
+batch size: 64
+optimizer: AdamW
+first 2 epochs: frozen backbone
+remaining epochs: fine-tuned backbone
+elapsed time: about 163 seconds
+best validation epoch: 7
+```
+
+Hard-argmax test result:
+
+| Metric | Value |
+|---|---:|
+| Accuracy | 0.9560 |
+| Macro F1 | 0.9686 |
+| Weighted F1 | 0.9558 |
+| False-clear rate | 0.005507 |
+
+Hard-argmax per-class test metrics:
+
+| Class | Precision | Recall | F1 | Support |
+|---|---:|---:|---:|---:|
+| `bold` | 0.9907 | 0.8986 | 0.9424 | 592 |
+| `not_bold` | 0.9125 | 0.9951 | 0.9520 | 608 |
+| `unreadable_review` | 0.9868 | 1.0000 | 0.9934 | 150 |
+| `not_applicable` | 0.9932 | 0.9800 | 0.9866 | 150 |
+
+Hard-argmax test confusion matrix:
+
+| Actual \\ Predicted | `bold` | `not_bold` | `unreadable_review` | `not_applicable` |
+|---|---:|---:|---:|---:|
+| `bold` | 532 | 57 | 2 | 1 |
+| `not_bold` | 3 | 605 | 0 | 0 |
+| `unreadable_review` | 0 | 0 | 150 | 0 |
+| `not_applicable` | 2 | 1 | 0 | 147 |
+
+Thresholded clearance policy:
+
+Hard argmax is not the correct government-safety policy. The relevant runtime
+question is whether `prob_bold` is high enough to automatically clear the
+boldness check. Thresholds were selected on validation false-clear tolerance
+and then evaluated on test.
+
+| Validation false-clear tolerance | Threshold | Test false-clear | Test bold clear | Test non-clear |
+|---:|---:|---:|---:|---:|
+| 0.0000 | 0.9970 | 0.000000 | 0.5220 | 0.7940 |
+| 0.0010 | 0.9970 | 0.000000 | 0.5220 | 0.7940 |
+| 0.0025 | 0.9669 | 0.002203 | 0.6774 | 0.7313 |
+| 0.0050 | 0.9289 | 0.002203 | 0.7432 | 0.7053 |
+| 0.0100 | 0.5000 | 0.005507 | 0.8970 | 0.6427 |
+
+Latency:
+
+| Device | Batch ms/crop | Single mean ms | Single p95 ms |
+|---|---:|---:|---:|
+| GPU | 0.0394 | 9.6059* | 1.2239 |
+| CPU | 2.9781 | 5.0894 | 5.2063 |
+
+`*` GPU single-row mean includes one warmup/synchronization outlier; batch
+throughput is the more stable GPU number.
+
+Decision:
+
+- The CNN clearly works as a stronger visual model than the early synthetic
+  stackers.
+- Hard argmax is not safe enough for automatic government clearance.
+- Thresholded CNN clearance is promising: a zero-false-clear policy cleared
+  about 52% of true-bold test examples, while a `<= 0.005` validation
+  false-clear policy cleared about 74% of true-bold test examples with 0.22%
+  test false-clear.
+- Do not promote this to runtime yet. Compare it against the real-adapted
+  logistic bridge on the exact same audit-v6 and real-COLA holdout policy first.
+- If promoted later, use it as a conservative pass evidence source only;
+  non-clear cases should route to `Needs Review`.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:

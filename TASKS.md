@@ -681,6 +681,8 @@ Tasks:
 - [x] Keep synthetic-only typography stackers out of runtime; promote only the real-adapted logistic preflight as conservative evidence with Needs Review fallback.
 - [x] Generate `audit-v6` as an `audit-v5`-style image inspection set with **9,000** images: **4,957** COLA-derived visual-context rows and **4,043** synthetic-only rows.
 - [x] Record the `audit-v6` source breakdown in `MODEL_LOG.md` and local `data/work/typography-preflight/audit-v6/summary.json`.
+- [x] Train MobileNetV3-Small transfer-learning CNN challenger on `audit-v6` boldness labels using the local RTX 4090.
+- [x] Evaluate CNN hard-argmax and thresholded bold-clear policies; record results in `MODEL_LOG.md`.
 
 Documentation framing:
 
