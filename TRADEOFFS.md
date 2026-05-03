@@ -132,31 +132,63 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 **Current smoke finding:** On the first 20-application / 30-image field-support comparison, PaddleOCR improved F1, accuracy, and recall versus docTR, while docTR preserved the lower false-clear rate. OpenOCR/SVTRv2 was the fastest complete OCR candidate and matched docTR's false-clear rate in the same smoke, but had lower F1. PARSeq, ASTER, and ABINet were tested as recognizers over OpenOCR-detected crops. All were fast on CPU, but none improved field-support F1 in that crop setup. ASTER and ABINet produced zero false clears in the first smoke, but at the cost of low recall. FCENet plus ASTER tested arbitrary-shape detection directly, but CPU latency exceeded the operational target and field-support F1 dropped sharply. Small sample sizes increase variance, so these results are directional calibration evidence only. PaddleOCR remains undecided and promising; it should not be promoted or rejected until a larger calibration run confirms whether the F1 lift survives.
 
-Current side-by-side smoke metrics:
+The current comparison is intentionally presented as a statistical smoke table,
+not a final production claim. It uses the same `20` public COLA applications,
+`30` label images, and `224` field-support examples for each OCR engine.
+Accepted public COLA fields are positive examples. Same-field values shuffled
+from other applications are controlled negatives. The decision threshold is a
+fuzzy field-support score of `90`.
 
-| Model | TP | TN | FP | FN | Accuracy | Precision | Recall | F1 | False-clear rate |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| docTR | 56 | 111 | 1 | 56 | 0.7455 | 0.9825 | 0.5000 | 0.6627 | 0.0089 |
-| PaddleOCR | 64 | 109 | 3 | 48 | 0.7723 | 0.9552 | 0.5714 | 0.7151 | 0.0268 |
-| OpenOCR / SVTRv2 | 49 | 111 | 1 | 63 | 0.7143 | 0.9800 | 0.4375 | 0.6049 | 0.0089 |
-| PARSeq AR over OpenOCR crops | 43 | 111 | 1 | 69 | 0.6875 | 0.9773 | 0.3839 | 0.5513 | 0.0089 |
-| PARSeq NAR/refine-2 over OpenOCR crops | 43 | 111 | 1 | 69 | 0.6875 | 0.9773 | 0.3839 | 0.5513 | 0.0089 |
-| ASTER over OpenOCR crops | 43 | 112 | 0 | 69 | 0.6920 | 1.0000 | 0.3839 | 0.5548 | 0.0000 |
-| FCENet + ASTER | 28 | 111 | 1 | 84 | 0.6205 | 0.9655 | 0.2500 | 0.3972 | 0.0089 |
-| ABINet over OpenOCR crops | 36 | 112 | 0 | 76 | 0.6607 | 1.0000 | 0.3214 | 0.4865 | 0.0000 |
+#### OCR Field-Support Metrics
 
-Current CPU latency smoke:
+| Model | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate |
+|---|---:|---:|---:|---:|---:|---:|
+| docTR | 0.7455 | 0.9825 | 0.5000 | 0.9911 | 0.6627 | 0.0089 |
+| PaddleOCR | 0.7723 | 0.9552 | 0.5714 | 0.9732 | 0.7151 | 0.0268 |
+| OpenOCR / SVTRv2 | 0.7143 | 0.9800 | 0.4375 | 0.9911 | 0.6049 | 0.0089 |
+| PARSeq AR over OpenOCR crops | 0.6875 | 0.9773 | 0.3839 | 0.9911 | 0.5513 | 0.0089 |
+| PARSeq NAR/refine-2 over OpenOCR crops | 0.6875 | 0.9773 | 0.3839 | 0.9911 | 0.5513 | 0.0089 |
+| ASTER over OpenOCR crops | 0.6920 | 1.0000 | 0.3839 | 1.0000 | 0.5548 | 0.0000 |
+| FCENet + ASTER | 0.6205 | 0.9655 | 0.2500 | 0.9911 | 0.3972 | 0.0089 |
+| ABINet over OpenOCR crops | 0.6607 | 1.0000 | 0.3214 | 1.0000 | 0.4865 | 0.0000 |
 
-| Model | Mean / image | Median / image | Worst / image | Mean / app | Max / app | Notes |
-|---|---:|---:|---:|---:|---:|---|
-| docTR | 800.53 ms | 804.50 ms | 1,592 ms | 1,200.8 ms | 2,216 ms | Complete OCR baseline |
-| PaddleOCR | 1,105.00 ms | 1,096.50 ms | 1,544 ms | 1,657.5 ms | 3,558 ms | Complete OCR candidate |
-| OpenOCR / SVTRv2 | 563.77 ms | 582.50 ms | 1,211 ms | 845.65 ms | 1,383 ms | Complete OCR candidate |
-| PARSeq AR over OpenOCR crops | 293.47 ms | 212.00 ms | 870 ms | 440.2 ms | 870 ms | Recognizer stage only |
-| PARSeq NAR/refine-2 over OpenOCR crops | 215.17 ms | 168.50 ms | 655 ms | 322.75 ms | 655 ms | Recognizer stage only |
-| ASTER over OpenOCR crops | 119.87 ms | 111.00 ms | 275 ms | 179.8 ms | 409 ms | Recognizer stage only |
-| FCENet + ASTER | 4,526.70 ms | 4,073.50 ms | 10,525 ms | 6,790.05 ms | 14,630 ms | Complete detector + recognizer experiment |
-| ABINet over OpenOCR crops | 458.83 ms | 369.00 ms | 1,229 ms | 688.25 ms | 1,229 ms | Recognizer stage only |
+#### Confusion Counts
+
+| Model | TP | TN | FP | FN | Examples |
+|---|---:|---:|---:|---:|---:|
+| docTR | 56 | 111 | 1 | 56 | 224 |
+| PaddleOCR | 64 | 109 | 3 | 48 | 224 |
+| OpenOCR / SVTRv2 | 49 | 111 | 1 | 63 | 224 |
+| PARSeq AR over OpenOCR crops | 43 | 111 | 1 | 69 | 224 |
+| PARSeq NAR/refine-2 over OpenOCR crops | 43 | 111 | 1 | 69 | 224 |
+| ASTER over OpenOCR crops | 43 | 112 | 0 | 69 | 224 |
+| FCENet + ASTER | 28 | 111 | 1 | 84 | 224 |
+| ABINet over OpenOCR crops | 36 | 112 | 0 | 76 | 224 |
+
+#### Latency / Compute
+
+| Model | Runtime tested | Mean / image | Median / image | Worst / image | Mean / app | Max / app | Notes |
+|---|---|---:|---:|---:|---:|---:|---|
+| docTR | CPU, cached baseline | 800.53 ms | 804.50 ms | 1,592 ms | 1,200.8 ms | 2,216 ms | Current deployed OCR baseline |
+| PaddleOCR | CPU container | 1,105.00 ms | 1,096.50 ms | 1,544 ms | 1,657.5 ms | 3,558 ms | Best F1 in this smoke, higher false-clear rate |
+| OpenOCR / SVTRv2 | CPU container | 563.77 ms | 582.50 ms | 1,211 ms | 845.65 ms | 1,383 ms | Fastest complete OCR candidate |
+| PARSeq AR | CPU over OpenOCR crops | 293.47 ms | 212.00 ms | 870 ms | 440.2 ms | 870 ms | Recognizer stage only |
+| PARSeq NAR/refine-2 | CPU over OpenOCR crops | 215.17 ms | 168.50 ms | 655 ms | 322.75 ms | 655 ms | Recognizer stage only |
+| ASTER | CPU over OpenOCR crops | 119.87 ms | 111.00 ms | 275 ms | 179.8 ms | 409 ms | Recognizer stage only |
+| FCENet + ASTER | CPU detector + recognizer | 4,526.70 ms | 4,073.50 ms | 10,525 ms | 6,790.05 ms | 14,630 ms | Misses latency target |
+| ABINet | CPU over OpenOCR crops | 458.83 ms | 369.00 ms | 1,229 ms | 688.25 ms | 1,229 ms | Recognizer stage only |
+
+#### Per-Field F1
+
+| Field | docTR | PaddleOCR | OpenOCR | PARSeq AR | PARSeq NAR | ASTER | FCENet + ASTER | ABINet |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Brand name | 0.7500 | 0.7097 | 0.7097 | 0.5714 | 0.5714 | 0.6207 | 0.4615 | 0.5714 |
+| Fanciful name | 0.8235 | 0.9474 | 0.7500 | 0.6667 | 0.7097 | 0.7097 | 0.2609 | 0.6667 |
+| Class/type | 0.5714 | 0.5714 | 0.4000 | 0.3333 | 0.3333 | 0.4615 | 0.2609 | 0.3333 |
+| Alcohol content | 0.8333 | 0.8966 | 0.8800 | 0.8800 | 0.8800 | 0.7619 | 0.8333 | 0.5556 |
+| Net contents | 0.8235 | 0.7500 | 0.6667 | 0.6667 | 0.6667 | 0.5714 | 0.3333 | 0.5714 |
+| Country of origin | 0.7143 | 0.9412 | 0.7143 | 0.7143 | 0.6154 | 0.7143 | 0.6154 | 0.7143 |
+| Applicant / producer | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
 
 ---
 
@@ -167,6 +199,13 @@ Current CPU latency smoke:
 **Why:** OCR engines and graph scorers solve different problems. PaddleOCR/OpenOCR can improve what text is read from a label image. The graph scorer can improve how OCR fragments are assembled and matched to expected application fields. These layers can stack, but they should be measured independently.
 
 **Current evidence:** The first safety-weighted graph scorer improved F1 from `0.7714` to `0.8714` and lowered false-clear rate from `0.0439` to `0.0132` on the initial 100-application calibration test split with shuffled negative examples.
+
+Graph-aware scorer POC:
+
+| Model | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Compute |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Baseline fuzzy matcher | 0.8947 | 0.8438 | 0.7105 | 0.9561 | 0.7714 | 0.0439 | CPU/simple |
+| Graph-aware scorer | 0.9408 | 0.9531 | 0.8026 | 0.9868 | 0.8714 | 0.0132 | Trained on local RTX 4090 |
 
 **Implication:** The graph scorer is promising but remains experimental until it is tested on a larger calibration split and then a locked holdout. It should not be wired into the deployed default path without a CPU latency and false-clear check.
 
