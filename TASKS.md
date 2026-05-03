@@ -679,6 +679,8 @@ Tasks:
 - [x] Add validation-threshold tuning for LightGBM and XGBoost stackers so weak positive predictions route to `needs_review_unclear`.
 - [x] Document that visual boldness has a viable future reviewer-assist path, but header text correctness still false-clears too often unless the reject-threshold model sends many cases to review.
 - [x] Keep synthetic-only typography stackers out of runtime; promote only the real-adapted logistic preflight as conservative evidence with Needs Review fallback.
+- [x] Generate `audit-v6` as an `audit-v5`-style image inspection set with **9,000** images: **4,957** COLA-derived visual-context rows and **4,043** synthetic-only rows.
+- [x] Record the `audit-v6` source breakdown in `MODEL_LOG.md` and local `data/work/typography-preflight/audit-v6/summary.json`.
 
 Documentation framing:
 

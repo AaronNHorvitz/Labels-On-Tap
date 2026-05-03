@@ -1410,6 +1410,99 @@ Decision:
 - Confident bold evidence can clear the boldness check.
 - Uncertain, unreadable, or unisolated evidence remains `Needs Review`.
 
+### E021 - Audit-v6 Typography Image Set With Real COLA Seeding
+
+**Date:** 2026-05-03
+**Status:** Dataset generated for inspection; not a trained model
+**Code path:** `experiments/typography_preflight/build_v6_dataset.py`
+**Local output:** `data/work/typography-preflight/audit-v6/`
+
+Purpose:
+
+Correct the statistical weakness in the emergency typography bridge model by
+creating an `audit-v5`-style image set that mixes real COLA visual context with
+synthetic and mutated known-bad examples. This is the dataset we inspect before
+training the next boldness/text/panel classifiers.
+
+Artifact shape:
+
+```text
+data/work/typography-preflight/audit-v6/
+  README.md
+  font_inventory.json
+  index.html
+  manifest.csv
+  summary.json
+  crops/
+  by_split/
+  by_source_kind/
+  by_source_origin/
+  by_panel_warning/
+  by_heading_text/
+  by_boldness/
+  by_quality/
+  by_font_weight/
+```
+
+Split counts:
+
+| Split | Images |
+|---|---:|
+| Train | 6,000 |
+| Validation | 1,500 |
+| Test | 1,500 |
+| Total | 9,000 |
+
+The split is by real `ttb_id` for COLA-derived rows. The generated audit set
+has `0` TTB ID overlap between train, validation, and test.
+
+Source-origin breakdown:
+
+| Source origin | Images | Meaning |
+|---|---:|---|
+| `real_cola_heading` | 1,800 | Real approved COLA warning-heading crops |
+| `real_cola_background` | 2,257 | Real COLA warning-heading backgrounds with controlled synthetic overlays |
+| `real_cola_panel` | 900 | Real COLA label panels with no detected warning heading |
+| `synthetic` | 4,043 | Fully synthetic bold, non-bold, incorrect, and unreadable/review crops |
+
+Broad mix:
+
+| Bucket | Images | Share |
+|---|---:|---:|
+| COLA-derived visual context | 4,957 | 55.08% |
+| Synthetic-only | 4,043 | 44.92% |
+
+Source-kind breakdown:
+
+| Source kind | Images |
+|---|---:|
+| `real_heading_positive` | 1,800 |
+| `real_background_non_bold` | 1,800 |
+| `real_no_warning_panel` | 900 |
+| `synthetic_bold_positive` | 1,350 |
+| `synthetic_non_bold` | 1,350 |
+| `synthetic_incorrect` | 900 |
+| `review_unreadable` | 900 |
+
+Task-label breakdown:
+
+| Label family | Values |
+|---|---|
+| `panel_warning_label` | `warning_present`: 7,200; `warning_absent`: 900; `unreadable_review`: 900 |
+| `heading_text_label` | `correct_government_warning`: 6,300; `incorrect_heading_text`: 900; `not_applicable`: 900; `unreadable_review`: 900 |
+| `boldness_label` | `bold`: 3,584; `not_bold`: 3,616; `not_applicable`: 900; `unreadable_review`: 900 |
+
+Important design notes:
+
+- This is an image inspection set, not an Excel/spreadsheet deliverable.
+- `manifest.csv` is a machine-readable manifest, analogous to `audit-v5`.
+- `index.html` and `by_*` directories are for human inspection.
+- No-warning panels are panel-level negatives, not application-level failures.
+- Real-background mutations are intentionally included because approved public
+  COLAs rarely provide true non-bold rejected examples.
+- The prior training-style `data/work/typography-preflight/v6/` folder is a
+  byproduct; the intended inspection artifact is `audit-v6/`.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:
