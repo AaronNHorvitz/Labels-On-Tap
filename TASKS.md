@@ -70,6 +70,9 @@ The sprint priority is now:
 - [x] Current split is **2,000 train / 1,000 validation / 3,000 locked holdout**, with zero TTB ID overlap across splits.
 - [x] Field-support target/pair manifests now exist under `data/work/cola/field-support-datasets/field-support-v1/`.
 - [x] Field-support manifests contain **31,139 positive field targets** and **93,417 total pair examples** using a 1:2 positive-to-shuffled-negative design.
+- [x] DistilRoBERTa was trained/evaluated on the new field-support pair manifests with a 3,000-application locked holdout.
+- [x] RoBERTa-base was trained/evaluated on the same field-support pair manifests as a capacity/control comparison.
+- [x] Current trained text-pair arbiter winner is DistilRoBERTa: holdout F1 **0.999872**, false-clear rate **0.000128**, CPU mean **15.76 ms/pair** on weak field-pair supervision.
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
 - [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the COLA Cloud-derived 100-application calibration test split.
@@ -469,11 +472,12 @@ Planned model candidates:
 - [x] Generate shuffled negative pairs from same-field values in other applications within the same split.
 - [ ] Attach same-application OCR evidence to the generated field-support targets/pairs.
 - [ ] Generate hard negatives for high-risk fields such as alcohol content and net contents.
-- [ ] Train a DistilRoBERTa field-support classifier first.
-- [ ] Train a RoBERTa-base field-support classifier only if DistilRoBERTa shows lift or capacity limits.
+- [x] Train a DistilRoBERTa field-support classifier first on weak field-pair supervision.
+- [x] Train a RoBERTa-base field-support classifier as a capacity/control comparison on weak field-pair supervision.
 - [ ] Compare both against the deterministic government-safe ensemble and OSA hybrid.
 - [ ] Tune thresholds on validation only, optimizing primarily for false-clear control.
-- [ ] Evaluate exactly once on the locked test after preprocessing, thresholds, and model choice are frozen.
+- [x] Evaluate the weak-supervision text-pair classifiers once on the 3,000-application locked holdout.
+- [ ] Evaluate OCR-backed classifiers exactly once on the locked test after OCR preprocessing, thresholds, and model choice are frozen.
 - [ ] Promote only behind an adapter/feature flag if locked-test F1 improves and false-clear posture remains acceptable.
 - [ ] Keep deterministic rules as the final decision layer even if a classifier is added.
 

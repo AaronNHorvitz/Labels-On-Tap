@@ -54,3 +54,9 @@ def test_build_pairs_creates_same_split_negative_labels():
         for pair in pairs
         if pair["label"] == 0
     )
+    assert all(
+        pair["target_expected"] == "Alpha" and pair["candidate_text"] == "Beta"
+        or pair["target_expected"] == "Beta" and pair["candidate_text"] == "Alpha"
+        for pair in pairs
+        if pair["label"] == 0
+    )

@@ -299,6 +299,25 @@ country_of_origin
 Negative examples are generated only from same-split, same-field shuffled
 values. This keeps the holdout locked and prevents application-level leakage.
 
+BERT-family text-pair classifiers were trained on these generated manifests:
+
+```text
+data/work/field-support-models/distilroberta-field-support-v1-e1/
+data/work/field-support-models/roberta-base-field-support-v1-e1/
+```
+
+Current locked-holdout text-pair results:
+
+| Model | Holdout F1 | False-Clear Rate | FP | FN | CPU Mean / Pair |
+|---|---:|---:|---:|---:|---:|
+| DistilRoBERTa | 0.999872 | 0.000128 | 4 | 0 | 15.76 ms |
+| RoBERTa-base | 0.999777 | 0.000223 | 7 | 0 | 33.35 ms |
+
+Important: these are weak-supervision field-pair results. They prove the
+text-pair arbiter can learn the support relation on the 6,000-record corpus.
+They do **not** yet prove final OCR extraction accuracy because OCR candidate
+evidence has not been attached to these pair manifests.
+
 Important current sample folders:
 
 ```text
@@ -765,6 +784,32 @@ Regenerate the field-support target/pair manifests:
 python scripts/build_field_support_dataset.py --force
 ```
 
+Rerun the current BERT-family text-pair experiments:
+
+```bash
+.venv-gpu/bin/python experiments/field_support/train_transformer_pair_classifier.py \
+  --model-id distilroberta-base \
+  --run-name distilroberta-field-support-v1-e1 \
+  --epochs 1 \
+  --batch-size 64 \
+  --eval-batch-size 128 \
+  --max-length 128 \
+  --device cuda \
+  --false-clear-tolerance 0.005 \
+  --cpu-latency-rows 512
+
+.venv-gpu/bin/python experiments/field_support/train_transformer_pair_classifier.py \
+  --model-id roberta-base \
+  --run-name roberta-base-field-support-v1-e1 \
+  --epochs 1 \
+  --batch-size 48 \
+  --eval-batch-size 96 \
+  --max-length 128 \
+  --device cuda \
+  --false-clear-tolerance 0.005 \
+  --cpu-latency-rows 512
+```
+
 Run current tests:
 
 ```bash
@@ -794,8 +839,7 @@ curl http://localhost:8000/health
    split source.
 3. Attach OCR evidence to the generated field-support pair manifests.
 4. Run docTR/PaddleOCR/OpenOCR over the development cohort and cache outputs.
-5. Train/tune BERT-family field-support classifiers and graph scorer on
-   train/validation only.
+5. Rerun DistilRoBERTa on OCR-backed candidate evidence.
 6. Compare all serious candidates with identical statistics and latency tables.
 7. Freeze thresholds and architecture.
 8. Evaluate once on the 3000-record locked holdout cohort.

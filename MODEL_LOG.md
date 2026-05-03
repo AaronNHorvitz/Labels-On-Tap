@@ -866,6 +866,96 @@ Decision:
 - It does not improve the government-safe ensemble at the safe threshold.
 - Lower thresholds reintroduce false clears, so the model fails the government triage posture.
 
+### E017 - DistilRoBERTa / RoBERTa Field-Support Classifiers on the 6,000-Application Corpus
+
+**Date:** May 3, 2026
+**Run outputs:**
+
+```text
+data/work/field-support-models/distilroberta-field-support-v1-e1/
+data/work/field-support-models/roberta-base-field-support-v1-e1/
+```
+
+**Purpose:** Train the first BERT-family field-support classifiers on the new
+6,000-application public COLA corpus. This run uses the locked application-level
+split created before field-pair generation.
+
+Split design:
+
+| Split | Applications | Pair Examples |
+|---|---:|---:|
+| Train | 2,000 | 31,008 |
+| Validation | 1,000 | 15,417 |
+| Locked holdout | 3,000 | 46,992 |
+
+Important limitation:
+
+This is a weak-supervision field-pair run, not a final OCR run. Positive
+candidate text comes from the same accepted public COLA application field.
+Negative candidate text is a same-field value shuffled from another application
+in the same split. OCR evidence still needs to be attached before claiming OCR
+pipeline accuracy.
+
+Commands:
+
+```bash
+.venv-gpu/bin/python experiments/field_support/train_transformer_pair_classifier.py \
+  --model-id distilroberta-base \
+  --run-name distilroberta-field-support-v1-e1 \
+  --epochs 1 \
+  --batch-size 64 \
+  --eval-batch-size 128 \
+  --max-length 128 \
+  --device cuda \
+  --false-clear-tolerance 0.005 \
+  --cpu-latency-rows 512
+
+.venv-gpu/bin/python experiments/field_support/train_transformer_pair_classifier.py \
+  --model-id roberta-base \
+  --run-name roberta-base-field-support-v1-e1 \
+  --epochs 1 \
+  --batch-size 48 \
+  --eval-batch-size 96 \
+  --max-length 128 \
+  --device cuda \
+  --false-clear-tolerance 0.005 \
+  --cpu-latency-rows 512
+```
+
+Validation threshold selection:
+
+```text
+threshold: 0.99
+policy: false_clear_constrained_max_f1
+false_clear_tolerance: 0.005
+```
+
+Locked-holdout results:
+
+| Model | Train Time | Accuracy | Precision | Recall | Specificity | F1 | False-Clear Rate | FP | FN | CPU Mean / Pair |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| DistilRoBERTa | 36.5 s | 0.999915 | 0.999745 | 1.000000 | 0.999872 | 0.999872 | 0.000128 | 4 | 0 | 15.76 ms |
+| RoBERTa-base | 73.7 s | 0.999851 | 0.999553 | 1.000000 | 0.999777 | 0.999777 | 0.000223 | 7 | 0 | 33.35 ms |
+
+Per-field locked-holdout false-clear observations:
+
+| Model | Alcohol | Brand | Class/Type | Country | Fanciful | Net Contents |
+|---|---:|---:|---:|---:|---:|---:|
+| DistilRoBERTa F1 | 1.000000 | 1.000000 | 0.999667 | 1.000000 | 0.999832 | 0.999809 |
+| DistilRoBERTa false-clear | 0.000000 | 0.000000 | 0.000333 | 0.000000 | 0.000168 | 0.000191 |
+| RoBERTa-base F1 | 0.999646 | 1.000000 | 0.999667 | 1.000000 | 0.999665 | 0.999809 |
+| RoBERTa-base false-clear | 0.000354 | 0.000000 | 0.000333 | 0.000000 | 0.000335 | 0.000191 |
+
+Decision:
+
+- DistilRoBERTa is the current preferred trained arbiter candidate. It is
+  faster than RoBERTa-base and slightly better on the locked holdout in this
+  run.
+- RoBERTa-base does not currently justify its additional latency/capacity.
+- Do not promote either model to runtime yet. The next gate is to attach real
+  docTR/PaddleOCR/OpenOCR evidence as `candidate_text` and rerun the same
+  train/validation/locked-holdout evaluation.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:
@@ -888,15 +978,15 @@ This result does not support a production claim:
 
 The current best pure OCR ensemble smoke result is `E013`, using deterministic
 government-safe arbitration across docTR, PaddleOCR, and OpenOCR. The current
-best BERT-assisted smoke result is `E015`, using OSA market-domain NER plus the
-government-safe ensemble. It improved F1 from `0.7416` to `0.7486` with
-false-clear rate still `0.0000`, but this is not yet the deployed runtime path
-because the lift came from one additional true positive in a small smoke sample.
+best BERT-assisted OCR-smoke result is `E015`, using OSA market-domain NER plus
+the government-safe ensemble. The current best trained text-pair arbiter result
+is `E017`, where DistilRoBERTa beat RoBERTa-base on the 3,000-application
+locked holdout with lower CPU latency.
 
 ## Known Limitations
 
-- The current graph labels are weak labels from accepted application fields and shuffled negatives, not human-labeled OCR spans.
-- The test split is drawn from the COLA Cloud-derived 100-application calibration set, not the planned locked holdout.
+- The current graph and BERT text-pair labels are weak labels from accepted application fields and shuffled negatives, not human-labeled OCR spans.
+- The earlier graph scorer test split is drawn from the COLA Cloud-derived 100-application calibration set, not the 3,000-application locked holdout.
 - The graph scorer and deterministic ensemble cannot recover text no OCR engine detected.
 - Class/type remains difficult and probably needs better product taxonomy handling, better OCR, or field-specific candidate generation.
 - The current model processes variable-size graphs one at a time; batching/padding should be added before larger runs.
@@ -905,10 +995,9 @@ because the lift came from one additional true positive in a small smoke sample.
 ## Next Experiments
 
 1. Run docTR, PaddleOCR, OpenOCR, the government-safe ensemble, and OSA hybrid evidence on the COLA Cloud-derived 100-application / 169-image calibration set.
-2. Build the expanded application-level public-data split before generating field-pair examples.
-3. For trained Transformer experiments, use `60%` train / `20%` validation / `20%` locked test, with no TTB ID crossing splits.
-4. Train a DistilRoBERTa field-support classifier before RoBERTa-base; tune thresholds on validation only.
-5. Compare DistilRoBERTa/RoBERTa against the deterministic government-safe ensemble and OSA hybrid.
-6. Freeze graph/ensemble/classifier settings after calibration and evaluate only once on the locked test split.
-7. Add field-specific class/type taxonomy features to attack the weakest measured field.
-8. Preserve LayoutLMv3 and the full HO-GNN/TPS/SVTR roadmap as future research paths after simpler post-OCR arbitration is fully measured.
+2. Attach docTR/PaddleOCR/OpenOCR evidence to the existing 6,000-record field-support pair manifests.
+3. Rerun DistilRoBERTa on OCR-backed candidate text using train/validation only for tuning.
+4. Compare OCR-backed DistilRoBERTa against the deterministic government-safe ensemble and OSA hybrid.
+5. Freeze graph/ensemble/classifier settings after calibration and evaluate only once on the locked test split.
+6. Add field-specific class/type taxonomy features to attack the weakest measured OCR-backed field.
+7. Preserve LayoutLMv3 and the full HO-GNN/TPS/SVTR roadmap as future research paths after simpler post-OCR arbitration is fully measured.

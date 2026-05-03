@@ -49,6 +49,7 @@ The app is already deployed and working. The current sprint has shifted from app
 | `DEMO_SCRIPT.md` | Reviewer demo flow |
 | `PHASE1_REJECTION.md` | Known-bad/rejection checklist |
 | `experiments/graph_ocr/` | Experimental graph-aware OCR evidence scorer |
+| `experiments/field_support/` | Experimental BERT-family field-support classifiers |
 
 ## Current App State
 
@@ -99,6 +100,8 @@ COLA Cloud development bridge:
   `data/work/cola/field-support-datasets/field-support-v1/`.
 - Field-support dataset counts: `31,139` positive field targets and `93,417`
   pair examples with a `1:2` positive-to-shuffled-negative design.
+- Trained field-support text-pair experiments were run on the new split:
+  DistilRoBERTa and RoBERTa-base, both outside the runtime app.
 - Current OCR/model metrics remain COLA Cloud-derived public calibration
   metrics, not direct TTB attachment-download metrics.
 
@@ -166,6 +169,29 @@ Best POC metrics:
 | False-clear rate | 0.0439 | 0.0132 |
 
 See `MODEL_LOG.md` for details.
+
+## BERT Field-Support Experiment State
+
+The current BERT-family runs are weak-supervision text-pair arbiters, not final
+OCR-backed classifiers. They train on accepted public application field values
+and same-split shuffled negative values.
+
+Current runs:
+
+| Model | Holdout F1 | False-Clear Rate | CPU Mean / Pair | Decision |
+|---|---:|---:|---:|---|
+| DistilRoBERTa | 0.999872 | 0.000128 | 15.76 ms | Preferred current text-pair arbiter |
+| RoBERTa-base | 0.999777 | 0.000223 | 33.35 ms | Not worth extra latency yet |
+
+Outputs:
+
+```text
+data/work/field-support-models/distilroberta-field-support-v1-e1/
+data/work/field-support-models/roberta-base-field-support-v1-e1/
+```
+
+Next gate: attach docTR/PaddleOCR/OpenOCR candidate evidence to the same pair
+manifests and rerun DistilRoBERTa before making any OCR-quality claim.
 
 ## GPU Setup
 
@@ -283,8 +309,7 @@ not pixel-level OCR recognizers.
 2. Use `MODEL_LOG.md` as the experiment ledger for all OCR/model runs.
 3. Attach OCR evidence to the existing field-support pair manifests.
 4. Run docTR/PaddleOCR/OpenOCR cached OCR over the development cohort.
-5. Train/tune DistilRoBERTa/RoBERTa/OSA-style field-support arbiters on the
-   development split.
+5. Rerun DistilRoBERTa on OCR-backed candidate evidence.
 6. Compare them against deterministic ensemble and graph-aware evidence scorer.
 7. Freeze thresholds, then evaluate once on the 3,000-record holdout cohort.
 8. Convert final metrics into `MODEL_LOG.md`, `TRADEOFFS.md`,
