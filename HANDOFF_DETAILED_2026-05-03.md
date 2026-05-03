@@ -91,7 +91,7 @@ Last known local test state:
 
 ```text
 pytest -q
-65 passed
+67 passed
 ```
 
 Deployment smoke commands:
@@ -245,6 +245,60 @@ development-holdout overlap:
   0 TTB IDs
 ```
 
+Field-support target and pair manifests were generated from those application
+splits:
+
+```text
+data/work/cola/field-support-datasets/field-support-v1/
+  train_field_targets.csv / .jsonl
+  train_field_pairs.csv / .jsonl
+  validation_field_targets.csv / .jsonl
+  validation_field_pairs.csv / .jsonl
+  holdout_field_targets.csv / .jsonl
+  holdout_field_pairs.csv / .jsonl
+  all_field_targets.csv / .jsonl
+  all_field_pairs.csv / .jsonl
+  dataset_summary.json
+```
+
+Field-support dataset counts:
+
+```text
+train:
+  field targets: 10336
+  pair examples: 31008
+  labels: 10336 positive, 20672 shuffled negative
+
+validation:
+  field targets: 5139
+  pair examples: 15417
+  labels: 5139 positive, 10278 shuffled negative
+
+locked holdout:
+  field targets: 15664
+  pair examples: 46992
+  labels: 15664 positive, 31328 shuffled negative
+
+combined:
+  field targets: 31139
+  pair examples: 93417
+  labels: 31139 positive, 62278 shuffled negative
+```
+
+Included target fields:
+
+```text
+brand_name
+fanciful_name
+class_type
+alcohol_content
+net_contents
+country_of_origin
+```
+
+Negative examples are generated only from same-split, same-field shuffled
+values. This keeps the holdout locked and prevents application-level leakage.
+
 Important current sample folders:
 
 ```text
@@ -254,6 +308,7 @@ data/work/cola/official-sample-1500-balanced/
 data/work/cola/official-sample-3000-balanced/
 data/work/cola/official-sample-next-3000-balanced/
 data/work/cola/evaluation-splits/field-support-v1/
+data/work/cola/field-support-datasets/field-support-v1/
 ```
 
 Current measured calibration source before the full-corpus rerun:
@@ -704,6 +759,12 @@ Regenerate the current train/validation/holdout manifests:
 python scripts/create_colacloud_evaluation_splits.py --force
 ```
 
+Regenerate the field-support target/pair manifests:
+
+```bash
+python scripts/build_field_support_dataset.py --force
+```
+
 Run current tests:
 
 ```bash
@@ -731,7 +792,7 @@ curl http://localhost:8000/health
 1. Keep the public deployment stable.
 2. Use `data/work/cola/evaluation-splits/field-support-v1/` as the canonical
    split source.
-3. Generate field-support examples only after loading that application split.
+3. Attach OCR evidence to the generated field-support pair manifests.
 4. Run docTR/PaddleOCR/OpenOCR over the development cohort and cache outputs.
 5. Train/tune BERT-family field-support classifiers and graph scorer on
    train/validation only.

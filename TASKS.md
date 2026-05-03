@@ -39,7 +39,7 @@ The sprint priority is now:
 - [x] `country_of_origin` and `imported` are first-class application fields.
 - [x] Demo fixtures/data scaffold exists.
 - [x] Tests scaffold exists.
-- [x] Last known complete local test run: `pytest -q` passed with 65 tests.
+- [x] Last known complete local test run: `pytest -q` passed with 67 tests.
 - [x] Local Podman image rebuild passed on May 2, 2026.
 - [x] Local container smoke passed on May 2, 2026 for `/health`, `/`, and `/demo/clean`.
 - [x] Public COLA ETL scripts exist for search-result imports, public form fetches, form parsing, label image download, curated fixture export, and stratified sampling.
@@ -65,6 +65,11 @@ The sprint priority is now:
 - [x] COLA Cloud-derived balanced calibration now measures ABV and net contents: alcohol-content match rate **91.49% of 94 attempted**, net-contents match rate **83.72% of 86 attempted**.
 - [x] Sampler supports an exact `calibration` / `holdout` split for the planned **1,500 / 1,500** design.
 - [x] No-network plan-only check produced a **3,000-record** selected sample with exact split counts: **1,500 calibration**, **1,500 holdout**.
+- [x] COLA Cloud-derived public corpus now contains **6,000 unique fetched applications** and **10,435 local label images** across two non-overlapping 3,000-application cohorts.
+- [x] Canonical application-level evaluation manifests now exist under `data/work/cola/evaluation-splits/field-support-v1/`.
+- [x] Current split is **2,000 train / 1,000 validation / 3,000 locked holdout**, with zero TTB ID overlap across splits.
+- [x] Field-support target/pair manifests now exist under `data/work/cola/field-support-datasets/field-support-v1/`.
+- [x] Field-support manifests contain **31,139 positive field targets** and **93,417 total pair examples** using a 1:2 positive-to-shuffled-negative design.
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
 - [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the COLA Cloud-derived 100-application calibration test split.
@@ -125,10 +130,10 @@ Core metrics to report:
 
 Split discipline:
 
-- [ ] Create the locked application-level split before generating field-pair examples.
-- [ ] Use `60%` train / `20%` validation / `20%` locked test for trained field-support classifiers.
+- [x] Create the locked application-level split before generating field-pair examples.
+- [x] Use the current `2,000` train / `1,000` validation / `3,000` locked-holdout design for trained field-support classifiers.
 - [ ] Stratify by month, product family, import/domestic bucket, and label-panel complexity where data allows.
-- [ ] Ensure the same TTB ID never appears across train, validation, and test.
+- [x] Ensure the same TTB ID never appears across train, validation, and test.
 - [ ] Tune preprocessing, thresholds, model family, and safety policy on validation only.
 - [ ] Report final trained-model metrics on the locked test only after all tuning decisions are frozen.
 
@@ -136,12 +141,13 @@ Sample-size framing:
 
 - [x] Use `N ~= 150,000` annual COLA applications as the working population size.
 - [x] Current `n = 810` parsed official public COLAs gives about **+/- 3.4%** conservative 95% margin of error for a broad proportion estimate.
-- [ ] Target `n = 3,000` public COLA applications if quota/time allows.
-- [ ] For pure OCR/rule calibration, preserve the option of **1,500 calibration/tuning** and **1,500 locked holdout** records.
-- [ ] For trained DistilRoBERTa/RoBERTa field-support classifiers, prefer an application-level **60/20/20** split: **1,800 train**, **600 validation**, **600 locked test**.
+- [x] Target `n = 3,000` public COLA applications if quota/time allows.
+- [x] Supersede the initial 3,000-record target with a **6,000-application** public-data corpus.
+- [x] Preserve a **3,000-application locked holdout** for final model evaluation.
+- [x] Use **2,000 train**, **1,000 validation**, and **3,000 locked holdout** for trained field-support classifiers.
 - [x] A locked holdout of `n = 1,500` gives about **+/- 2.5 percentage points** conservative 95% margin of error for a binary proportion estimate.
-- [ ] A locked test of `n = 600` gives about **+/- 4.0 percentage points** conservative 95% margin of error for a binary proportion estimate, before finite-population correction.
-- [ ] Explain clearly that `+/- 2.5%` is a 95% margin of error on the final holdout estimate, not a guarantee of production accuracy.
+- [x] A locked holdout of `n = 3,000` gives about **+/- 1.8 percentage points** conservative 95% margin of error for a binary proportion estimate, before finite-population correction.
+- [ ] Explain clearly that `+/- 1.8%` is a conservative 95% margin of error on the 3,000-record final holdout estimate, not a guarantee of production accuracy.
 - [ ] Build 300-500 known-bad synthetic negative cases for false-clear testing.
 - [ ] Explain the "rule of three": zero false clears in 300 known-bad cases implies an approximate 95% upper bound of 1% on the false-clear rate.
 
@@ -167,7 +173,9 @@ Use accepted public COLA applications as positive ground truth. The goal is not 
 - [ ] When direct TTB endpoint stabilizes, reconcile a subset of COLA Cloud records back to printable public forms where possible.
 - [ ] Retry pending public label image downloads with session warming, Pillow validation, and polite delay/retry settings.
 - [ ] Use COLA Cloud sample pack/API only as a development public-data bridge; do not make it a runtime dependency.
-- [ ] Pull a bounded COLA Cloud API corpus only after the API key is stored locally in `.env`.
+- [x] Pull a bounded COLA Cloud API corpus only after the API key is stored locally in `.env`.
+- [x] Fetch 6,000 COLA Cloud-derived public application/detail records and 10,435 label images into gitignored `data/work/cola/`.
+- [x] Create application-level train/validation/holdout manifests from the 6,000-record corpus.
 - [ ] Keep COLA Cloud API requests slow enough to respect the provider burst limit and detail-view quota.
 - [x] Before scaling beyond the 100-record calibration set, map ABV/net-content fields from COLA Cloud details where available.
 - [x] Before scaling beyond the 100-record calibration set, add initial class/type synonym matching.
@@ -232,10 +240,10 @@ This is the core AI-powered proof. Extract text from real accepted label images,
   - [x] Applicant, permittee, bottler, producer, or name/address when visible.
 - [x] Report field-level expected value, observed OCR evidence, match verdict, OCR confidence, and reviewer action.
 - [x] Add code support for exact calibration/holdout manifests.
-- [ ] Run the full 3,000-record split when enough quota/time is available.
-- [ ] Tune OCR preprocessing and fuzzy-match thresholds only on the 1,500-record calibration split.
-- [ ] Evaluate final OCR/comparison behavior on the 1,500-record locked holdout.
-- [x] Save OCR and evaluation outputs under `data/work/public-cola/parsed/ocr/`.
+- [ ] Run OCR/evidence extraction across the 6,000-record split when enough local compute time is available.
+- [ ] Tune OCR preprocessing, fuzzy-match thresholds, and trained arbiters only on the 2,000 train / 1,000 validation development cohort.
+- [ ] Evaluate final OCR/comparison behavior exactly once on the 3,000-record locked holdout.
+- [x] Save OCR and evaluation outputs under gitignored `data/work/public-cola/parsed/ocr/` and `data/work/cola/`.
 - [ ] Summarize measured accuracy, coverage, latency, and limitations in `docs/performance.md`.
 - [ ] Add a README section that leads with time/money savings using TTB's 2026 application-volume page and Sarah's 5-10 minute review estimate.
 
@@ -346,7 +354,7 @@ Benchmark stages:
 - [x] Compare 30-image smoke against docTR using identical field-support scoring logic.
 - [ ] Compare the 100-application COLA Cloud-derived calibration set against docTR using identical field-matching logic.
 - [ ] If a candidate wins on the 100-application set, run it on the larger COLA Cloud-derived calibration split.
-- [ ] Freeze preprocessing, thresholds, and engine choice before evaluating the 1,500-record locked holdout.
+- [ ] Freeze preprocessing, thresholds, and engine choice before evaluating the 3,000-record locked holdout.
 
 Metrics to compare:
 
@@ -456,9 +464,10 @@ Output:
 
 Planned model candidates:
 
-- [ ] Create field-support training examples from application-level splits only.
-- [ ] Generate positive pairs from accepted application fields and same-application OCR text.
-- [ ] Generate shuffled negative pairs from same-field values in other applications.
+- [x] Create field-support training examples from application-level splits only.
+- [x] Generate positive field targets from accepted application fields.
+- [x] Generate shuffled negative pairs from same-field values in other applications within the same split.
+- [ ] Attach same-application OCR evidence to the generated field-support targets/pairs.
 - [ ] Generate hard negatives for high-risk fields such as alcohol content and net contents.
 - [ ] Train a DistilRoBERTa field-support classifier first.
 - [ ] Train a RoBERTa-base field-support classifier only if DistilRoBERTa shows lift or capacity limits.
@@ -526,13 +535,13 @@ Legal guidance is valuable, but it should explain deterministic findings rather 
 
 1. Keep pausing further direct TTB registry requests until connection resets stop.
 2. Use the COLA Cloud public-data bridge only for local development/OCR evaluation, not runtime.
-3. Run an alternate OCR engine sweep on the existing 100-application / 169-image calibration cache before scaling.
-4. Keep docTR as the deployed default unless PaddleOCR/OpenOCR wins the measured comparison.
-5. Build the full 3,000-record public-data plan without replacement.
-6. If training DistilRoBERTa/RoBERTa, create the application-level 60/20/20 train/validation/locked-test split before generating field-pair examples.
-7. Fetch details/images for train and validation first; keep locked-test untouched until settings are frozen.
-8. Freeze OCR engine choice, OCR preprocessing, field-normalization, model family, and pass/review thresholds.
-9. Evaluate the locked test split and report field-level match rates, false-clear rate, latency, and limitations.
+3. Keep docTR as the deployed default unless PaddleOCR/OpenOCR or an ensemble wins the measured comparison and fits the CPU SLA.
+4. Use the current 6,000-record public-data corpus without replacement.
+5. Use the current 2,000 train / 1,000 validation / 3,000 locked-holdout split.
+6. Attach OCR evidence to the field-support manifests before training DistilRoBERTa/RoBERTa or graph scorers.
+7. Freeze OCR engine choice, OCR preprocessing, field-normalization, model family, and pass/review thresholds.
+8. Evaluate the locked test split and report field-level match rates, false-clear rate, latency, and limitations.
+9. Keep locked-test applications untouched until settings are frozen.
 10. Reconcile a small subset back to direct TTB printable forms if the public endpoint stabilizes.
 11. Export 10-25 curated official public fixtures for committed demo/test use.
 12. Build synthetic negative coverage for the highest-risk mismatch cases.

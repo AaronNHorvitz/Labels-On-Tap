@@ -60,7 +60,7 @@ The app is already deployed and working. The current sprint has shifted from app
 - Batch upload exists.
 - CSV export exists.
 - `country_of_origin` and `imported` are first-class fields.
-- Tests last passed with `65 passed`.
+- Tests last passed with `67 passed`.
 
 Useful verification:
 
@@ -95,6 +95,10 @@ COLA Cloud development bridge:
 - Application-level evaluation split manifests were generated under
   `data/work/cola/evaluation-splits/field-support-v1/`.
 - Split counts: `2,000` train, `1,000` validation, `3,000` locked holdout.
+- Field-support target/pair manifests were generated under
+  `data/work/cola/field-support-datasets/field-support-v1/`.
+- Field-support dataset counts: `31,139` positive field targets and `93,417`
+  pair examples with a `1:2` positive-to-shuffled-negative design.
 - Current OCR/model metrics remain COLA Cloud-derived public calibration
   metrics, not direct TTB attachment-download metrics.
 
@@ -104,6 +108,7 @@ Key local paths:
 data/work/cola/official-sample-3000-balanced/
 data/work/cola/official-sample-next-3000-balanced/
 data/work/cola/evaluation-splits/field-support-v1/
+data/work/cola/field-support-datasets/field-support-v1/
 data/work/public-cola/parsed/ocr/evaluations/
 data/work/graph-ocr/
 ```
@@ -276,8 +281,7 @@ not pixel-level OCR recognizers.
 
 1. Keep the deployed app stable.
 2. Use `MODEL_LOG.md` as the experiment ledger for all OCR/model runs.
-3. Generate field-pair examples from the existing application-level split
-   manifests.
+3. Attach OCR evidence to the existing field-support pair manifests.
 4. Run docTR/PaddleOCR/OpenOCR cached OCR over the development cohort.
 5. Train/tune DistilRoBERTa/RoBERTa/OSA-style field-support arbiters on the
    development split.
