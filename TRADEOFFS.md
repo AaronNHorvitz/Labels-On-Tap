@@ -28,6 +28,8 @@ The core trade-off is deliberate:
 
 The repository includes a large legal/research corpus and source-backed rule matrix to demonstrate how the rule system can scale. The runtime MVP implements a focused subset of rules that are valuable, demoable, and feasible within the sprint.
 
+**OCR smoke-test synthesis:** The 30-image OCR smoke test carries inherent statistical variance, but it achieved its primary engineering objective: rapid architectural pruning. It identified the strongest near-term production candidates as complete OCR engines, especially docTR, PaddleOCR, and OpenOCR/SVTRv2, while showing that crop-dependent recognizers such as PARSeq, ASTER, and ABINet did not improve field-support performance under the tested OpenOCR-box crop contract. It also showed that FCENet + ASTER, while useful as an arbitrary-shape text detection research checkpoint, missed the CPU latency target for this compliance workflow. By isolating these failure modes early, the project narrowed the production path without spending the remaining sprint on full-scale calibration of architectures that did not earn promotion in the smoke test.
+
 ---
 
 ## 2. Product Scope Trade-Offs
