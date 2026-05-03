@@ -39,6 +39,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | OpenOCR / SVTRv2 sweep | Experimental alternate local OCR candidate | No | 30-image smoke was fastest, with lower F1 in first field-support test |
 | PARSeq crop recognizer | Experimental recognizer over detected crops | No | Fast on CPU, but lower field-support F1 in first crop-recognition smoke |
 | ASTER crop recognizer | Experimental rectifying recognizer over detected crops | No | Very fast on CPU, zero false clears, but low recall/F1 in first crop-recognition smoke |
+| FCENet + ASTER | Experimental arbitrary-shape detector plus recognizer | No | Successful run, but too slow on CPU and low F1 in first detector-recognizer smoke |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -495,6 +496,70 @@ Decision:
 - The result does not invalidate ASTER; it says this quick OpenOCR-box + rectangular-crop contract did not recover more field evidence.
 - A fairer future test would use ASTER in an end-to-end MMOCR detector-plus-recognizer pipeline or with better rotated/curved crop generation.
 - Small sample sizes increase variance, so this remains directional calibration evidence.
+
+### E011 - FCENet Detection Plus ASTER Recognition
+
+**Date:** May 3, 2026
+**Run output:** `data/work/ocr-engine-sweep/fcenet-aster-smoke-30/`
+**Field-support output:** `data/work/ocr-engine-sweep/field-support-metrics/doctr-vs-paddle-vs-openocr-vs-parseq-vs-aster-vs-fcenet-smoke-30/`
+**Input:** The same 20-application / 30-image smoke set from E006-E010
+**Purpose:** Test FCENet, a Fourier-contour arbitrary-shape text detector, paired with ASTER recognition.
+
+Method:
+
+```text
+1. Run MMOCR FCENet on each full label image.
+2. Keep detections with score >= 0.5, capped at 128 crops per image.
+3. Crop each detected polygon's rectangular bounds.
+4. Run MMOCR ASTER recognition on the crops.
+5. Aggregate recognized crop text by original label image and TTB ID.
+6. Score field support with the same shuffled-negative metric.
+```
+
+Environment:
+
+```text
+container: python:3.10-slim
+detector: MMOCR 1.0.1 TextDetInferencer(model="FCENet")
+recognizer: MMOCR 1.0.1 TextRecInferencer(model="ASTER")
+runtime: CPU
+dependency pins: torch 2.0.1 CPU, mmcv 2.0.1, mmdet 3.0.0, numpy<2
+```
+
+Timing / extraction smoke:
+
+| Metric | FCENet + ASTER |
+|---|---:|
+| Images processed | 30 |
+| Error count | 0 |
+| Mean latency | 4,526.70 ms/image |
+| Median latency | 4,073.50 ms/image |
+| Worst latency | 10,525 ms/image |
+| Mean detector latency | 4,297.03 ms/image |
+| Mean recognizer latency | 210.70 ms/image |
+| Mean confidence | 0.8538 |
+| Mean detected/crop count | 62.63 |
+| Mean extracted chars | 398.23 |
+
+Overall field-support result across all fields:
+
+| Metric | docTR | PaddleOCR | OpenOCR | ASTER | FCENet + ASTER |
+|---|---:|---:|---:|---:|---:|
+| Accuracy | 0.7455 | 0.7723 | 0.7143 | 0.6920 | 0.6205 |
+| Precision | 0.9825 | 0.9552 | 0.9800 | 1.0000 | 0.9655 |
+| Recall | 0.5000 | 0.5714 | 0.4375 | 0.3839 | 0.2500 |
+| Specificity | 0.9911 | 0.9732 | 0.9911 | 1.0000 | 0.9911 |
+| F1 | 0.6627 | 0.7151 | 0.6049 | 0.5548 | 0.3972 |
+| False-clear rate | 0.0089 | 0.0268 | 0.0089 | 0.0000 | 0.0089 |
+
+Decision:
+
+- FCENet + ASTER successfully exercised arbitrary-shape detection and generated normalized OCR artifacts.
+- The detector dominated latency: mean detector time was 4,297.03 ms/image, before application-level aggregation.
+- The worst image took 10,525 ms, missing the five-second operational target for a single label image.
+- Field-support F1 dropped to 0.3972, mainly because recall fell to 0.2500.
+- FCENet remains a useful research checkpoint for curved text detection, but this CPU implementation is not a near-term runtime candidate.
+- Small sample sizes increase variance, but this result is directionally negative enough that FCENet should not displace the current OCR candidates before submission.
 
 ## Current Best Result
 

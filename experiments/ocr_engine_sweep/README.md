@@ -14,6 +14,7 @@ latency, and failure behavior.
 | OpenOCR / SVTRv2 | Second alternate local OCR candidate | 30-image smoke benchmark and field-support metrics recorded |
 | PARSeq | Scene-text recognizer over detected crops | AR and NAR crop-recognition smoke benchmarks recorded |
 | ASTER | Rectifying scene-text recognizer over detected crops | MMOCR ASTER crop-recognition smoke benchmark recorded |
+| FCENet + ASTER | Fourier-contour detector plus rectifying recognizer | MMOCR detector-recognizer smoke benchmark recorded |
 | Graph scorer | Post-OCR field evidence scorer | Implemented under `experiments/graph_ocr/` |
 
 ## Promotion Gate
@@ -96,6 +97,11 @@ contract. The first ASTER run uses OpenOCR boxes as the crop source and reports
 recognizer-plus-cropping latency separately from detector-inclusive OCR
 latency.
 
+FCENet is a detector-stage experiment. It predicts arbitrary-shaped text
+contours using Fourier-domain signatures, so the first project benchmark pairs
+FCENet detection with ASTER recognition and reports full detector-plus-recognizer
+latency.
+
 ## PARSeq Crop Recognition
 
 Install the optional standalone PARSeq stack in an isolated environment or
@@ -159,6 +165,22 @@ python experiments/ocr_engine_sweep/aster_crop_benchmark.py \
   --run-name aster-openocr-crops-smoke-30
 ```
 
+## FCENet + ASTER Detector/Recognizer
+
+Use the same isolated MMOCR environment as ASTER, then run:
+
+```bash
+python experiments/ocr_engine_sweep/fcenet_aster_benchmark.py \
+  --image-run-dir data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30 \
+  --image-engine openocr \
+  --limit 30 \
+  --batch-size 32 \
+  --device cpu \
+  --min-score 0.5 \
+  --max-crops-per-image 128 \
+  --run-name fcenet-aster-smoke-30
+```
+
 ## PaddleOCR Version Notes
 
 The first working CPU smoke used:
@@ -218,6 +240,19 @@ python experiments/ocr_engine_sweep/field_support_metrics.py \
   --engine-run parseq_nar_openocr_crops=data/work/ocr-engine-sweep/parseq-openocr-crops-nar-r2-smoke-30 \
   --engine-run aster_openocr_crops=data/work/ocr-engine-sweep/aster-openocr-crops-smoke-30 \
   --run-name doctr-vs-paddle-vs-openocr-vs-parseq-vs-aster-smoke-30
+```
+
+Including FCENet + ASTER:
+
+```bash
+python experiments/ocr_engine_sweep/field_support_metrics.py \
+  --engine-run paddleocr=data/work/ocr-engine-sweep/paddleocr-333-paddle-320-smoke-30-json \
+  --engine-run openocr=data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30 \
+  --engine-run parseq_ar_openocr_crops=data/work/ocr-engine-sweep/parseq-openocr-crops-ar-smoke-30 \
+  --engine-run parseq_nar_openocr_crops=data/work/ocr-engine-sweep/parseq-openocr-crops-nar-r2-smoke-30 \
+  --engine-run aster_openocr_crops=data/work/ocr-engine-sweep/aster-openocr-crops-smoke-30 \
+  --engine-run fcenet_aster=data/work/ocr-engine-sweep/fcenet-aster-smoke-30 \
+  --run-name doctr-vs-paddle-vs-openocr-vs-parseq-vs-aster-vs-fcenet-smoke-30
 ```
 
 This writes summary JSON and per-engine score CSVs under:
