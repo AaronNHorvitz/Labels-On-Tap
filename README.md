@@ -238,12 +238,12 @@ The implemented experimental approach is intentionally classical statistical lea
 ```text
 OCR isolates or approximates the GOVERNMENT WARNING: heading crop
   -> OpenCV normalization and stroke/shape feature extraction
-  -> Support Vector Machine typography classifier
+  -> SVM / XGBoost / CatBoost typography classifier comparison
   -> conservative bold / not-bold / uncertain decision
   -> deterministic compliance layer routes uncertainty to Needs Review
 ```
 
-This is a narrow visual classification problem, not a full OCR problem. A Support Vector Machine is appropriate because the input can be summarized with engineered features such as ink density, edge density, distance-transform stroke width, skeleton-to-ink ratio, connected-component statistics, projection profiles, and HOG descriptors. Following the statistical-learning framing in Hastie, Tibshirani, and Friedman, margin-based classifiers remain strong baselines when the feature space captures the decision boundary, labeled data is limited, and low CPU latency matters.
+This is a narrow visual classification problem, not a full OCR problem. A Support Vector Machine is appropriate because the input can be summarized with engineered features such as ink density, edge density, distance-transform stroke width, skeleton-to-ink ratio, connected-component statistics, projection profiles, and HOG descriptors. XGBoost and CatBoost are useful comparisons because they test whether nonlinear tabular learners can improve the engineered-feature boundary without adding deep-learning OCR complexity. Following the statistical-learning framing in Hastie, Tibshirani, and Friedman, margin-based classifiers remain strong baselines when the feature space captures the decision boundary, labeled data is limited, and low CPU latency matters.
 
 The planned dataset is synthetic and isolated from the current OCR run:
 
@@ -293,13 +293,34 @@ Initial synthetic evaluation was completed under `experiments/typography_preflig
 | 0.25% validation false-clear tolerance | 0.1170 | 0.8987 | 0.0626 | 0.0059 | Still too weak for autonomous promotion. |
 | 5% validation false-clear tolerance | 0.7757 | 0.8867 | 0.6894 | 0.0733 | Useful F1, but too many false clears for government posture. |
 
-Measured CPU prediction latency was about `0.09 ms/crop` after feature extraction. The model therefore has essentially no inference cost compared with OCR, but the corrected next step is to train and compare SVM, XGBoost, and CatBoost against the inspected `audit-v5` decision labels before any runtime promotion.
+Measured CPU prediction latency was about `0.09 ms/crop` after feature extraction. The model therefore has essentially no inference cost compared with OCR, but the corrected next step was to train and compare SVM, XGBoost, and CatBoost against the inspected `audit-v5` decision labels before any runtime promotion.
 
 The current inspection dataset is generated under gitignored
 `data/work/typography-preflight/audit-v5/`. It routes blurry, broken, faded,
 cropped, or visually unreadable crops to `needs_review_unclear`. It treats
 readable medium/semibold/demibold headings as `clearly_not_bold` because the
 regulation calls for bold type.
+
+The first corrected side-by-side comparison was run on a `6,000` / `1,500` /
+`1,500` synthetic train/validation/test split. XGBoost produced the best raw
+accuracy and F1, while the SVM produced the lowest false-clear rate and fastest
+single-row latency. The current hard-argmax results are promising but not safe
+enough to make typography a final automated authority:
+
+| Task | Model | Accuracy | Macro F1 | False-Clear Rate | Batch ms/crop | Single-row ms |
+|---|---|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9400 | 0.9396 | 0.0360 | 0.0048 | 0.0795 |
+| Visual font decision | XGBoost | 0.9567 | 0.9567 | 0.0551 | 0.0032 | 0.1151 |
+| Visual font decision | CatBoost | 0.9480 | 0.9479 | 0.0711 | 0.0054 | 1.9588 |
+| Header text decision | SVM | 0.8420 | 0.8393 | 0.1101 | 0.0055 | 0.0801 |
+| Header text decision | XGBoost | 0.8560 | 0.8546 | 0.1612 | 0.0033 | 0.1693 |
+| Header text decision | CatBoost | 0.8447 | 0.8430 | 0.1702 | 0.0059 | 1.9376 |
+
+For this experiment, false clear means a non-bold or unreadable heading was
+predicted as `clearly_bold`, or an incorrect/unreadable heading was predicted
+as `correct`. The next step is threshold tuning against validation so weak
+model confidence routes to `needs_review_unclear`; until that safety gate is
+met, warning boldness remains a human-review check.
 
 The safe runtime posture is:
 

@@ -45,7 +45,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | WineBERT/o domain NER | Experimental token-classification arbiter over OCR text | No | Fast CPU inference, but no lift over government-safe ensemble and unknown public model license |
 | OSA market-domain NER | Experimental Apache-2.0 token-classification arbiter over OCR text | No | Small lift over government-safe ensemble: F1 0.7486, false-clear rate 0.0000 |
 | FoodBaseBERT-NER | Culinary-domain token-classification control | No | Fast and MIT-licensed, but no lift over government-safe ensemble and standalone F1 0.0522 |
-| OpenCV/SVM typography preflight | Experimental warning-heading boldness classifier | No | Implemented and measured on synthetic held-out-font data; not promoted because safe thresholds have very low recall |
+| OpenCV typography preflight | Experimental warning-heading boldness/header classifier | No | SVM, XGBoost, and CatBoost compared on corrected synthetic audit data; not promoted because hard-argmax false-clear rates are still too high |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -181,9 +181,9 @@ Interpretation:
   bold headings either.
 - At useful recall/F1 thresholds, the false-clear rate is too high.
 - Keep boldness as `Needs Review` for the submission.
-- Next improvement is to train side-by-side multiclass SVM/XGBoost/CatBoost
-  models from the inspected `audit-v5` decision labels, then smoke test approved
-  public COLA warning-heading crops as positive examples.
+- Next improvement is validation-threshold tuning on the side-by-side
+  SVM/XGBoost/CatBoost comparison, then a positive smoke test against approved
+  public COLA warning-heading crops if those crops can be isolated cleanly.
 
 Reference:
 
@@ -199,6 +199,59 @@ Decision:
 - Approved public COLA crops may be used as positive smoke evidence only.
 - Synthetic non-bold/degraded examples remain required for negative validation.
 - Ambiguous typography remains `Needs Review`.
+
+### E014 - SVM vs. XGBoost vs. CatBoost Typography Comparison
+
+**Date added:** May 3, 2026
+**Code path:** `experiments/typography_preflight/compare_models.py`
+**Run output:** `data/work/typography-preflight/model-comparison-v1/`
+**Purpose:** Compare three CPU-friendly classical/tabular model families on the
+corrected `audit-v5` typography targets before deciding whether a boldness
+preflight is worth promoting.
+
+Dataset:
+
+| Split | Crops |
+|---|---:|
+| Train | 6,000 |
+| Validation | 1,500 |
+| Test | 1,500 |
+
+Targets:
+
+| Target | Classes | False-clear definition |
+|---|---|---|
+| `visual_font_decision_label` | `clearly_bold`, `clearly_not_bold`, `needs_review_unclear` | non-bold or unreadable heading predicted as `clearly_bold` |
+| `header_decision_label` | `correct`, `incorrect`, `needs_review_unclear` | incorrect or unreadable heading predicted as `correct` |
+
+Test metrics:
+
+| Task | Model | Accuracy | Macro F1 | Weighted F1 | False-Clear Rate | Batch ms/crop | Single-row ms |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9400 | 0.9396 | 0.9396 | 0.0360 | 0.0048 | 0.0795 |
+| Visual font decision | XGBoost | 0.9567 | 0.9567 | 0.9566 | 0.0551 | 0.0032 | 0.1151 |
+| Visual font decision | CatBoost | 0.9480 | 0.9479 | 0.9478 | 0.0711 | 0.0054 | 1.9588 |
+| Header text decision | SVM | 0.8420 | 0.8393 | 0.8392 | 0.1101 | 0.0055 | 0.0801 |
+| Header text decision | XGBoost | 0.8560 | 0.8546 | 0.8544 | 0.1612 | 0.0033 | 0.1693 |
+| Header text decision | CatBoost | 0.8447 | 0.8430 | 0.8428 | 0.1702 | 0.0059 | 1.9376 |
+
+Interpretation:
+
+- XGBoost is the raw accuracy/F1 winner.
+- SVM is the false-clear and single-row latency winner.
+- CatBoost does not currently justify its slower single-row prediction path in
+  this numeric-feature experiment.
+- None of the hard-argmax models is safe enough to become runtime authority.
+  The next improvement is validation-threshold tuning so weak `clearly_bold` or
+  `correct` predictions become `needs_review_unclear` instead of false clears.
+
+Decision:
+
+- Keep `GOV_WARNING_HEADER_BOLD_REVIEW` as `Needs Review` in the deployed app.
+- Treat the SVM and XGBoost results as viable candidates for a later thresholded
+  typography preflight.
+- Do not add XGBoost/CatBoost to runtime dependencies unless this layer is
+  promoted behind a feature flag.
 
 ### E001 - Remapped OCR Field-Matching Baseline
 

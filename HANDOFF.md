@@ -328,12 +328,12 @@ bold. The all-caps requirement is already deterministic. Boldness is currently
 handled as `GOV_WARNING_HEADER_BOLD_REVIEW`, which routes typography judgment to
 human review.
 
-The isolated OpenCV/SVM typography preflight is now implemented and measured:
+The isolated OpenCV typography preflight is now implemented and measured:
 
 ```text
 warning heading crop
   -> OpenCV stroke/shape features
-  -> CPU-only Support Vector Machine
+  -> CPU-only SVM / XGBoost / CatBoost comparison
   -> bold / non-bold / uncertain preflight
   -> deterministic compliance layer
 ```
@@ -357,7 +357,7 @@ Hold out font families and distortion recipes across splits. The primary metric
 is false-clear rate: non-bold, medium, degraded, or uncertain warning headings
 incorrectly accepted as bold.
 
-Current result:
+First binary result:
 
 ```text
 run_output: data/work/typography-preflight/svm-v2/
@@ -409,13 +409,44 @@ medium/semibold/demibold/light/thin/book/regular faces are not bold.
 `needs_review_unclear` is reserved for unreadable/degraded crops that require a
 human to inspect or reject the submission quality.
 
+Corrected side-by-side comparison:
+
+```text
+script: experiments/typography_preflight/compare_models.py
+run_output: data/work/typography-preflight/model-comparison-v1/
+train: 6,000 crops
+validation: 1,500 crops
+test: 1,500 crops
+```
+
+Test metrics:
+
+| Task | Model | Accuracy | Macro F1 | False-Clear Rate | Batch ms/crop | Single-row ms |
+|---|---|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9400 | 0.9396 | 0.0360 | 0.0048 | 0.0795 |
+| Visual font decision | XGBoost | 0.9567 | 0.9567 | 0.0551 | 0.0032 | 0.1151 |
+| Visual font decision | CatBoost | 0.9480 | 0.9479 | 0.0711 | 0.0054 | 1.9588 |
+| Header text decision | SVM | 0.8420 | 0.8393 | 0.1101 | 0.0055 | 0.0801 |
+| Header text decision | XGBoost | 0.8560 | 0.8546 | 0.1612 | 0.0033 | 0.1693 |
+| Header text decision | CatBoost | 0.8447 | 0.8430 | 0.1702 | 0.0059 | 1.9376 |
+
+Interpretation:
+
+```text
+XGBoost has the best raw F1/accuracy.
+SVM has the lowest false-clear rate and fastest single-row latency.
+CatBoost is viable but slower and not currently safer.
+Hard-argmax false-clear rates are still too high for runtime authority.
+Next step is validation-threshold tuning so weak bold/correct predictions
+route to needs_review_unclear.
+```
+
 Decision:
 
 ```text
-Do not promote the svm-v2 classifier to runtime authority. Inspect audit-v5,
-then train side-by-side SVM/XGBoost/CatBoost multiclass models only if the
-inspection labels look clean. Keep GOV_WARNING_HEADER_BOLD_REVIEW as Needs
-Review for submission.
+Do not promote any typography classifier to runtime authority yet. Treat SVM
+and XGBoost as viable candidates for a later thresholded preflight. Keep
+GOV_WARNING_HEADER_BOLD_REVIEW as Needs Review for submission.
 ```
 
 Reference framing:

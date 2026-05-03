@@ -85,10 +85,11 @@ The sprint priority is now:
 - [x] OCR conveyor progress snapshot at `2026-05-03T11:51:46-05:00` showed **960 / 975** chunk result files complete and **0** OCR row errors.
 - [x] Full train/validation OCR conveyor completed: **975 / 975** chunk result files, **0** OCR row errors.
 - [ ] Locked holdout OCR conveyor has not been run and must remain sealed until preprocessing, model, and thresholds are frozen.
-- [x] OpenCV/SVM typography preflight experiment is implemented under `experiments/typography_preflight/`.
+- [x] OpenCV typography preflight experiments are implemented under `experiments/typography_preflight/`.
 - [x] Typography preflight synthetic SVM run completed with **20,000 train**, **5,000 validation**, and **5,000 test** crops.
 - [x] Typography preflight measured about **0.09 ms/crop** SVM decision latency.
 - [x] Typography preflight is **not promoted**: safe thresholds have low recall, while useful-F1 thresholds have too many false clears.
+- [x] Corrected typography comparison trained SVM, XGBoost, and CatBoost on `audit-v5`; XGBoost wins raw F1, SVM wins false-clear/latency, and no hard-argmax model is promoted.
 - [ ] Boldness remains `Needs Review` until the typography preflight is validated with a safe false-clear rate.
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
@@ -645,10 +646,13 @@ Tasks:
 - [x] Generate corrected `audit-v5` inspection data with separate `font_weight_label`, `header_text_label`, `quality_label`, `visual_font_decision_label`, and `header_decision_label`.
 - [x] Remove the source `borderline` font class: generated bold fonts are `bold`; medium/semibold/demibold/light/thin/book/regular fonts are `not_bold`.
 - [x] Reserve `needs_review_unclear` for unreadable/degraded crops, not for font-weight compromise cases.
-- [ ] Human-inspect `data/work/typography-preflight/audit-v5/` before training any new classifier.
-- [ ] Train side-by-side multiclass SVM, XGBoost, and CatBoost models against `audit-v5` labels after inspection.
-- [ ] Report Model 1 metrics for `visual_font_decision_label`.
-- [ ] Report Model 2 metrics for `header_decision_label`.
+- [x] Human-inspect `data/work/typography-preflight/audit-v5/` before training any new classifier.
+- [x] Add `experiments/typography_preflight/compare_models.py` for CPU-only SVM/XGBoost/CatBoost comparison.
+- [x] Train side-by-side multiclass SVM, XGBoost, and CatBoost models against `audit-v5` labels after inspection.
+- [x] Report Model 1 metrics for `visual_font_decision_label`.
+- [x] Report Model 2 metrics for `header_decision_label`.
+- [x] Document that XGBoost has the best raw F1, SVM has the safest false-clear/latency posture, and CatBoost is not currently buying enough benefit.
+- [ ] Add validation-threshold tuning so weak `clearly_bold` or `correct` predictions route to `needs_review_unclear`.
 - [ ] Keep `GOV_WARNING_HEADER_BOLD_REVIEW` as Needs Review unless validation/test false-clear behavior justifies promotion.
 
 Documentation framing:
@@ -769,7 +773,7 @@ Legal guidance is valuable, but it should explain deterministic findings rather 
 4. Use the current 6,000-record public-data corpus without replacement.
 5. Use the current 2,000 train / 1,000 validation / 3,000 locked-holdout split.
 6. Completed: full train/validation armored OCR conveyor with chunk-size 16.
-7. Completed: isolated OpenCV/SVM typography preflight experiment.
+7. Completed: isolated OpenCV typography preflight experiments, including SVM/XGBoost/CatBoost comparison.
 8. Attach OCR evidence to the field-support manifests before retraining DistilRoBERTa or graph scorers.
 9. Freeze OCR engine choice, OCR preprocessing, field-normalization, model family, pass/review thresholds, and any typography-preflight threshold.
 10. Evaluate the locked test split and report field-level match rates, false-clear rate, latency, and limitations.

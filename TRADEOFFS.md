@@ -683,7 +683,7 @@ sampling margin for held-out evaluation, not a production guarantee.
 Manual typography verification required. This prototype verifies warning text and capitalization but does not make a definitive font-weight determination from raster images.
 ```
 
-**Experiment added:** An isolated OpenCV/SVM typography preflight for the `GOVERNMENT WARNING:` heading now exists under `experiments/typography_preflight/`.
+**Experiment added:** An isolated OpenCV typography preflight for the `GOVERNMENT WARNING:` heading now exists under `experiments/typography_preflight/`.
 
 This is deliberately not a large deep-learning vision model. It is a small statistical-learning classifier for a narrow question:
 
@@ -699,7 +699,7 @@ flowchart TD
     A["Label OCR / warning isolation"] --> B["Crop GOVERNMENT WARNING: heading"]
     B --> C["OpenCV normalization<br/>grayscale, threshold, deskew where safe"]
     C --> D["Stroke and texture features<br/>ink density, edge density,<br/>distance-transform width,<br/>skeleton ratio, HOG"]
-    D --> E["Support Vector Machine<br/>CPU-only typography classifier"]
+    D --> E["SVM / XGBoost / CatBoost<br/>CPU-only typography classifier"]
     E --> F{"Decision policy"}
     F -->|"Strong bold signal"| G["Typography preflight passes"]
     F -->|"Strong non-bold signal"| H["Needs Review or Fail Candidate<br/>after validation"]
@@ -729,9 +729,15 @@ is not a font-weight compromise bucket.
 Split:
 
 ```text
-train:      20,000 synthetic crops
-validation: 5,000 synthetic crops
-test:       5,000 synthetic crops
+first binary baseline:
+  train:      20,000 synthetic crops
+  validation: 5,000 synthetic crops
+  test:       5,000 synthetic crops
+
+corrected multiclass comparison:
+  train:      6,000 synthetic crops
+  validation: 1,500 synthetic crops
+  test:       1,500 synthetic crops
 ```
 
 Primary metric:
@@ -752,13 +758,41 @@ false clear = non-bold or unreadable heading classified as acceptable bold
 
 Measured SVM decision latency is about `0.09 ms/crop`; feature extraction dominates any remaining cost but remains trivial compared with OCR. The core trade-off is statistical and labeling-related, not compute-related.
 
-**Next comparison:** After `audit-v5` passes inspection, train side-by-side multiclass models for both typography decisions:
+**Corrected multiclass comparison:** After `audit-v5` inspection, we trained side-by-side multiclass models for both typography decisions:
 
 | Candidate | Reason to test |
 |---|---|
 | SVM / linear margin classifier | Classical, explainable, extremely low latency. |
 | XGBoost | Strong nonlinear tabular baseline for engineered OpenCV features. |
 | CatBoost | Useful if categorical provenance features such as font family/style remain in the feature set. |
+
+Test-set results from `data/work/typography-preflight/model-comparison-v1/`:
+
+| Task | Model | Accuracy | Macro F1 | Weighted F1 | False-Clear Rate | Batch ms/crop | Single-row ms |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9400 | 0.9396 | 0.9396 | 0.0360 | 0.0048 | 0.0795 |
+| Visual font decision | XGBoost | 0.9567 | 0.9567 | 0.9566 | 0.0551 | 0.0032 | 0.1151 |
+| Visual font decision | CatBoost | 0.9480 | 0.9479 | 0.9478 | 0.0711 | 0.0054 | 1.9588 |
+| Header text decision | SVM | 0.8420 | 0.8393 | 0.8392 | 0.1101 | 0.0055 | 0.0801 |
+| Header text decision | XGBoost | 0.8560 | 0.8546 | 0.8544 | 0.1612 | 0.0033 | 0.1693 |
+| Header text decision | CatBoost | 0.8447 | 0.8430 | 0.8428 | 0.1702 | 0.0059 | 1.9376 |
+
+Interpretation:
+
+- XGBoost is the raw accuracy/F1 winner on both tasks.
+- SVM is the safety/latency winner: it has the lowest false-clear rate and
+  fastest single-row inference.
+- CatBoost is not currently buying enough performance to justify its slower
+  single-row latency.
+- The hard-argmax false-clear rates are still too high for unattended
+  government warning clearance.
+
+This is exactly the kind of experiment the project should run before promotion:
+it prunes weak options quickly, shows that the classical model family is cheap
+enough for the five-second SLA, and preserves the central safety posture. The
+next required step is validation-threshold tuning so low-confidence `bold` or
+`correct` predictions route to `needs_review_unclear` instead of becoming false
+clears.
 
 The promotion gate is unchanged: no typography model becomes runtime authority unless it improves decision quality while preserving a safe false-clear posture. Until then, `GOV_WARNING_HEADER_BOLD_REVIEW` remains `Needs Review`.
 

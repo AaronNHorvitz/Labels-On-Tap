@@ -620,5 +620,40 @@ header text, image quality, visual font decision, and header decision labels,
 and it removes the source `borderline` font class. Generated bold fonts are
 bold. Medium, semibold, demibold, light, thin, book, and regular fonts are
 non-bold for this regulatory target. `needs_review_unclear` is reserved for
-unreadable/degraded crops. The next performance run should train and compare
-SVM, XGBoost, and CatBoost on these inspected multiclass labels.
+unreadable/degraded crops. The next performance run trained and compared SVM,
+XGBoost, and CatBoost on these inspected multiclass labels.
+
+## May 3 Typography SVM/XGBoost/CatBoost Comparison
+
+After visual inspection of `audit-v5`, the typography preflight was rerun as a
+multiclass model comparison:
+
+```text
+run output: data/work/typography-preflight/model-comparison-v1/
+train:      6,000 crops
+validation: 1,500 crops
+test:       1,500 crops
+```
+
+Test metrics:
+
+| Task | Model | Accuracy | Macro F1 | Weighted F1 | False-Clear Rate | Batch ms/crop | Single-row ms |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9400 | 0.9396 | 0.9396 | 0.0360 | 0.0048 | 0.0795 |
+| Visual font decision | XGBoost | 0.9567 | 0.9567 | 0.9566 | 0.0551 | 0.0032 | 0.1151 |
+| Visual font decision | CatBoost | 0.9480 | 0.9479 | 0.9478 | 0.0711 | 0.0054 | 1.9588 |
+| Header text decision | SVM | 0.8420 | 0.8393 | 0.8392 | 0.1101 | 0.0055 | 0.0801 |
+| Header text decision | XGBoost | 0.8560 | 0.8546 | 0.8544 | 0.1612 | 0.0033 | 0.1693 |
+| Header text decision | CatBoost | 0.8447 | 0.8430 | 0.8428 | 0.1702 | 0.0059 | 1.9376 |
+
+False-clear rate means non-bold/unreadable headings predicted as `clearly_bold`
+or incorrect/unreadable headings predicted as `correct`.
+
+Interpretation:
+
+- XGBoost gives the best raw accuracy/F1.
+- SVM gives the lowest false-clear rate and fastest single-row latency.
+- CatBoost is viable but not currently superior in this numeric-feature setup.
+- These are hard-argmax results. They are not safe enough for autonomous
+  runtime authority; the next step is validation-threshold tuning to route weak
+  `bold` or `correct` predictions to `needs_review_unclear`.

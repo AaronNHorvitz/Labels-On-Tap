@@ -437,9 +437,9 @@ GOV_WARNING_HEADER_BOLD_REVIEW -> human typography review
 ```
 
 The next architecture adds a lightweight OpenCV typography preflight. The first
-SVM experiment is implemented, but it stays outside the deployed runtime until
-the corrected decision labels are inspected and a new model comparison is
-validated strongly enough to support autonomous evidence.
+SVM experiment is implemented, and the corrected `audit-v5` dataset has now
+been used for a side-by-side SVM/XGBoost/CatBoost comparison. This stays outside
+the deployed runtime until threshold tuning proves a safe false-clear posture.
 
 ```mermaid
 flowchart TD
@@ -452,7 +452,7 @@ flowchart TD
     G --> H{"Typography decision"}
     H -->|"Strong bold"| I["Typography preflight supported"]
     H -->|"Strong non-bold"| J["Needs Review / Fail Candidate<br/>depending validation gate"]
-    H -->|"Borderline / degraded"| K["Needs Review"]
+    H -->|"Unclear / degraded"| K["Needs Review"]
     I --> L["Deterministic compliance layer"]
     J --> L
     K --> L
@@ -542,6 +542,35 @@ The model class is computationally viable, but the first synthetic target was
 too noisy to promote. It supports a measured path toward typography preflight
 while confirming that boldness should remain Needs Review for the submission.
 ```
+
+Corrected multiclass comparison:
+
+```text
+output: data/work/typography-preflight/model-comparison-v1/
+train:  6,000 synthetic crops
+val:    1,500 synthetic crops
+test:   1,500 synthetic crops
+```
+
+| Task | Model | Accuracy | Macro F1 | False-Clear Rate | Batch ms/crop | Single-row ms |
+|---|---|---:|---:|---:|---:|---:|
+| Visual font decision | SVM | 0.9400 | 0.9396 | 0.0360 | 0.0048 | 0.0795 |
+| Visual font decision | XGBoost | 0.9567 | 0.9567 | 0.0551 | 0.0032 | 0.1151 |
+| Visual font decision | CatBoost | 0.9480 | 0.9479 | 0.0711 | 0.0054 | 1.9588 |
+| Header text decision | SVM | 0.8420 | 0.8393 | 0.1101 | 0.0055 | 0.0801 |
+| Header text decision | XGBoost | 0.8560 | 0.8546 | 0.1612 | 0.0033 | 0.1693 |
+| Header text decision | CatBoost | 0.8447 | 0.8430 | 0.1702 | 0.0059 | 1.9376 |
+
+Architectural interpretation:
+
+- XGBoost gives the strongest raw F1 and accuracy on engineered OpenCV
+  features.
+- SVM gives the safest false-clear behavior and near-zero CPU decision latency.
+- CatBoost is viable, but it is slower in this numeric-feature setup and does
+  not currently improve the safety metric.
+- The current models use hard argmax. The next architecture step is a
+  validation-tuned reject option that sends weak `bold` or `correct`
+  predictions to `needs_review_unclear`.
 
 Reference:
 
