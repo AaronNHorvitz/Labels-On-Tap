@@ -79,6 +79,8 @@ The sprint priority is now:
 - [x] Government-safe OCR ensemble smoke produced F1 **0.7416** with false-clear rate **0.0000** on the 20-application / 30-image smoke.
 - [x] WineBERT/o domain-NER smoke benchmark exists and was run against combined docTR + PaddleOCR + OpenOCR text.
 - [x] WineBERT/o was evaluated for deployment and not promoted because it did not improve the government-safe ensemble, lacks ABV/net-contents coverage, is wine-specific, and has unknown public model licensing.
+- [x] OSA market-domain NER smoke benchmark exists and was run against combined docTR + PaddleOCR + OpenOCR text.
+- [x] OSA was evaluated as a lightweight Apache-2.0 BERT-family arbiter; the first smoke improved hybrid F1 to **0.7486** with false-clear rate **0.0000**, but it is not promoted without a 100-application calibration run.
 - [x] OpenVINO/ONNX/INT8 on EC2 `m7i` is a future CPU optimization path, not a current Lightsail performance claim.
 - [x] OCR engine sweep scaffold exists under `experiments/ocr_engine_sweep/`.
 - [x] `MODEL_LOG.md` records OCR/model experiments and caveats.
@@ -280,6 +282,9 @@ Experimental candidates:
 - [x] Run `panigrah/wineberto-labels` on the same 20-application / 30-image benchmark.
 - [x] Run `panigrah/wineberto-ner` on the same 20-application / 30-image benchmark.
 - [x] Run WineBERT/o threshold sensitivity for `80`, `85`, `90`, and `95`.
+- [x] Add OSA market-domain NER benchmark support over combined OCR text.
+- [x] Run `AnanthanarayananSeetharaman/osa-custom-ner-model` on the same 20-application / 30-image benchmark.
+- [x] Run OSA threshold sensitivity for `80`, `85`, `90`, and `95`.
 - [x] Record the statistical caveat that small sample sizes increase variance and the current 20-application / 30-image result is directional only.
 - [ ] Promote PaddleOCR into a fuller experimental adapter only if field-level comparison beats or complements docTR.
 - [ ] Promote OpenOCR into a fuller experimental adapter only if a larger run shows it beats or complements docTR/PaddleOCR.
@@ -345,6 +350,8 @@ Metrics to compare:
 - [x] Initial WineBERT/o comparison: `wineberto-labels` entity-only F1 0.4865, false-clear rate 0.0000.
 - [x] Initial WineBERT/o comparison: `wineberto-ner` entity-only F1 0.1176, false-clear rate 0.0000.
 - [x] Initial WineBERT/o hybrid comparison: tied government-safe ensemble F1 0.7416, false-clear rate 0.0000, with no incremental lift.
+- [x] Initial OSA comparison: entity-only F1 0.5166, false-clear rate 0.0000.
+- [x] Initial OSA hybrid comparison: improved government-safe ensemble F1 from 0.7416 to 0.7486 with false-clear rate 0.0000.
 - [ ] False-clear rate on synthetic known-bad fixtures.
 - [x] Initial per-image latency smoke: 30-image PaddleOCR mean 1,105.00 ms, median 1,096.50 ms, worst 1,544 ms.
 - [x] Initial per-image latency smoke: 30-image OpenOCR mean 563.77 ms, median 582.50 ms, worst 1,211 ms.
@@ -359,6 +366,8 @@ Metrics to compare:
 - [x] Initial ensemble smoke: government-safe policy F1 0.7416 and false-clear rate 0.0000 by routing non-unanimous alcohol-content evidence to review.
 - [x] Initial WineBERT/o threshold smoke: threshold 80 raised recall to 0.6161 but false-clear rate rose to 0.0714.
 - [x] Initial WineBERT/o threshold smoke: thresholds 90 and 95 stayed safe but did not beat the government-safe deterministic ensemble.
+- [x] Initial OSA threshold smoke: threshold 80 raised recall to 0.6161 but false-clear rate rose to 0.0714.
+- [x] Initial OSA threshold smoke: thresholds 90 and 95 preserved false-clear rate 0.0000, with F1 0.7486.
 - [x] Initial field-support smoke: ASTER false-clear rate 0.0000 with low recall on the 20-application / 30-image smoke.
 - [x] Initial field-support smoke: FCENet + ASTER false-clear rate 0.0089 with low recall and slow CPU latency.
 - [x] Initial field-support smoke: ABINet false-clear rate 0.0000 with low recall on the 20-application / 30-image smoke.
@@ -389,10 +398,12 @@ Documentation deliverables:
 - [x] Add OCR engine sweep and OpenVINO trade-offs to `TRADEOFFS.md`.
 - [x] Add deterministic OCR ensemble smoke results to `TRADEOFFS.md`.
 - [x] Add WineBERT/o domain-NER smoke results to `TRADEOFFS.md`.
+- [x] Add OSA market-domain NER smoke results to `TRADEOFFS.md`.
 - [x] Add each serious run to `MODEL_LOG.md`.
 - [x] Add initial PaddleOCR smoke timing and extraction tables to `docs/performance.md`.
 - [x] Add deterministic OCR ensemble smoke results to `docs/performance.md`.
 - [x] Add WineBERT/o domain-NER smoke results to `docs/performance.md`.
+- [x] Add OSA market-domain NER smoke results to `docs/performance.md`.
 - [ ] Update `DEMO_SCRIPT.md` only if the deployed app's OCR behavior changes.
 
 ---

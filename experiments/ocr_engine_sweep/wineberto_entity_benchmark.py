@@ -1,16 +1,15 @@
 #!/usr/bin/env python
-"""Benchmark WineBERT/o entity extraction as an OCR evidence arbiter.
+"""Benchmark domain-NER entity extraction as an OCR evidence arbiter.
 
-This experiment tests whether a wine-domain token-classification model can
-improve post-OCR field support. It does not replace OCR and it does not make
-compliance decisions. It consumes normalized OCR text from docTR, PaddleOCR, and
-OpenOCR, extracts WineBERT/o entities, then scores whether those entities
-support expected public COLA application fields.
+This experiment tests whether a domain token-classification model can improve
+post-OCR field support. It does not replace OCR and it does not make compliance
+decisions. It consumes normalized OCR text from docTR, PaddleOCR, and OpenOCR,
+extracts named entities, then scores whether those entities support expected
+public COLA application fields.
 
 The model is intentionally loaded inside this experiment script instead of the
-runtime app because the public Hugging Face model license is listed as unknown.
-That makes it useful for a local sprint benchmark, but not acceptable as a
-production dependency without replacement, relicensing, or internal retraining.
+runtime app. That keeps experimental Transformer dependencies out of the
+deployed prototype until a model earns promotion.
 """
 
 from __future__ import annotations
@@ -59,21 +58,32 @@ DEFAULT_ENGINE_RUNS = {
     "openocr": REPO_ROOT / "data/work/ocr-engine-sweep/openocr-015-mobile-poly-smoke-30",
 }
 DEFAULT_MODEL_ID = "panigrah/wineberto-labels"
-ENTITY_TYPES_BY_FIELD = {
-    "brand_name": {"producer", "wine"},
-    "fanciful_name": {"wine"},
-    "class_type": {"classification", "wine"},
-    "alcohol_content": set(),
-    "net_contents": set(),
-    "country_of_origin": {"country", "region", "subregion"},
-    "applicant_or_producer": {"producer"},
+ENTITY_PRESETS = {
+    "wineberto": {
+        "brand_name": {"producer", "wine"},
+        "fanciful_name": {"wine"},
+        "class_type": {"classification", "wine"},
+        "alcohol_content": set(),
+        "net_contents": set(),
+        "country_of_origin": {"country", "region", "subregion"},
+        "applicant_or_producer": {"producer"},
+    },
+    "osa": {
+        "brand_name": {"prdc_char"},
+        "fanciful_name": {"prdc_char"},
+        "class_type": {"prdc_char", "mrkt_char"},
+        "alcohol_content": set(),
+        "net_contents": set(),
+        "country_of_origin": {"mrkt_char"},
+        "applicant_or_producer": {"prdc_char"},
+    },
 }
-LOWER_RISK_WINEBERTO_FIELDS = {"brand_name", "fanciful_name", "class_type", "country_of_origin", "applicant_or_producer"}
+LOWER_RISK_ENTITY_FIELDS = {"brand_name", "fanciful_name", "class_type", "country_of_origin", "applicant_or_producer"}
 
 
 @dataclass(frozen=True)
 class WinebertoEntity:
-    """One grouped WineBERT/o entity span."""
+    """One grouped domain-NER entity span."""
 
     ttb_id: str
     text_source: str
@@ -108,6 +118,9 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-id", default=DEFAULT_MODEL_ID)
+    parser.add_argument("--model-label", default=None)
+    parser.add_argument("--model-license", default="unknown")
+    parser.add_argument("--entity-preset", choices=sorted(ENTITY_PRESETS), default="wineberto")
     parser.add_argument("--text-source", choices=["combined", "doctr", "paddleocr", "openocr"], default="combined")
     parser.add_argument("--engine-run", action="append", default=[], metavar="ENGINE=RUN_DIR")
     parser.add_argument("--doctr-cache-list", type=Path, default=DEFAULT_DOCTR_CACHE)
@@ -190,11 +203,11 @@ def load_transformers_pipeline(model_id: str) -> Callable[[str], list[dict]]:
             device=-1,
         )
     except Exception as exc:  # pragma: no cover - model/network dependent
-        raise SystemExit(f"Could not load WineBERT/o model {model_id!r}: {exc}") from exc
+        raise SystemExit(f"Could not load token-classification model {model_id!r}: {exc}") from exc
 
 
 def ocr_texts_by_ttb(engine_aggregates: dict[str, dict[str, dict]], text_source: str) -> dict[str, str]:
-    """Return the OCR text source to send through WineBERT/o."""
+    """Return the OCR text source to send through the token classifier."""
 
     common_ttbs = sorted(set.intersection(*(set(aggregates) for aggregates in engine_aggregates.values())))
     texts: dict[str, str] = {}
@@ -217,7 +230,7 @@ def extract_entities(
     max_words: int,
     overlap_words: int,
 ) -> tuple[list[WinebertoEntity], dict[str, int]]:
-    """Run WineBERT/o over all selected OCR text and return grouped entities."""
+    """Run token classification over all selected OCR text and return entities."""
 
     entities: list[WinebertoEntity] = []
     latencies: dict[str, int] = {}
@@ -246,10 +259,14 @@ def extract_entities(
     return entities, latencies
 
 
-def entity_text_for_field(entities: list[WinebertoEntity], field_name: str) -> str:
-    """Return WineBERT/o entity text relevant to a target application field."""
+def entity_text_for_field(
+    entities: list[WinebertoEntity],
+    field_name: str,
+    entity_types_by_field: dict[str, set[str]],
+) -> str:
+    """Return domain-NER entity text relevant to a target application field."""
 
-    allowed_groups = ENTITY_TYPES_BY_FIELD.get(field_name, set())
+    allowed_groups = entity_types_by_field.get(field_name, set())
     if not allowed_groups:
         return ""
     words = [entity.word for entity in entities if entity.entity_group in allowed_groups]
@@ -267,9 +284,9 @@ def build_field_pool(expected_by_ttb: dict[str, dict[str, str]]) -> dict[str, li
 
 
 def predict_entities_only(wineberto_score: float, *, threshold: float, **_: object) -> tuple[int, str]:
-    """Use WineBERT/o entity support without OCR-engine fallback."""
+    """Use domain-NER entity support without OCR-engine fallback."""
 
-    return int(wineberto_score >= threshold), "WineBERT/o entity score >= threshold"
+    return int(wineberto_score >= threshold), "domain-NER entity score >= threshold"
 
 
 def predict_wineberto_or_government_safe(
@@ -281,7 +298,7 @@ def predict_wineberto_or_government_safe(
     high_threshold: float,
     engine_soft_threshold: float,
 ) -> tuple[int, str]:
-    """Allow WineBERT/o to supplement the deterministic government-safe ensemble."""
+    """Allow domain NER to supplement the deterministic government-safe ensemble."""
 
     engine_predicted, engine_reason = predict_government_safe(
         engine_scores,
@@ -291,9 +308,9 @@ def predict_wineberto_or_government_safe(
     )
     if engine_predicted:
         return 1, f"government-safe ensemble: {engine_reason}"
-    if field_name in LOWER_RISK_WINEBERTO_FIELDS and wineberto_score >= threshold:
-        return 1, "WineBERT/o entity score supports lower-risk text field"
-    return 0, "no government-safe ensemble support and no WineBERT/o lower-risk support"
+    if field_name in LOWER_RISK_ENTITY_FIELDS and wineberto_score >= threshold:
+        return 1, "domain-NER entity score supports lower-risk text field"
+    return 0, "no government-safe ensemble support and no domain-NER lower-risk support"
 
 
 def predict_wineberto_review_safe(
@@ -305,7 +322,7 @@ def predict_wineberto_review_safe(
     high_threshold: float,
     engine_soft_threshold: float,
 ) -> tuple[int, str]:
-    """Require WineBERT/o plus at least soft OCR evidence for supplemental support."""
+    """Require domain NER plus at least soft OCR evidence for supplemental support."""
 
     engine_predicted, engine_reason = predict_government_safe(
         engine_scores,
@@ -315,10 +332,10 @@ def predict_wineberto_review_safe(
     )
     if engine_predicted:
         return 1, f"government-safe ensemble: {engine_reason}"
-    if field_name in LOWER_RISK_WINEBERTO_FIELDS and wineberto_score >= threshold:
+    if field_name in LOWER_RISK_ENTITY_FIELDS and wineberto_score >= threshold:
         if max(engine_scores.values(), default=0.0) >= engine_soft_threshold:
-            return 1, "WineBERT/o support plus soft OCR evidence"
-    return 0, "insufficient WineBERT/o and OCR support"
+            return 1, "domain-NER support plus soft OCR evidence"
+    return 0, "insufficient domain-NER and OCR support"
 
 
 STRATEGIES = {
@@ -343,7 +360,7 @@ def score_row(
     high_threshold: float,
     engine_soft_threshold: float,
 ) -> WinebertoScore:
-    """Score one example with one WineBERT/o strategy."""
+    """Score one example with one domain-NER strategy."""
 
     predicted, rationale = STRATEGIES[strategy](
         wineberto_score,
@@ -387,6 +404,7 @@ def build_scores(
     expected_by_ttb: dict[str, dict[str, str]],
     entities_by_ttb: dict[str, list[WinebertoEntity]],
     engine_aggregates: dict[str, dict[str, dict]],
+    entity_types_by_field: dict[str, set[str]],
     threshold: float,
     high_threshold: float,
     engine_soft_threshold: float,
@@ -400,7 +418,7 @@ def build_scores(
     for ttb_id in common_ttbs:
         ttb_entities = entities_by_ttb.get(ttb_id, [])
         for field_name, expected_value in expected_by_ttb.get(ttb_id, {}).items():
-            entity_text = entity_text_for_field(ttb_entities, field_name)
+            entity_text = entity_text_for_field(ttb_entities, field_name, entity_types_by_field)
             positive_wineberto_score = score_field(field_name, expected_value, entity_text)
             positive_engine_scores = engine_score_map(
                 field_name=field_name,
@@ -462,7 +480,7 @@ def build_scores(
 
 
 def latency_summary(latencies: dict[str, int]) -> dict:
-    """Summarize WineBERT/o inference latency by application."""
+    """Summarize token-classifier inference latency by application."""
 
     values = list(latencies.values())
     return {
@@ -486,7 +504,7 @@ def write_csv(path: Path, rows: list[object], fieldnames: list[str] | None = Non
 
 
 def main() -> None:
-    """Run the WineBERT/o entity-support benchmark."""
+    """Run the domain-NER entity-support benchmark."""
 
     args = parse_args()
     output_dir = args.output_dir / args.run_name
@@ -526,6 +544,7 @@ def main() -> None:
             expected_by_ttb=expected_by_ttb,
             entities_by_ttb=entities_by_ttb,
             engine_aggregates=engine_aggregates,
+            entity_types_by_field=ENTITY_PRESETS[args.entity_preset],
             threshold=args.threshold,
             high_threshold=args.high_threshold,
             engine_soft_threshold=args.engine_soft_threshold,
@@ -536,7 +555,9 @@ def main() -> None:
 
     summary = {
         "model_id": args.model_id,
-        "model_license": "unknown in Hugging Face model card as of this run",
+        "model_label": args.model_label or args.model_id,
+        "model_license": args.model_license,
+        "entity_preset": args.entity_preset,
         "text_source": args.text_source,
         "threshold": args.threshold,
         "high_threshold": args.high_threshold,
@@ -563,7 +584,7 @@ def main() -> None:
         write_csv(output_dir / f"{strategy}_scores.csv", scores, list(WinebertoScore.__dataclass_fields__))
 
     print(json.dumps(summary, indent=2))
-    print(f"Wrote WineBERT/o entity benchmark to {output_dir}")
+    print(f"Wrote domain-NER entity benchmark to {output_dir}")
 
 
 if __name__ == "__main__":

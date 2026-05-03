@@ -335,7 +335,8 @@ runtime promotion.
 
 ## WineBERT/o Entity Benchmark
 
-Run a wine-domain BERT token classifier over combined OCR text:
+Run a domain-NER token classifier over combined OCR text. WineBERT/o remains
+the first wine-domain benchmark:
 
 ```bash
 podman run --rm \
@@ -367,6 +368,31 @@ data/work/ocr-engine-sweep/wineberto-entity/
 The WineBERT/o benchmark intentionally stays out of production dependencies.
 The public Hugging Face model cards list the license as unknown, and the tested
 models do not extract numeric compliance fields such as ABV or net contents.
+
+OSA market-domain NER can be tested with the same harness and a different
+entity preset:
+
+```bash
+podman run --rm \
+  -e HF_HOME=/app/data/work/ocr-engine-sweep/domain-ner-cache/hf \
+  -e HF_HUB_DISABLE_XET=1 \
+  -v "$PWD":/app:Z \
+  -w /app \
+  --entrypoint bash \
+  localhost/labels-on-tap-app:local \
+  -lc "pip install --no-cache-dir 'transformers==4.57.1' safetensors >/tmp/domain-ner-pip.log && \
+       python experiments/ocr_engine_sweep/wineberto_entity_benchmark.py \
+         --model-id AnanthanarayananSeetharaman/osa-custom-ner-model \
+         --model-label osa-custom-ner-model \
+         --model-license apache-2.0 \
+         --entity-preset osa \
+         --run-name osa-custom-ner-combined-smoke-30"
+```
+
+Historical note: OSA outputs currently use the same
+`data/work/ocr-engine-sweep/wineberto-entity/` output root because the first
+script was built for WineBERT/o. Those outputs are still gitignored experiment
+artifacts, not production runtime assets.
 
 ## Notes
 

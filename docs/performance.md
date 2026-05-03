@@ -410,6 +410,54 @@ Interpretation:
 - The public model license is listed as unknown, so the deployment path would
   require replacement with an internally trained or clearly licensed model.
 
+### OSA Market-Domain NER Smoke
+
+The next domain-NER candidate was
+`AnanthanarayananSeetharaman/osa-custom-ner-model`, an Apache-2.0
+token-classification model with `FACT`, `PRDC_CHAR`, and `MRKT_CHAR` labels.
+It is not a regulatory model, but its product/market entities are close enough
+to test as a lightweight post-OCR arbiter.
+
+| Model / policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Mean BERT / app | Max BERT / app |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| OSA NER, entities only | 0.6741 | 1.0000 | 0.3482 | 1.0000 | 0.5166 | 0.0000 | 102.55 ms | 323 ms |
+| OSA NER + government-safe ensemble | 0.7991 | 1.0000 | 0.5982 | 1.0000 | 0.7486 | 0.0000 | 102.55 ms | 323 ms |
+
+By-field OSA hybrid F1:
+
+| Field | F1 | Recall | False-clear rate |
+|---|---:|---:|---:|
+| Brand name | 0.8889 | 0.8000 | 0.0000 |
+| Fanciful name | 0.9474 | 0.9000 | 0.0000 |
+| Class/type | 0.5714 | 0.4000 | 0.0000 |
+| Alcohol content | 0.8696 | 0.7692 | 0.0000 |
+| Net contents | 0.8235 | 0.7000 | 0.0000 |
+| Country of origin | 0.9412 | 0.8889 | 0.0000 |
+| Applicant / producer | 0.0000 | 0.0000 | 0.0000 |
+
+Threshold sensitivity:
+
+| Threshold | F1 | Recall | False-clear rate |
+|---:|---:|---:|---:|
+| 80 | 0.7302 | 0.6161 | 0.0714 |
+| 85 | 0.7444 | 0.5982 | 0.0089 |
+| 90 | 0.7486 | 0.5982 | 0.0000 |
+| 95 | 0.7486 | 0.5982 | 0.0000 |
+
+Interpretation:
+
+- OSA is the first tested BERT-family arbiter to improve the government-safe
+  ensemble in this smoke: F1 moved from `0.7416` to `0.7486`.
+- The lift is small: one additional true positive over `224` field-support
+  examples.
+- Thresholds below `90` are not acceptable for the current safety posture
+  because false clears reappear.
+- OSA is Apache-2.0, which is materially cleaner than WineBERT/o's unknown
+  license, but the label taxonomy is still sales/market oriented rather than
+  TTB-regulatory.
+- This should be tested on the 100-application calibration set before any
+  deployment decision.
+
 ## May 2 COLA Cloud Stratified Calibration
 
 After the sample-pack smoke test, a bounded COLA Cloud API sampling workflow

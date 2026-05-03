@@ -2,7 +2,7 @@
 
 **Project:** Labels On Tap
 **Canonical URL:** `https://www.labelsontap.ai`
-**Last updated:** May 2, 2026
+**Last updated:** May 3, 2026
 
 This log records OCR, field-matching, and graph-aware evidence experiments. It is intentionally conservative: calibration results are not production claims, and anything not evaluated on a locked holdout stays labeled as experimental.
 
@@ -43,6 +43,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | ABINet crop recognizer | Experimental recognizer over detected crops | No | Fast on CPU, zero false clears, but low recall/F1 in first crop-recognition smoke |
 | Deterministic OCR ensemble | Combines docTR, PaddleOCR, and OpenOCR field evidence | No | Government-safe smoke improved F1 to 0.7416 with zero shuffled-negative false clears |
 | WineBERT/o domain NER | Experimental token-classification arbiter over OCR text | No | Fast CPU inference, but no lift over government-safe ensemble and unknown public model license |
+| OSA market-domain NER | Experimental Apache-2.0 token-classification arbiter over OCR text | No | Small lift over government-safe ensemble: F1 0.7486, false-clear rate 0.0000 |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -736,6 +737,71 @@ Decision:
 - It is wine-specific and does not cover the full beer/wine/spirits domain.
 - The public license is unknown; a production path would require a clearly licensed or internally trained token classifier.
 
+### E015 - OSA Market-Domain NER Over Combined OCR Text
+
+**Date:** May 3, 2026
+**Run outputs:**
+
+```text
+data/work/ocr-engine-sweep/wineberto-entity/osa-custom-ner-combined-smoke-30/
+data/work/ocr-engine-sweep/wineberto-entity/osa-custom-ner-combined-smoke-30-t80/
+data/work/ocr-engine-sweep/wineberto-entity/osa-custom-ner-combined-smoke-30-t85/
+data/work/ocr-engine-sweep/wineberto-entity/osa-custom-ner-combined-smoke-30-t95/
+```
+
+**Input:** The same 20-application / 30-image smoke set from E006-E014
+**Purpose:** Test whether a lightweight market-domain token classifier can add useful lower-risk field evidence on top of the government-safe OCR ensemble.
+
+Model tested:
+
+| Model | Purpose | License posture |
+|---|---|---|
+| `AnanthanarayananSeetharaman/osa-custom-ner-model` | Token classifier with `FACT`, `PRDC_CHAR`, and `MRKT_CHAR` labels. `PRDC_CHAR` was mapped to brand/fanciful/class-style support; `MRKT_CHAR` was mapped to origin/market support. | Public model card lists Apache-2.0. |
+
+Command pattern:
+
+```bash
+podman run --rm \
+  -e HF_HOME=/app/data/work/ocr-engine-sweep/domain-ner-cache/hf \
+  -e HF_HUB_DISABLE_XET=1 \
+  -v "$PWD":/app:Z \
+  -w /app \
+  --entrypoint bash \
+  localhost/labels-on-tap-app:local \
+  -lc "pip install --no-cache-dir 'transformers==4.57.1' safetensors >/tmp/domain-ner-pip.log && \
+       python experiments/ocr_engine_sweep/wineberto_entity_benchmark.py \
+         --model-id AnanthanarayananSeetharaman/osa-custom-ner-model \
+         --model-label osa-custom-ner-model \
+         --model-license apache-2.0 \
+         --entity-preset osa \
+         --run-name osa-custom-ner-combined-smoke-30"
+```
+
+Overall result:
+
+| Model / policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Mean BERT / app | Max BERT / app |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| OSA NER, entities only | 0.6741 | 1.0000 | 0.3482 | 1.0000 | 0.5166 | 0.0000 | 102.55 ms | 323 ms |
+| OSA NER + government-safe ensemble | 0.7991 | 1.0000 | 0.5982 | 1.0000 | 0.7486 | 0.0000 | 102.55 ms | 323 ms |
+
+Threshold sensitivity:
+
+| Threshold | Strategy | F1 | Recall | False-clear rate |
+|---:|---|---:|---:|---:|
+| 80 | OSA + government-safe ensemble | 0.7302 | 0.6161 | 0.0714 |
+| 85 | OSA + government-safe ensemble | 0.7444 | 0.5982 | 0.0089 |
+| 90 | OSA + government-safe ensemble | 0.7486 | 0.5982 | 0.0000 |
+| 95 | OSA + government-safe ensemble | 0.7486 | 0.5982 | 0.0000 |
+
+Decision:
+
+- Do not promote OSA to runtime from this small smoke alone.
+- It is the first tested BERT-family arbiter to improve the government-safe ensemble while preserving zero false clears.
+- The lift is small: one additional true positive in `224` field-support examples.
+- Thresholds below `90` are unsafe for the current government triage posture because false clears reappear.
+- The Apache-2.0 license is materially cleaner than WineBERT/o's unknown license, but the entity taxonomy is still market/sales oriented rather than TTB regulatory.
+- The next gate is a 100-application calibration run before any deployment decision.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:
@@ -756,9 +822,12 @@ This result does not support a production claim:
 
 > The app is production-ready or has final OCR accuracy.
 
-The current best OCR ensemble smoke result is `E013`, using deterministic
-government-safe arbitration across docTR, PaddleOCR, and OpenOCR. It is not yet
-the deployed runtime path.
+The current best pure OCR ensemble smoke result is `E013`, using deterministic
+government-safe arbitration across docTR, PaddleOCR, and OpenOCR. The current
+best BERT-assisted smoke result is `E015`, using OSA market-domain NER plus the
+government-safe ensemble. It improved F1 from `0.7416` to `0.7486` with
+false-clear rate still `0.0000`, but this is not yet the deployed runtime path
+because the lift came from one additional true positive in a small smoke sample.
 
 ## Known Limitations
 
@@ -771,7 +840,7 @@ the deployed runtime path.
 
 ## Next Experiments
 
-1. Run docTR, PaddleOCR, OpenOCR, and the government-safe ensemble on the 100-application / 169-image calibration set.
+1. Run docTR, PaddleOCR, OpenOCR, the government-safe ensemble, and OSA hybrid evidence on the 100-application / 169-image calibration set.
 2. Scale graph training to the full 1,500-record calibration split once details/images/OCR are available.
 3. Freeze graph/ensemble settings after calibration and evaluate only once on the locked 1,500 holdout.
 4. Add field-specific class/type taxonomy features to attack the weakest measured field.

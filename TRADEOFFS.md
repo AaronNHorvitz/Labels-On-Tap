@@ -265,6 +265,38 @@ license. The useful future path is to train an internal Treasury/TTB token
 classifier on approved internal/public label text, then compare it against this
 same benchmark harness.
 
+#### OSA Market-Domain NER Smoke
+
+The next BERT-family candidate was
+[`AnanthanarayananSeetharaman/osa-custom-ner-model`](https://huggingface.co/AnanthanarayananSeetharaman/osa-custom-ner-model).
+Its model card lists an Apache-2.0 license and a smaller DistilBERT-style token
+classification footprint. The labels are sales/market oriented rather than
+regulatory: `FACT`, `PRDC_CHAR`, and `MRKT_CHAR`. For this smoke, `PRDC_CHAR`
+was mapped to brand/fanciful/class-style evidence and `MRKT_CHAR` to
+origin/market evidence.
+
+| Model / policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate | Mean BERT / app | Max BERT / app |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| OSA NER, entities only | 0.6741 | 1.0000 | 0.3482 | 1.0000 | 0.5166 | 0.0000 | 102.55 ms | 323 ms |
+| OSA NER + government-safe ensemble | 0.7991 | 1.0000 | 0.5982 | 1.0000 | 0.7486 | 0.0000 | 102.55 ms | 323 ms |
+
+Threshold sensitivity:
+
+| Threshold | Strategy | F1 | Recall | False-clear rate |
+|---:|---|---:|---:|---:|
+| 80 | OSA + government-safe ensemble | 0.7302 | 0.6161 | 0.0714 |
+| 85 | OSA + government-safe ensemble | 0.7444 | 0.5982 | 0.0089 |
+| 90 | OSA + government-safe ensemble | 0.7486 | 0.5982 | 0.0000 |
+| 95 | OSA + government-safe ensemble | 0.7486 | 0.5982 | 0.0000 |
+
+**Decision:** OSA is not ready for deployment from this small smoke, but it is
+the first BERT-family candidate to show an incremental lift over the
+government-safe deterministic ensemble while preserving zero false clears. The
+measured lift is one additional true positive in `224` field-support examples,
+so the next gate is a 100-application calibration run. The model still lacks
+native ABV/net-contents semantics and its labels are market taxonomy rather than
+TTB regulatory taxonomy.
+
 ---
 
 ### 3.2.2 Graph Scorer as Post-OCR Evidence, Not OCR Replacement
