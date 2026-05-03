@@ -321,7 +321,100 @@ first shuffled-negative smoke.
 
 ---
 
-## 8. Domain-NER / BERT Arbiter Experiments
+## 8. Typography Preflight For Warning Boldness
+
+Jenny Park's interview note creates a separate visual problem from OCR: the
+government warning heading must be exactly `GOVERNMENT WARNING:` and must be
+bold. OCR can tell us what the text says. It does not reliably prove font
+weight on noisy raster label images.
+
+The current deployed compliance posture is conservative:
+
+```text
+GOV_WARNING_EXACT_TEXT       -> deterministic text check
+GOV_WARNING_HEADER_CAPS      -> deterministic capitalization check
+GOV_WARNING_HEADER_BOLD_REVIEW -> human typography review
+```
+
+The planned next architecture adds a lightweight OpenCV/SVM typography
+preflight. It stays outside the running OCR conveyor and outside the deployed
+runtime until validated.
+
+```mermaid
+flowchart TD
+    A["OCR text + boxes"] --> B{"Can isolate<br/>GOVERNMENT WARNING:?"}
+    B -->|No| C["Needs Review<br/>manual typography check"]
+    B -->|Yes| D["Heading crop"]
+    D --> E["OpenCV preprocessing<br/>grayscale, threshold,<br/>safe deskew/crop cleanup"]
+    E --> F["Feature extraction<br/>ink density, edge density,<br/>stroke width, connected components,<br/>skeleton ratio, HOG"]
+    F --> G["Support Vector Machine<br/>CPU-only margin classifier"]
+    G --> H{"Typography signal"}
+    H -->|"Strong bold"| I["Typography preflight supported"]
+    H -->|"Strong non-bold"| J["Needs Review / Fail Candidate<br/>depending validation gate"]
+    H -->|"Borderline / degraded"| K["Needs Review"]
+    I --> L["Deterministic compliance layer"]
+    J --> L
+    K --> L
+```
+
+Why this model class fits:
+
+- The task is narrow: classify the visual stroke weight of one known phrase.
+- The feature vector can capture the relevant geometry directly.
+- CPU inference should be near-zero relative to OCR.
+- A synthetic dataset can be generated without touching public-data OCR jobs.
+- The decision threshold can be tuned for the primary safety metric:
+  false clears.
+
+The planned dataset is synthetic because the negative cases are not public. It
+will render `GOVERNMENT WARNING:` in bold, regular, medium, and degraded styles
+across many local fonts and distortions.
+
+Planned split:
+
+```text
+train:      20,000 crops
+validation: 5,000 crops
+test:       5,000 crops
+```
+
+The split should hold out font families and distortion recipes, not just random
+rows. That makes the test stronger: it asks whether the classifier learned
+boldness features rather than memorizing one font's rasterization.
+
+Evaluation metrics:
+
+| Metric | Meaning |
+|---|---|
+| Accuracy / F1 | General binary classifier quality |
+| Specificity | Ability to reject non-bold/degraded headings |
+| False-clear rate | Non-bold or uncertain headings incorrectly accepted as bold |
+| Mean/p95 latency | Whether the crop classifier is negligible compared with OCR |
+
+The planned classifier is justified as a classical statistical-learning model,
+not a deep-learning shortcut. Hastie, Tibshirani, and Friedman describe
+support vector machines as margin-based supervised learners; this is a good fit
+when engineered stroke/shape features carry the decision boundary and compute
+cost matters.
+
+Reference:
+
+```text
+Hastie, Trevor; Tibshirani, Robert; Friedman, Jerome.
+The Elements of Statistical Learning: Data Mining, Inference, and Prediction.
+2nd ed., Springer, 2009.
+```
+
+Promotion gate:
+
+```text
+The typography preflight can become runtime evidence only if validation/test
+false-clear behavior is safe. Until then, boldness remains Needs Review.
+```
+
+---
+
+## 9. Domain-NER / BERT Arbiter Experiments
 
 Post-OCR Transformer models are being tested as arbiters, not as OCR engines and
 not as compliance decision makers.
@@ -350,7 +443,7 @@ calibration run, not automatic deployment.
 
 ---
 
-## 9. Trainable Field-Support Classifier
+## 10. Trainable Field-Support Classifier
 
 The next serious supervised model should be a field-support classifier, not a
 token-level NER model.
@@ -425,7 +518,7 @@ important than headline F1.
 
 ---
 
-## 10. Metrics And Gates
+## 11. Metrics And Gates
 
 Primary safety metric:
 
@@ -457,7 +550,7 @@ candidate model can be promoted only if:
 
 ---
 
-## 11. Final Runtime Recommendation
+## 12. Final Runtime Recommendation
 
 For the take-home submission, the safest runtime posture is:
 
@@ -480,7 +573,7 @@ problematic labels.
 
 ---
 
-## 12. Future Architecture
+## 13. Future Architecture
 
 If time and data permit after the current sprint:
 

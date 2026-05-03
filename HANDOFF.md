@@ -219,7 +219,22 @@ Completed conveyor checks:
 | `tri-engine-smoke-16` | 13 valid images; 3 invalid/corrupt images skipped by preflight; all three engines completed; 39 OCR rows; 0 row errors |
 | `tri-engine-train-val-v1-chunk16` dry run | 5,353 image rows; 5,179 valid images; 174 invalid/corrupt skipped; 975 planned jobs |
 
-Recommended next real run:
+Active train/validation run snapshot:
+
+```text
+snapshot_time: 2026-05-03T11:51:46-05:00
+container: 253b9caaf335
+container_status_observed: Up 8 hours
+output_dir: data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16/
+completed_chunk_results: 960 / 975
+completed_by_engine:
+  docTR: 325
+  PaddleOCR: 325
+  OpenOCR: 310
+ocr_row_errors_observed: 0
+```
+
+Command used for the active train/validation run:
 
 ```bash
 podman run --rm \
@@ -236,6 +251,52 @@ with PaddleOCR the slowest engine. Do not run holdout yet. Holdout OCR should
 remain sealed until preprocessing, OCR evidence attachment, DistilRoBERTa
 threshold, graph scorer, and deterministic compliance settings are frozen.
 Outputs stay under gitignored `data/work/ocr-conveyor/`.
+
+## Typography Preflight Plan
+
+Jenny Park's stakeholder note says `GOVERNMENT WARNING:` must be all caps and
+bold. The all-caps requirement is already deterministic. Boldness is currently
+handled as `GOV_WARNING_HEADER_BOLD_REVIEW`, which routes typography judgment to
+human review.
+
+The planned next experiment is an isolated OpenCV/SVM typography preflight:
+
+```text
+warning heading crop
+  -> OpenCV stroke/shape features
+  -> CPU-only Support Vector Machine
+  -> bold / non-bold / uncertain preflight
+  -> deterministic compliance layer
+```
+
+Do not touch the running OCR conveyor to build it. Use only:
+
+```text
+experiments/typography_preflight/
+data/work/typography-preflight/
+```
+
+Planned synthetic dataset:
+
+```text
+train:      20,000 crops
+validation: 5,000 crops
+test:       5,000 crops
+```
+
+Hold out font families and distortion recipes across splits. The primary metric
+is false-clear rate: non-bold, medium, degraded, or uncertain warning headings
+incorrectly accepted as bold.
+
+Reference framing:
+
+```text
+Hastie, Tibshirani, and Friedman, The Elements of Statistical Learning,
+2nd ed., Springer, 2009.
+```
+
+Use this as a classical statistical-learning preflight, not as a replacement
+for OCR or as final compliance authority until validated.
 
 ## GPU Setup
 
@@ -352,9 +413,10 @@ not pixel-level OCR recognizers.
 1. Keep the deployed app stable.
 2. Use `MODEL_LOG.md` as the experiment ledger for all OCR/model runs.
 3. Run the full chunk-size 16 OCR conveyor over train/validation for docTR, PaddleOCR, and OpenOCR.
-4. Attach conveyor OCR evidence to the existing field-support pair manifests.
-5. Rerun DistilRoBERTa on OCR-backed candidate evidence.
-6. Compare them against deterministic ensemble and graph-aware evidence scorer.
-7. Freeze thresholds, then evaluate once on the 3,000-record holdout cohort.
-8. Convert final metrics into `MODEL_LOG.md`, `TRADEOFFS.md`,
+4. Build the isolated OpenCV/SVM typography-preflight experiment only if it can run CPU-throttled without touching the conveyor paths.
+5. Attach conveyor OCR evidence to the existing field-support pair manifests.
+6. Rerun DistilRoBERTa on OCR-backed candidate evidence.
+7. Compare them against deterministic ensemble and graph-aware evidence scorer.
+8. Freeze thresholds, then evaluate once on the 3,000-record holdout cohort.
+9. Convert final metrics into `MODEL_LOG.md`, `TRADEOFFS.md`,
    `docs/performance.md`, and the README.

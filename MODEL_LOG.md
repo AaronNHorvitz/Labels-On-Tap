@@ -32,7 +32,7 @@ As sample size grows, measured performance should be expected to move closer to 
 |---|---|---:|---|
 | Synthetic fixtures | Deterministic demo and known-bad checks | No | Committed under `data/fixtures/demo/` |
 | TTB Public COLA Registry ETL | Official printable-form path and parser | No | `810` parsed forms, direct attachment endpoint was unstable |
-| COLA Cloud API | Development-only bridge for public label rasters | No | Source of current measured OCR/model calibration metrics; `1,500` selected records from `7,788` candidates |
+| COLA Cloud API | Development-only bridge for public label rasters | No | Source of current measured OCR/model calibration work; `6,000` unique applications and `10,435` local label images across two non-overlapping cohorts |
 | Cached docTR OCR | Baseline OCR box/text output | No | `100` COLA Cloud-derived public applications, `169` label images |
 | Local graph scorer | Experimental post-OCR evidence model | No | Best POC run improved F1 and false-clear rate |
 | PaddleOCR sweep | Experimental alternate local OCR candidate | No | 30-image smoke improved F1/accuracy/recall, with higher false-clear rate |
@@ -45,10 +45,86 @@ As sample size grows, measured performance should be expected to move closer to 
 | WineBERT/o domain NER | Experimental token-classification arbiter over OCR text | No | Fast CPU inference, but no lift over government-safe ensemble and unknown public model license |
 | OSA market-domain NER | Experimental Apache-2.0 token-classification arbiter over OCR text | No | Small lift over government-safe ensemble: F1 0.7486, false-clear rate 0.0000 |
 | FoodBaseBERT-NER | Culinary-domain token-classification control | No | Fast and MIT-licensed, but no lift over government-safe ensemble and standalone F1 0.0522 |
+| OpenCV/SVM typography preflight | Planned warning-heading boldness classifier | No | Planned only; current runtime still routes boldness to Needs Review |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
 ## Experiment Ledger
+
+### Planned - OpenCV/SVM Government Warning Boldness Preflight
+
+**Date added:** May 3, 2026
+**Planned code path:** `experiments/typography_preflight/`
+**Planned artifact path:** `data/work/typography-preflight/`
+**Purpose:** Add a low-latency typography preflight for Jenny Park's requirement that `GOVERNMENT WARNING:` be bold, while keeping the current deployed rule conservative.
+
+Current runtime behavior:
+
+```text
+GOV_WARNING_EXACT_TEXT          -> deterministic strict text check
+GOV_WARNING_HEADER_CAPS         -> deterministic capitalization check
+GOV_WARNING_HEADER_BOLD_REVIEW  -> Needs Review / manual typography check
+```
+
+Planned model:
+
+```text
+heading crop
+  -> OpenCV stroke/shape features
+  -> StandardScaler
+  -> Support Vector Machine
+  -> bold / non-bold / uncertain decision
+```
+
+Planned synthetic dataset:
+
+| Split | Planned Crops | Split Discipline |
+|---|---:|---|
+| Train | 20,000 | Training font families and distortion recipes |
+| Validation | 5,000 | Held-out font families / distortion recipes |
+| Test | 5,000 | Separate held-out font families and harder distortions |
+
+Candidate features:
+
+```text
+ink density
+edge density
+distance-transform mean stroke width
+stroke-width variance
+skeleton-to-ink ratio
+connected-component statistics
+projection profiles
+HOG descriptors
+```
+
+Primary metric:
+
+```text
+false clear = regular, medium, degraded, or uncertain warning heading
+classified as acceptable bold
+```
+
+Execution constraint:
+
+```text
+CPU-only, low-priority, no GPU, no Podman changes, no writes to
+data/work/ocr-conveyor/.
+```
+
+Reference:
+
+```text
+Hastie, Trevor; Tibshirani, Robert; Friedman, Jerome.
+The Elements of Statistical Learning: Data Mining, Inference, and Prediction.
+2nd ed., Springer, 2009.
+```
+
+Decision gate:
+
+- Do not promote this to hard `Fail` unless validation/test false-clear behavior is safe.
+- Approved public COLA crops may be used as positive smoke evidence only.
+- Synthetic non-bold/degraded examples are required for negative validation.
+- Ambiguous typography remains `Needs Review`.
 
 ### E001 - Remapped OCR Field-Matching Baseline
 

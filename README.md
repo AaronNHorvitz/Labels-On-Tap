@@ -70,7 +70,7 @@ The current local data story has two branches:
 | Branch | Purpose | Current Result |
 |---|---|---|
 | Direct TTB Public Registry ETL | Preserve the official printable-form path and parser. | `810` parsed public COLA forms and `1,433` discovered attachment records; attachment endpoint returned many HTML/error responses during the May 2 audit, so invalid files were marked pending rather than trusted as images. This branch is not the source of the current model metrics. |
-| COLA Cloud public-data bridge | Obtain validated public label rasters while TTBOnline.gov was unavailable/resetting. | Current source of the measured OCR/model calibration metrics: `1,500` selected applications from `7,788` candidates, with the first `100` details and `169` label images evaluated by local docTR. |
+| COLA Cloud public-data bridge | Obtain validated public label rasters while TTBOnline.gov was unavailable/resetting. | Current source of measured OCR/model calibration work: `6,000` unique public applications across two non-overlapping 3,000-application cohorts, with `10,435` local label images. The early 100-application / 169-image docTR result remains historical calibration, not the final corpus metric. |
 
 COLA Cloud is not a runtime dependency and its hosted OCR enrichment is not used as Labels On Tap's measured model output. It is a development-only source for public records/images. The deployed app still runs local OCR or deterministic fixture OCR. Bulk forms, API responses, image files, SQLite data, and OCR outputs remain under gitignored `data/work/`.
 
@@ -85,15 +85,20 @@ The current 100-record COLA Cloud-derived calibration result is intentionally co
 | Net contents | 86 | 83.72% |
 | Country of origin | 38 | 78.95% |
 
-The next statistical target is a `3,000`-application public-data corpus sampled
-without replacement. A no-network plan-only check has already verified that the
-current candidate pool can produce `3,000` non-overlapping selected records. For
-plain OCR/rule calibration, the earlier plan used `1,500` calibration/tuning
-records and `1,500` locked holdout records. For any trained
-DistilRoBERTa/RoBERTa field-support classifier, the current preferred design is
-an application-level `60%` train / `20%` validation / `20%` locked test split.
-The split must happen before field-pair examples are generated so the same TTB
-ID cannot leak across train, validation, and test.
+The current statistical corpus supersedes the earlier 3,000-record target. The
+project now has a `6,000`-application public-data corpus sampled without
+replacement. The active model-selection split is:
+
+```text
+train:      2,000 applications
+validation: 1,000 applications
+locked holdout: 3,000 applications
+```
+
+The split happens before field-pair examples are generated so the same TTB ID
+cannot leak across train, validation, and test. The train/validation OCR
+conveyor is currently running over `5,353` image rows, with `5,179` valid images
+and `174` invalid/corrupt images skipped during preflight.
 
 For a binary proportion on a `1,500`-record holdout, the conservative 95% margin of error is approximately:
 
@@ -103,11 +108,10 @@ For a binary proportion on a `1,500`-record holdout, the conservative 95% margin
 
 That is about `+/- 2.5 percentage points` before finite-population correction, and about the same after correction against an annual population near `150,000` COLA applications. This is a margin-of-error statement for the locked holdout estimate, not a claim that production accuracy is guaranteed.
 
-For a `3,000`-application corpus split `60/20/20`, the `600`-application locked
-test set has a wider conservative 95% margin of error, approximately
-`+/- 4.0 percentage points`, but it preserves a separate validation set for
-threshold tuning and model selection. That trade-off is appropriate if the next
-step is supervised model training rather than pure OCR/rule calibration.
+For the current `3,000`-application locked holdout, the conservative 95% margin
+of error is approximately `+/- 1.8 percentage points` for a binary proportion
+near 50%, before finite-population correction. That is a sampling-uncertainty
+statement for the held-out estimate, not a promise of production accuracy.
 
 This design gives the project a cleaner evidence story than hand-picked examples:
 
@@ -161,6 +165,54 @@ This sequencing keeps the product disciplined. Better OCR engines can improve wh
 The curved-text research brief changed the experimental priority in one practical way: the next serious attempt should start with mature pre-trained OCR systems such as PaddleOCR or OpenOCR rather than training a custom curved-text model from scratch. Modern OCR systems trained on large distorted-text corpora may provide useful zero-shot performance on alcohol labels, avoiding the immediate need for custom polygon-level annotation.
 
 Runtime claims remain measured, not assumed. OpenVINO/ONNX/INT8 optimization on an Intel `m7i`-class EC2 instance is a promising production path, especially because those CPUs can accelerate low-precision matrix operations. The live demo currently runs on AWS Lightsail, so OpenVINO/AMX performance is documented as a future optimization path until it is benchmarked on the actual deployment hardware.
+
+### Government Warning Typography Preflight
+
+Jenny Park's stakeholder note includes a typography requirement that plain OCR does not solve by itself: the government warning heading must be exactly `GOVERNMENT WARNING:` and must be bold. The current deployed rule already checks the all-caps heading deterministically and routes font-weight verification to human review. The next experimental workstream is to add a lightweight typography preflight for that boldness requirement without destabilizing the running OCR evaluation.
+
+The planned approach is intentionally classical statistical learning rather than deep learning:
+
+```text
+OCR isolates or approximates the GOVERNMENT WARNING: heading crop
+  -> OpenCV normalization and stroke/shape feature extraction
+  -> Support Vector Machine typography classifier
+  -> conservative bold / not-bold / uncertain decision
+  -> deterministic compliance layer routes uncertainty to Needs Review
+```
+
+This is a narrow visual classification problem, not a full OCR problem. A Support Vector Machine is appropriate because the input can be summarized with engineered features such as ink density, edge density, distance-transform stroke width, skeleton-to-ink ratio, connected-component statistics, projection profiles, and HOG descriptors. Following the statistical-learning framing in Hastie, Tibshirani, and Friedman, margin-based classifiers remain strong baselines when the feature space captures the decision boundary, labeled data is limited, and low CPU latency matters.
+
+The planned dataset is synthetic and isolated from the current OCR run:
+
+```text
+train:      synthetic warning-heading crops from one set of font families
+validation: held-out font families and distortion recipes
+test:       separate held-out font families and harder distortions
+```
+
+Synthetic generation is legitimate for this subtask because the label being generated is only the controlled typography distinction:
+
+```text
+acceptable bold GOVERNMENT WARNING:
+vs.
+regular / medium / degraded / uncertain GOVERNMENT WARNING:
+```
+
+The primary metric remains government-safe:
+
+```text
+false clear = non-bold or uncertain heading classified as acceptable bold
+```
+
+This planned classifier should not become a hard automated rejection until it is validated. The safe runtime posture is:
+
+| Typography Evidence | Runtime Action |
+|---|---|
+| Strong bold signal | Typography preflight may pass. |
+| Strong non-bold signal | Route to Needs Review or Fail Candidate depending validation. |
+| Low-quality crop, unusual font, glare, curvature, or borderline signal | Needs Review. |
+
+The experiment will live under `experiments/typography_preflight/` with generated artifacts under gitignored `data/work/typography-preflight/`. It must not touch the active OCR conveyor output, the deployed app, the GPU, or the running Podman job.
 
 Before any OCR engine becomes the default runtime path, it must pass the same checklist:
 
@@ -1081,7 +1133,7 @@ For this sprint, those items stay outside the MVP so the deployed demo can remai
 
 ---
 
-## Primary Public Sources
+## Primary Public And Technical Sources
 
 - TTB Public COLA Registry: https://www.ttb.gov/regulated-commodities/labeling/cola-public-registry
 - TTB Form 5100.31: https://www.ttb.gov/system/files/images/pdfs/forms/f510031.pdf
@@ -1093,6 +1145,7 @@ For this sprint, those items stay outside the MVP so the deployed demo can remai
 - docTR installation docs: https://mindee.github.io/doctr/getting_started/installing.html
 - FastAPI file upload docs: https://fastapi.tiangolo.com/tutorial/request-files/
 - Caddy automatic HTTPS docs: https://caddyserver.com/docs/automatic-https
+- Hastie, Trevor; Tibshirani, Robert; Friedman, Jerome. *The Elements of Statistical Learning: Data Mining, Inference, and Prediction*. 2nd ed., Springer, 2009.
 
 ---
 

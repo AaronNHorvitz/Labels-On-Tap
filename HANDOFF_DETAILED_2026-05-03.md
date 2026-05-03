@@ -698,6 +698,32 @@ Completed checks:
 | 16-request real smoke | `data/work/ocr-conveyor/tri-engine-smoke-16/` | 13 valid images; 3 invalid/corrupt skipped by preflight; all three engines completed; 39 OCR rows; 0 row errors |
 | Train/validation dry run | `data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16/` | 5,353 image rows; 5,179 valid images; 174 invalid/corrupt skipped; 975 planned jobs |
 
+Active train/validation run snapshot:
+
+```text
+snapshot_time: 2026-05-03T11:51:46-05:00
+container: 253b9caaf335
+container_status_observed: Up 8 hours
+output_dir: data/work/ocr-conveyor/tri-engine-train-val-v1-chunk16/
+planned_jobs: 975
+completed_chunk_results: 960
+completed_by_engine:
+  docTR: 325
+  PaddleOCR: 325
+  OpenOCR: 310
+ocr_row_errors_observed: 0
+mean_elapsed_seconds_per_completed_chunk: 29.323
+max_elapsed_seconds_per_completed_chunk: 85.338
+```
+
+Interpretation:
+
+- The active train/validation run is far past smoke-test state.
+- docTR and PaddleOCR train/validation chunks appear complete at the snapshot.
+- OpenOCR was still completing remaining chunks at the snapshot.
+- There were no observed OCR row errors.
+- Do not start a second full conveyor run against the same output directory.
+
 Observed smoke timing:
 
 | Run | Engine | Images Processed | Elapsed |
@@ -722,6 +748,159 @@ Estimated runtime for the full train/validation tri-engine run is roughly
 10-12 hours, with PaddleOCR the slowest engine. The run should use the container
 command in Section 9 so the heavy OCR dependencies stay out of the production
 Python environment.
+
+### 7.3 Government Warning Typography Preflight Plan
+
+Jenny Park explicitly called out that the government warning heading must be
+both all caps and bold. The all-caps requirement is already a deterministic
+rule. Boldness is currently handled as `GOV_WARNING_HEADER_BOLD_REVIEW`, which
+routes the issue to manual typography review.
+
+The planned experiment is a classical OpenCV/SVM typography preflight. It should
+not touch the current OCR conveyor, should not use the GPU, and should not be
+integrated into runtime until validated.
+
+Target architecture:
+
+```text
+OCR isolates or approximates GOVERNMENT WARNING:
+  -> crop heading region
+  -> OpenCV normalization
+  -> stroke/shape features
+  -> CPU-only Support Vector Machine
+  -> bold / non-bold / uncertain typography preflight
+  -> deterministic compliance policy
+```
+
+Why SVM instead of a CNN/Transformer:
+
+- The task is narrow and visual: classify stroke-weight evidence for one known
+  phrase.
+- Engineered features can directly describe the decision boundary.
+- CPU inference is effectively negligible compared with OCR.
+- Synthetic training data is appropriate for the controlled typography
+  distinction.
+- A margin-based classifier is easy to threshold conservatively around
+  false-clear risk.
+
+The statistical-learning citation to use:
+
+```text
+Hastie, Trevor; Tibshirani, Robert; Friedman, Jerome.
+The Elements of Statistical Learning: Data Mining, Inference, and Prediction.
+2nd ed., Springer, 2009.
+```
+
+Do not overclaim the citation. Use it to justify why a margin-based classical
+model is appropriate for compact engineered feature vectors, not to claim this
+specific typography model is production-certified.
+
+Planned isolated paths:
+
+```text
+experiments/typography_preflight/
+  README.md
+  generate_dataset.py
+  features.py
+  train_svm.py
+  evaluate.py
+  report.py
+
+data/work/typography-preflight/
+  synthetic/
+  manifests/
+  features/
+  models/
+  metrics/
+  sample_crops/
+```
+
+Dataset plan:
+
+```text
+train:      20,000 synthetic warning-heading crops
+validation: 5,000 synthetic warning-heading crops
+test:       5,000 synthetic warning-heading crops
+```
+
+Split rule:
+
+```text
+Hold out font families and distortion recipes across train/validation/test.
+Do not rely on a naive random image split.
+```
+
+Synthetic classes:
+
+```text
+acceptable_bold
+regular_non_bold
+medium_or_borderline
+degraded_uncertain
+```
+
+Feature candidates:
+
+```text
+ink density
+edge density
+distance-transform mean stroke width
+stroke-width variance
+skeleton-to-ink ratio
+connected-component statistics
+horizontal and vertical projection profiles
+HOG descriptors
+crop aspect/area features
+```
+
+Primary safety metric:
+
+```text
+false clear = regular, medium, degraded, or uncertain heading classified as acceptable bold
+```
+
+Execution safety while the OCR conveyor runs:
+
+```text
+CUDA_VISIBLE_DEVICES=""
+OMP_NUM_THREADS=2
+OPENBLAS_NUM_THREADS=2
+MKL_NUM_THREADS=2
+NUMEXPR_NUM_THREADS=2
+nice -n 15
+ionice -c3
+```
+
+Also set `cv2.setNumThreads(1)` inside the experiment scripts if OpenCV is used.
+
+Do not commit:
+
+```text
+generated crops
+feature matrices
+.joblib model files
+metrics produced under data/work/
+```
+
+Commit only:
+
+```text
+experiment code
+experiment README
+documentation updates
+```
+
+Safe runtime policy after validation:
+
+```text
+strong bold evidence      -> typography preflight may pass
+strong non-bold evidence  -> Needs Review or Fail Candidate only after validation
+uncertain/degraded crop   -> Needs Review
+```
+
+Approved public COLA warning crops can be used as a positive smoke test, but
+they cannot validate the dangerous negative case by themselves. Synthetic
+non-bold and degraded examples are required for false-clear testing.
 
 ---
 
@@ -931,17 +1110,19 @@ curl http://localhost:8000/health
 1. Keep the public deployment stable.
 2. Use `data/work/cola/evaluation-splits/field-support-v1/` as the canonical
    split source.
-3. Run the full chunk-size 16 armored OCR conveyor over train/validation for
-   docTR, PaddleOCR, and OpenOCR.
-4. Attach conveyor OCR evidence to the generated field-support pair manifests.
-5. Rerun DistilRoBERTa on OCR-backed candidate evidence.
-6. Compare all serious candidates with identical statistics and latency tables.
-7. Freeze thresholds and architecture.
-8. Evaluate once on the 3000-record locked holdout cohort.
-9. Convert final metrics into `docs/performance.md`, `MODEL_LOG.md`,
+3. Let the active chunk-size 16 armored OCR conveyor finish; do not start a
+   duplicate run in the same output directory.
+4. If there is CPU headroom, build the isolated OpenCV/SVM typography preflight
+   under `experiments/typography_preflight/` and `data/work/typography-preflight/`.
+5. Attach conveyor OCR evidence to the generated field-support pair manifests.
+6. Rerun DistilRoBERTa on OCR-backed candidate evidence.
+7. Compare all serious candidates with identical statistics and latency tables.
+8. Freeze thresholds and architecture.
+9. Evaluate once on the 3000-record locked holdout cohort.
+10. Convert final metrics into `docs/performance.md`, `MODEL_LOG.md`,
    `TRADEOFFS.md`, and README.
-10. Build 300-500 synthetic negative cases from `PHASE1_REJECTION.md`.
-11. Keep legal reasoning/guidance last; deterministic evidence first.
+11. Build 300-500 synthetic negative cases from `PHASE1_REJECTION.md`.
+12. Keep legal reasoning/guidance last; deterministic evidence first.
 
 ---
 

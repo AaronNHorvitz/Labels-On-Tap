@@ -596,7 +596,7 @@ production guarantees.
 
 ---
 
-### 5.2 Boldness Is Needs Review, Not Hard Fail
+### 5.2 Government Warning Boldness: Manual Review Now, SVM Preflight Next
 
 **Decision:** The MVP does not make a definitive font-weight determination from arbitrary raster images.
 
@@ -606,6 +606,58 @@ production guarantees.
 
 ```text
 Manual typography verification required. This prototype verifies warning text and capitalization but does not make a definitive font-weight determination from raster images.
+```
+
+**Next experiment:** Add an isolated OpenCV/SVM typography preflight for the `GOVERNMENT WARNING:` heading.
+
+This is deliberately not a large deep-learning vision model. It is a small statistical-learning classifier for a narrow question:
+
+```text
+Does the cropped government-warning heading have visual stroke evidence
+consistent with bold text?
+```
+
+The planned pipeline:
+
+```mermaid
+flowchart TD
+    A["Label OCR / warning isolation"] --> B["Crop GOVERNMENT WARNING: heading"]
+    B --> C["OpenCV normalization<br/>grayscale, threshold, deskew where safe"]
+    C --> D["Stroke and texture features<br/>ink density, edge density,<br/>distance-transform width,<br/>skeleton ratio, HOG"]
+    D --> E["Support Vector Machine<br/>CPU-only typography classifier"]
+    E --> F{"Decision policy"}
+    F -->|"Strong bold signal"| G["Typography preflight passes"]
+    F -->|"Strong non-bold signal"| H["Needs Review or Fail Candidate<br/>after validation"]
+    F -->|"Uncertain / degraded crop"| I["Needs Review"]
+```
+
+**Why an SVM is reasonable here:** The feature space is intentionally engineered around stroke thickness and glyph structure. In that setting, a margin-based classifier can be a strong, low-latency baseline without the data hunger and deployment cost of a CNN/Transformer. This follows the statistical-learning framing in Hastie, Tibshirani, and Friedman: when the relevant structure can be represented by a compact feature vector, classical supervised models remain appropriate and often preferable to heavier architectures.
+
+**Dataset plan:** Generate a synthetic typography dataset under gitignored `data/work/typography-preflight/`. The generator should render `GOVERNMENT WARNING:` across many local fonts, sizes, contrast levels, blur/noise settings, rotations, compression artifacts, thresholding artifacts, and mild warps. The split must hold out font families and distortion recipes, not merely random images, so the model cannot memorize one typeface.
+
+Planned split:
+
+```text
+train:      20,000 synthetic crops
+validation: 5,000 synthetic crops
+test:       5,000 synthetic crops
+```
+
+Primary metric:
+
+```text
+false clear = regular, medium, degraded, or uncertain heading classified as acceptable bold
+```
+
+**Important limitation:** Existing approved public COLA labels can provide a useful positive smoke test because they should generally contain compliant warning headings. They cannot validate the dangerous negative case by themselves. Synthetic non-bold and degraded examples are required to test false clears.
+
+**Runtime implication:** Even if the SVM performs well, the safe deployment posture is to treat it as a typography preflight, not as unchecked final authority. Ambiguous crops still route to `Needs Review`.
+
+Reference:
+
+```text
+Hastie, Tibshirani, and Friedman, The Elements of Statistical Learning,
+2nd ed., Springer, 2009.
 ```
 
 ---
