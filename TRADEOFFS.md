@@ -112,7 +112,8 @@ The repository includes a large legal/research corpus and source-backed rule mat
 4. PARSeq recognition over detected crops, if recognizer-level accuracy helps
 5. ASTER recognition over detected crops, if geometric rectification helps
 6. FCENet detection plus ASTER recognition, if arbitrary-shape detection helps
-7. Combined OCR evidence, if two engines find complementary text
+7. ABINet recognition over detected crops, if explicit language-model correction helps
+8. Combined OCR evidence, if two engines find complementary text
 ```
 
 **Promotion gate:**
@@ -129,7 +130,7 @@ The repository includes a large legal/research corpus and source-backed rule mat
 
 **Implication:** The app can pursue better OCR aggressively without destabilizing the deployed demo. Until a candidate wins, docTR remains the safe runtime baseline.
 
-**Current smoke finding:** On the first 20-application / 30-image field-support comparison, PaddleOCR improved F1, accuracy, and recall versus docTR, while docTR preserved the lower false-clear rate. OpenOCR/SVTRv2 was the fastest complete OCR candidate and matched docTR's false-clear rate in the same smoke, but had lower F1. PARSeq and ASTER were tested as recognizers over OpenOCR-detected crops. Both were fast on CPU, but neither improved field-support F1 in that crop setup. ASTER produced zero false clears in the first smoke, but at the cost of low recall. FCENet plus ASTER tested arbitrary-shape detection directly, but CPU latency exceeded the operational target and field-support F1 dropped sharply. Small sample sizes increase variance, so these results are directional calibration evidence only. PaddleOCR remains undecided and promising; it should not be promoted or rejected until a larger calibration run confirms whether the F1 lift survives.
+**Current smoke finding:** On the first 20-application / 30-image field-support comparison, PaddleOCR improved F1, accuracy, and recall versus docTR, while docTR preserved the lower false-clear rate. OpenOCR/SVTRv2 was the fastest complete OCR candidate and matched docTR's false-clear rate in the same smoke, but had lower F1. PARSeq, ASTER, and ABINet were tested as recognizers over OpenOCR-detected crops. All were fast on CPU, but none improved field-support F1 in that crop setup. ASTER and ABINet produced zero false clears in the first smoke, but at the cost of low recall. FCENet plus ASTER tested arbitrary-shape detection directly, but CPU latency exceeded the operational target and field-support F1 dropped sharply. Small sample sizes increase variance, so these results are directional calibration evidence only. PaddleOCR remains undecided and promising; it should not be promoted or rejected until a larger calibration run confirms whether the F1 lift survives.
 
 Current side-by-side smoke metrics:
 
@@ -142,6 +143,7 @@ Current side-by-side smoke metrics:
 | PARSeq NAR/refine-2 over OpenOCR crops | 43 | 111 | 1 | 69 | 0.6875 | 0.9773 | 0.3839 | 0.5513 | 0.0089 |
 | ASTER over OpenOCR crops | 43 | 112 | 0 | 69 | 0.6920 | 1.0000 | 0.3839 | 0.5548 | 0.0000 |
 | FCENet + ASTER | 28 | 111 | 1 | 84 | 0.6205 | 0.9655 | 0.2500 | 0.3972 | 0.0089 |
+| ABINet over OpenOCR crops | 36 | 112 | 0 | 76 | 0.6607 | 1.0000 | 0.3214 | 0.4865 | 0.0000 |
 
 Current CPU latency smoke:
 
@@ -154,6 +156,7 @@ Current CPU latency smoke:
 | PARSeq NAR/refine-2 over OpenOCR crops | 215.17 ms | 168.50 ms | 655 ms | 322.75 ms | 655 ms | Recognizer stage only |
 | ASTER over OpenOCR crops | 119.87 ms | 111.00 ms | 275 ms | 179.8 ms | 409 ms | Recognizer stage only |
 | FCENet + ASTER | 4,526.70 ms | 4,073.50 ms | 10,525 ms | 6,790.05 ms | 14,630 ms | Complete detector + recognizer experiment |
+| ABINet over OpenOCR crops | 458.83 ms | 369.00 ms | 1,229 ms | 688.25 ms | 1,229 ms | Recognizer stage only |
 
 ---
 

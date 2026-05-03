@@ -74,6 +74,7 @@ The sprint priority is now:
 - [x] PARSeq was added as a recognizer-stage experiment over OpenOCR-detected crops.
 - [x] ASTER was added as a recognizer-stage experiment over OpenOCR-detected crops.
 - [x] FCENet + ASTER was added as a detector-plus-recognizer experiment for arbitrary-shaped text.
+- [x] ABINet was added as a recognizer-stage experiment over OpenOCR-detected crops.
 - [x] OpenVINO/ONNX/INT8 on EC2 `m7i` is a future CPU optimization path, not a current Lightsail performance claim.
 - [x] OCR engine sweep scaffold exists under `experiments/ocr_engine_sweep/`.
 - [x] `MODEL_LOG.md` records OCR/model experiments and caveats.
@@ -265,6 +266,9 @@ Experimental candidates:
 - [x] Add an MMOCR FCENet + ASTER detector-recognizer benchmark.
 - [x] Run FCENet + ASTER detector-recognizer smoke on the same 30 images.
 - [x] Compute side-by-side field-support metrics including FCENet + ASTER.
+- [x] Add an MMOCR ABINet crop-recognition benchmark using OpenOCR-detected boxes.
+- [x] Run ABINet crop-recognition smoke on the same 30 images.
+- [x] Compute side-by-side field-support metrics including ABINet crop runs.
 - [x] Record the statistical caveat that small sample sizes increase variance and the current 20-application / 30-image result is directional only.
 - [ ] Promote PaddleOCR into a fuller experimental adapter only if field-level comparison beats or complements docTR.
 - [ ] Promote OpenOCR into a fuller experimental adapter only if a larger run shows it beats or complements docTR/PaddleOCR.
@@ -286,6 +290,7 @@ Normalized output contract:
 - [x] Normalize PARSeq crop-recognition output to the existing `OCRResult` shape.
 - [x] Normalize ASTER crop-recognition output to the existing `OCRResult` shape.
 - [x] Normalize FCENet + ASTER detector-recognizer output to the existing `OCRResult` shape.
+- [x] Normalize ABINet crop-recognition output to the existing `OCRResult` shape.
 - [x] Preserve `source` as `local docTR`, `local PaddleOCR`, `local OpenOCR`, or equivalent.
 - [x] Preserve per-block text.
 - [x] Preserve per-block confidence when available.
@@ -302,6 +307,7 @@ Benchmark stages:
 - [x] Run PARSeq AR and NAR crop-recognition on the same 30-image mixed-shape smoke benchmark.
 - [x] Run ASTER crop-recognition on the same 30-image mixed-shape smoke benchmark.
 - [x] Run FCENet + ASTER detector-recognizer on the same 30-image mixed-shape smoke benchmark.
+- [x] Run ABINet crop-recognition on the same 30-image mixed-shape smoke benchmark.
 - [ ] Run the same 100-application / 169-image public COLA calibration set used by docTR.
 - [x] Compare 30-image smoke against docTR using identical field-support scoring logic.
 - [ ] Compare 100-application calibration set against docTR using identical field-matching logic.
@@ -323,6 +329,7 @@ Metrics to compare:
 - [x] Initial shuffled-negative false-clear comparison including PARSeq AR/NAR crop runs.
 - [x] Initial shuffled-negative false-clear comparison including ASTER crop runs.
 - [x] Initial shuffled-negative false-clear comparison including FCENet + ASTER.
+- [x] Initial shuffled-negative false-clear comparison including ABINet crop runs.
 - [ ] False-clear rate on synthetic known-bad fixtures.
 - [x] Initial per-image latency smoke: 30-image PaddleOCR mean 1,105.00 ms, median 1,096.50 ms, worst 1,544 ms.
 - [x] Initial per-image latency smoke: 30-image OpenOCR mean 563.77 ms, median 582.50 ms, worst 1,211 ms.
@@ -330,10 +337,12 @@ Metrics to compare:
 - [x] Initial per-image latency smoke: PARSeq NAR/refine-2 over OpenOCR crops mean 215.17 ms, median 168.50 ms, worst 655 ms.
 - [x] Initial per-image latency smoke: ASTER over OpenOCR crops mean 119.87 ms, median 111.00 ms, worst 275 ms.
 - [x] Initial per-image latency smoke: FCENet + ASTER mean 4,526.70 ms, median 4,073.50 ms, worst 10,525 ms.
-- [x] Initial field-support smoke: PaddleOCR F1 0.7151 vs docTR F1 0.6627 vs OpenOCR F1 0.6049 vs PARSeq AR/NAR F1 0.5513 vs ASTER F1 0.5548 vs FCENet + ASTER F1 0.3972.
+- [x] Initial per-image latency smoke: ABINet over OpenOCR crops mean 458.83 ms, median 369.00 ms, worst 1,229 ms.
+- [x] Initial field-support smoke: PaddleOCR F1 0.7151 vs docTR F1 0.6627 vs OpenOCR F1 0.6049 vs PARSeq AR/NAR F1 0.5513 vs ASTER F1 0.5548 vs FCENet + ASTER F1 0.3972 vs ABINet F1 0.4865.
 - [x] Initial field-support smoke: PaddleOCR false-clear rate 0.0268 vs docTR/OpenOCR false-clear rate 0.0089.
 - [x] Initial field-support smoke: ASTER false-clear rate 0.0000 with low recall on the 20-application / 30-image smoke.
 - [x] Initial field-support smoke: FCENet + ASTER false-clear rate 0.0089 with low recall and slow CPU latency.
+- [x] Initial field-support smoke: ABINet false-clear rate 0.0000 with low recall on the 20-application / 30-image smoke.
 - [ ] Per-application latency across all associated label panels.
 - [ ] OCR failure modes: curved text, rotated text, small warning text, glare, low contrast, multi-panel ambiguity.
 

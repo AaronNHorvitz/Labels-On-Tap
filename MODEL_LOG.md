@@ -40,6 +40,7 @@ As sample size grows, measured performance should be expected to move closer to 
 | PARSeq crop recognizer | Experimental recognizer over detected crops | No | Fast on CPU, but lower field-support F1 in first crop-recognition smoke |
 | ASTER crop recognizer | Experimental rectifying recognizer over detected crops | No | Very fast on CPU, zero false clears, but low recall/F1 in first crop-recognition smoke |
 | FCENet + ASTER | Experimental arbitrary-shape detector plus recognizer | No | Successful run, but too slow on CPU and low F1 in first detector-recognizer smoke |
+| ABINet crop recognizer | Experimental recognizer over detected crops | No | Fast on CPU, zero false clears, but low recall/F1 in first crop-recognition smoke |
 
 All bulk/raw artifacts, OCR outputs, API responses, model checkpoints, and run outputs stay under gitignored `data/work/`.
 
@@ -560,6 +561,68 @@ Decision:
 - Field-support F1 dropped to 0.3972, mainly because recall fell to 0.2500.
 - FCENet remains a useful research checkpoint for curved text detection, but this CPU implementation is not a near-term runtime candidate.
 - Small sample sizes increase variance, but this result is directionally negative enough that FCENet should not displace the current OCR candidates before submission.
+
+### E012 - ABINet Recognition Over OpenOCR Crops
+
+**Date:** May 3, 2026
+**Run output:** `data/work/ocr-engine-sweep/abinet-openocr-crops-smoke-30/`
+**Field-support output:** `data/work/ocr-engine-sweep/field-support-metrics/doctr-vs-paddle-vs-openocr-vs-parseq-vs-aster-vs-fcenet-vs-abinet-smoke-30/`
+**Input:** The same 20-application / 30-image smoke set from E006-E011
+**Purpose:** Test ABINet, a scene-text recognizer with autonomous bidirectional iterative language modeling, before making an OCR architecture decision.
+
+Method:
+
+```text
+1. Reuse OpenOCR-detected text boxes from E008.
+2. Crop each detected region from the original label image.
+3. Run MMOCR ABINet recognition on the crops.
+4. Write normalized OCRResult JSON artifacts.
+5. Aggregate recognized crop text by original label image and TTB ID.
+6. Score field support with the same shuffled-negative metric.
+```
+
+Environment:
+
+```text
+container: python:3.10-slim
+model source: MMOCR 1.0.1 TextRecInferencer(model="ABINet")
+box source: OpenOCR 0.1.5 / SVTRv2 smoke output
+runtime: CPU
+dependency pins: torch 2.0.1 CPU, mmcv 2.0.1, mmdet 3.0.0, numpy<2
+```
+
+Timing / extraction smoke:
+
+| Metric | ABINet Crops |
+|---|---:|
+| Images processed | 30 |
+| Error count | 0 |
+| Mean latency | 458.83 ms/image |
+| Median latency | 369.00 ms/image |
+| Worst latency | 1,229 ms/image |
+| Mean confidence | 0.7398 |
+| Mean crop count | 20.00 |
+| Mean extracted chars | 285.77 |
+
+Overall field-support result across all fields:
+
+| Metric | docTR | PaddleOCR | OpenOCR | ASTER | ABINet |
+|---|---:|---:|---:|---:|---:|
+| Accuracy | 0.7455 | 0.7723 | 0.7143 | 0.6920 | 0.6607 |
+| Precision | 0.9825 | 0.9552 | 0.9800 | 1.0000 | 1.0000 |
+| Recall | 0.5000 | 0.5714 | 0.4375 | 0.3839 | 0.3214 |
+| Specificity | 0.9911 | 0.9732 | 0.9911 | 1.0000 | 1.0000 |
+| F1 | 0.6627 | 0.7151 | 0.6049 | 0.5548 | 0.4865 |
+| False-clear rate | 0.0089 | 0.0268 | 0.0089 | 0.0000 | 0.0000 |
+
+Decision:
+
+- ABINet loaded successfully and generated normalized OCR artifacts.
+- ABINet was fast enough on CPU in this recognizer-stage setup: 458.83 ms/image mean and 1,229 ms worst case.
+- ABINet produced zero false clears on the shuffled-negative smoke, matching the conservative safety posture.
+- Recall fell to 0.3214 and F1 fell to 0.4865, below docTR, PaddleOCR, OpenOCR, PARSeq, and ASTER in this crop contract.
+- This result should not be read as "ABINet is bad." It means full ABINet over OpenOCR rectangular crops did not recover enough field evidence to justify runtime promotion.
+- Small sample sizes increase variance, but this first ABINet result does not justify replacing the current OCR path before submission.
 
 ## Current Best Result
 

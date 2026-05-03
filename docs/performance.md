@@ -179,11 +179,11 @@ an experimental calibration result, not a locked-holdout production claim.
 The curved-text OCR research brief suggested that a mature pre-trained OCR
 engine may be more practical than training a custom curved-text model before
 the submission deadline. To test that hypothesis without touching the deployed
-runtime path, isolated PaddleOCR, OpenOCR/SVTRv2, PARSeq, ASTER, and FCENet
-smoke benchmarks were run in containers against real public COLA label images
+runtime path, isolated PaddleOCR, OpenOCR/SVTRv2, PARSeq, ASTER, FCENet, and
+ABINet smoke benchmarks were run in containers against real public COLA label images
 that already had cached docTR OCR output.
 
-PARSeq and ASTER are reported separately because they are scene-text
+PARSeq, ASTER, and ABINet are reported separately because they are scene-text
 recognizers, not complete label-page detectors. Their smoke benchmarks use
 OpenOCR-detected boxes as the crop source, then run recognition on those crops.
 Those latency numbers are recognizer-stage plus crop-preparation time, not full
@@ -203,27 +203,27 @@ The first modern stack installed but was not usable as-is:
 
 Successful 30-image smoke result:
 
-| Metric | PaddleOCR 3.3.3 / PaddlePaddle 3.2.0 | OpenOCR 0.1.5 / SVTRv2 | PARSeq AR over OpenOCR crops | PARSeq NAR/refine-2 over OpenOCR crops | ASTER over OpenOCR crops | FCENet + ASTER |
-|---|---:|---:|---:|---:|---:|---:|
-| Images processed | 30 | 30 | 30 | 30 | 30 | 30 |
-| Error count | 0 | 0 | 0 | 0 | 0 | 0 |
-| Mean latency | 1,105.00 ms/image | 563.77 ms/image | 293.47 ms/image | 215.17 ms/image | 119.87 ms/image | 4,526.70 ms/image |
-| Median latency | 1,096.50 ms/image | 582.50 ms/image | 212.00 ms/image | 168.50 ms/image | 111.00 ms/image | 4,073.50 ms/image |
-| Worst latency | 1,544 ms/image | 1,211 ms/image | 870 ms/image | 655 ms/image | 275 ms/image | 10,525 ms/image |
-| Images under 1.5 seconds | 29 / 30 | 30 / 30 | 30 / 30 | 30 / 30 | 30 / 30 | 0 / 30 |
-| Mean confidence | 0.9346 | 0.9356 | 0.9519 | 0.9158 | 0.7663 | 0.8538 |
-| Mean text blocks | 20.8 | 20.0 | 20.0 | 20.0 | 20.0 | 62.63 |
-| Mean extracted characters | 431.67 | 376.63 | 303.37 | 325.50 | 281.43 | 398.23 |
+| Metric | PaddleOCR 3.3.3 / PaddlePaddle 3.2.0 | OpenOCR 0.1.5 / SVTRv2 | PARSeq AR over OpenOCR crops | PARSeq NAR/refine-2 over OpenOCR crops | ASTER over OpenOCR crops | FCENet + ASTER | ABINet over OpenOCR crops |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Images processed | 30 | 30 | 30 | 30 | 30 | 30 | 30 |
+| Error count | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Mean latency | 1,105.00 ms/image | 563.77 ms/image | 293.47 ms/image | 215.17 ms/image | 119.87 ms/image | 4,526.70 ms/image | 458.83 ms/image |
+| Median latency | 1,096.50 ms/image | 582.50 ms/image | 212.00 ms/image | 168.50 ms/image | 111.00 ms/image | 4,073.50 ms/image | 369.00 ms/image |
+| Worst latency | 1,544 ms/image | 1,211 ms/image | 870 ms/image | 655 ms/image | 275 ms/image | 10,525 ms/image | 1,229 ms/image |
+| Images under 1.5 seconds | 29 / 30 | 30 / 30 | 30 / 30 | 30 / 30 | 30 / 30 | 0 / 30 | 30 / 30 |
+| Mean confidence | 0.9346 | 0.9356 | 0.9519 | 0.9158 | 0.7663 | 0.8538 | 0.7398 |
+| Mean text blocks | 20.8 | 20.0 | 20.0 | 20.0 | 20.0 | 62.63 | 20.0 |
+| Mean extracted characters | 431.67 | 376.63 | 303.37 | 325.50 | 281.43 | 398.23 | 285.77 |
 
 Cached docTR comparison on the same 30 images:
 
-| Metric | docTR Cached Baseline | PaddleOCR Smoke | OpenOCR Smoke | PARSeq AR Crops | PARSeq NAR Crops | ASTER Crops | FCENet + ASTER |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Mean latency | 800.53 ms/image | 1,105.00 ms/image | 563.77 ms/image | 293.47 ms/image | 215.17 ms/image | 119.87 ms/image | 4,526.70 ms/image |
-| Median latency | 804.50 ms/image | 1,096.50 ms/image | 582.50 ms/image | 212.00 ms/image | 168.50 ms/image | 111.00 ms/image | 4,073.50 ms/image |
-| Worst latency | 1,592 ms/image | 1,544 ms/image | 1,211 ms/image | 870 ms/image | 655 ms/image | 275 ms/image | 10,525 ms/image |
-| Mean extracted characters | 436.00 | 431.67 | 376.63 | 303.37 | 325.50 | 281.43 | 398.23 |
-| Mean text blocks | 79.3 | 20.8 | 20.0 | 20.0 | 20.0 | 20.0 | 62.63 |
+| Metric | docTR Cached Baseline | PaddleOCR Smoke | OpenOCR Smoke | PARSeq AR Crops | PARSeq NAR Crops | ASTER Crops | FCENet + ASTER | ABINet Crops |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Mean latency | 800.53 ms/image | 1,105.00 ms/image | 563.77 ms/image | 293.47 ms/image | 215.17 ms/image | 119.87 ms/image | 4,526.70 ms/image | 458.83 ms/image |
+| Median latency | 804.50 ms/image | 1,096.50 ms/image | 582.50 ms/image | 212.00 ms/image | 168.50 ms/image | 111.00 ms/image | 4,073.50 ms/image | 369.00 ms/image |
+| Worst latency | 1,592 ms/image | 1,544 ms/image | 1,211 ms/image | 870 ms/image | 655 ms/image | 275 ms/image | 10,525 ms/image | 1,229 ms/image |
+| Mean extracted characters | 436.00 | 431.67 | 376.63 | 303.37 | 325.50 | 281.43 | 398.23 | 285.77 |
+| Mean text blocks | 79.3 | 20.8 | 20.0 | 20.0 | 20.0 | 20.0 | 62.63 | 20.0 |
 
 Initial interpretation:
 
@@ -240,6 +240,9 @@ Initial interpretation:
 - FCENet + ASTER is the only newly tested full detector-plus-recognizer stack
   in this group, but it averaged 4,526.70 ms/image on CPU and had a worst case
   of 10,525 ms/image. That misses the operational target for routine use.
+- ABINet averaged 458.83 ms/image over OpenOCR crops. This is fast enough to
+  keep as a documented recognizer-stage experiment, but it is not full OCR
+  pipeline timing.
 - PaddleOCR and OpenOCR did not clearly beat docTR on raw extracted-character
   count.
 - Character count is only a crude proxy. Alternate engines produced fewer text
@@ -259,28 +262,28 @@ field-support score of `90`.
 
 Overall result across all fields:
 
-| Metric | docTR | PaddleOCR | OpenOCR | PARSeq AR Crops | PARSeq NAR Crops | ASTER Crops | FCENet + ASTER |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Examples | 224 | 224 | 224 | 224 | 224 | 224 | 224 |
-| Accuracy | 0.7455 | 0.7723 | 0.7143 | 0.6875 | 0.6875 | 0.6920 | 0.6205 |
-| Precision | 0.9825 | 0.9552 | 0.9800 | 0.9773 | 0.9773 | 1.0000 | 0.9655 |
-| Recall | 0.5000 | 0.5714 | 0.4375 | 0.3839 | 0.3839 | 0.3839 | 0.2500 |
-| Specificity | 0.9911 | 0.9732 | 0.9911 | 0.9911 | 0.9911 | 1.0000 | 0.9911 |
-| F1 | 0.6627 | 0.7151 | 0.6049 | 0.5513 | 0.5513 | 0.5548 | 0.3972 |
-| False-clear rate | 0.0089 | 0.0268 | 0.0089 | 0.0089 | 0.0089 | 0.0000 | 0.0089 |
+| Metric | docTR | PaddleOCR | OpenOCR | PARSeq AR Crops | PARSeq NAR Crops | ASTER Crops | FCENet + ASTER | ABINet Crops |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Examples | 224 | 224 | 224 | 224 | 224 | 224 | 224 | 224 |
+| Accuracy | 0.7455 | 0.7723 | 0.7143 | 0.6875 | 0.6875 | 0.6920 | 0.6205 | 0.6607 |
+| Precision | 0.9825 | 0.9552 | 0.9800 | 0.9773 | 0.9773 | 1.0000 | 0.9655 | 1.0000 |
+| Recall | 0.5000 | 0.5714 | 0.4375 | 0.3839 | 0.3839 | 0.3839 | 0.2500 | 0.3214 |
+| Specificity | 0.9911 | 0.9732 | 0.9911 | 0.9911 | 0.9911 | 1.0000 | 0.9911 | 1.0000 |
+| F1 | 0.6627 | 0.7151 | 0.6049 | 0.5513 | 0.5513 | 0.5548 | 0.3972 | 0.4865 |
+| False-clear rate | 0.0089 | 0.0268 | 0.0089 | 0.0089 | 0.0089 | 0.0000 | 0.0089 | 0.0000 |
 
 Excluding `applicant_or_producer`, which remains a known weak OCR/application
 field in the current data:
 
-| Metric | docTR | PaddleOCR | OpenOCR | PARSeq AR Crops | PARSeq NAR Crops | ASTER Crops | FCENet + ASTER |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Examples | 184 | 184 | 184 | 184 | 184 | 184 | 184 |
-| Accuracy | 0.7989 | 0.8315 | 0.7609 | 0.7283 | 0.7283 | 0.7337 | 0.6467 |
-| Precision | 0.9825 | 0.9552 | 0.9800 | 0.9773 | 0.9773 | 1.0000 | 0.9655 |
-| Recall | 0.6087 | 0.6957 | 0.5326 | 0.4674 | 0.4674 | 0.4674 | 0.3043 |
-| Specificity | 0.9891 | 0.9674 | 0.9891 | 0.9891 | 0.9891 | 1.0000 | 0.9891 |
-| F1 | 0.7517 | 0.8050 | 0.6901 | 0.6324 | 0.6324 | 0.6370 | 0.4628 |
-| False-clear rate | 0.0109 | 0.0326 | 0.0109 | 0.0109 | 0.0109 | 0.0000 | 0.0109 |
+| Metric | docTR | PaddleOCR | OpenOCR | PARSeq AR Crops | PARSeq NAR Crops | ASTER Crops | FCENet + ASTER | ABINet Crops |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Examples | 184 | 184 | 184 | 184 | 184 | 184 | 184 | 184 |
+| Accuracy | 0.7989 | 0.8315 | 0.7609 | 0.7283 | 0.7283 | 0.7337 | 0.6467 | 0.6957 |
+| Precision | 0.9825 | 0.9552 | 0.9800 | 0.9773 | 0.9773 | 1.0000 | 0.9655 | 1.0000 |
+| Recall | 0.6087 | 0.6957 | 0.5326 | 0.4674 | 0.4674 | 0.4674 | 0.3043 | 0.3913 |
+| Specificity | 0.9891 | 0.9674 | 0.9891 | 0.9891 | 0.9891 | 1.0000 | 0.9891 | 1.0000 |
+| F1 | 0.7517 | 0.8050 | 0.6901 | 0.6324 | 0.6324 | 0.6370 | 0.4628 | 0.5625 |
+| False-clear rate | 0.0109 | 0.0326 | 0.0109 | 0.0109 | 0.0109 | 0.0000 | 0.0109 | 0.0000 |
 
 By field:
 
@@ -296,15 +299,15 @@ By field:
 
 Experimental stack by-field F1:
 
-| Field | PARSeq AR Crops | PARSeq NAR Crops | ASTER Crops | FCENet + ASTER |
-|---|---:|---:|---:|---:|
-| alcohol_content | 0.8800 | 0.8800 | 0.7619 | 0.8333 |
-| applicant_or_producer | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
-| brand_name | 0.5714 | 0.5714 | 0.6207 | 0.4615 |
-| class_type | 0.3333 | 0.3333 | 0.4615 | 0.2609 |
-| country_of_origin | 0.7143 | 0.6154 | 0.7143 | 0.6154 |
-| fanciful_name | 0.6667 | 0.7097 | 0.7097 | 0.2609 |
-| net_contents | 0.6667 | 0.6667 | 0.5714 | 0.3333 |
+| Field | PARSeq AR Crops | PARSeq NAR Crops | ASTER Crops | FCENet + ASTER | ABINet Crops |
+|---|---:|---:|---:|---:|---:|
+| alcohol_content | 0.8800 | 0.8800 | 0.7619 | 0.8333 | 0.5556 |
+| applicant_or_producer | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+| brand_name | 0.5714 | 0.5714 | 0.6207 | 0.4615 | 0.5714 |
+| class_type | 0.3333 | 0.3333 | 0.4615 | 0.2609 | 0.3333 |
+| country_of_origin | 0.7143 | 0.6154 | 0.7143 | 0.6154 | 0.7143 |
+| fanciful_name | 0.6667 | 0.7097 | 0.7097 | 0.2609 | 0.6667 |
+| net_contents | 0.6667 | 0.6667 | 0.5714 | 0.3333 | 0.5714 |
 
 Interpretation:
 
@@ -326,6 +329,10 @@ Interpretation:
   on CPU and produced the lowest field-support F1 in this group. It remains a
   useful research checkpoint, not a practical runtime candidate for the
   five-second label-review target.
+- ABINet was fast enough as a recognizer over OpenOCR crops and produced zero
+  false clears in this smoke, but its recall and F1 were lower than the current
+  complete OCR candidates. The first result does not justify replacing the
+  runtime OCR path.
 - The alcohol-content false-clear rate for PaddleOCR is too high to promote it
   directly without stricter field-specific thresholds or deterministic checks.
 - Small sample sizes increase variance. The correct conclusion is not "choose
