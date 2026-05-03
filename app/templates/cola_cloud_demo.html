@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Public COLA Example · Labels On Tap{% endblock %}
+{% block content %}
+<section class="workspace">
+  <div class="page-title">
+    <div>
+      <h1>Public COLA Field Comparison</h1>
+      <p>TTB ID {{ demo.ttb_id }} · {{ demo.dataset_name }} · {{ demo.status|title }}</p>
+    </div>
+    <a class="button secondary" href="/">Back</a>
+  </div>
+
+  <section class="panel notice">
+    <h2>COLA Cloud-Derived Public Example</h2>
+    <p>This demo uses already-downloaded public COLA application data and label images from the local gitignored evaluation corpus. It shows how application fields line up, or fail to line up, with OCR evidence across the submitted label panels.</p>
+  </section>
+
+  <section class="summary-grid">
+    <div class="metric {{ demo.overall_verdict }}">
+      <span>{{ demo.overall_verdict|replace("_", " ")|title }}</span>
+      <small>raw comparison result</small>
+    </div>
+    <div class="metric">
+      <span>{{ demo.panels|length }}</span>
+      <small>label panels</small>
+    </div>
+    <div class="metric">
+      <span>{{ demo.source_of_product|title or "Unknown" }}</span>
+      <small>source of product</small>
+    </div>
+    <div class="metric">
+      <span>{{ demo.application.product_type|replace("_", " ")|title }}</span>
+      <small>product type</small>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Application Data</h2>
+    <dl class="detail-grid">
+      <div><dt>Brand</dt><dd>{{ demo.application.brand_name or "Not provided" }}</dd></div>
+      <div><dt>Fanciful name</dt><dd>{{ demo.application.fanciful_name or "Not provided" }}</dd></div>
+      <div><dt>Class/type</dt><dd>{{ demo.application.class_type or "Not provided" }}</dd></div>
+      <div><dt>Alcohol content</dt><dd>{{ demo.application.alcohol_content or "Not provided" }}</dd></div>
+      <div><dt>Net contents</dt><dd>{{ demo.application.net_contents or "Not provided" }}</dd></div>
+      <div><dt>Country of origin</dt><dd>{{ demo.application.country_of_origin or "Not provided" }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <h2>Side-by-Side Field Support</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Application field</th>
+          <th>Expected value</th>
+          <th>OCR support</th>
+          <th>Best panel</th>
+          <th>Score</th>
+          <th>Reviewer action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for field in demo.fields %}
+        <tr>
+          <td>{{ field.field_name|replace("_", " ")|title }}</td>
+          <td>{{ field.expected or "Not available" }}</td>
+          <td>
+            <span class="badge {{ field.verdict }}">{{ field.verdict|replace("_", " ")|title }}</span>
+            <p>{{ field.evidence_text or field.outcome|replace("_", " ")|title }}</p>
+          </td>
+          <td>{{ field.best_panel_type or "n/a" }}{% if field.best_panel %}<br><small>{{ field.best_panel }}</small>{% endif %}</td>
+          <td>{{ "%.2f"|format(field.score) }}</td>
+          <td>{{ field.reviewer_action }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>Label Panels And OCR Evidence</h2>
+    <div class="panel-grid">
+      {% for panel in demo.panels %}
+      <article class="label-panel">
+        <h3>Panel {{ panel.panel_order }} · {{ panel.image_type|title }}</h3>
+        <img src="/cola-cloud-demo/{{ job_id }}/images/{{ panel.stored_filename }}" alt="Label panel {{ panel.panel_order }}">
+        <p>OCR source: {{ panel.ocr.source }} · confidence {{ "%.2f"|format(panel.ocr.avg_confidence) }} · {{ panel.ocr.total_ms }} ms</p>
+        <pre>{{ panel.ocr.full_text or "No OCR text returned." }}</pre>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Caveats</h2>
+    <ul>
+      {% for caveat in demo.caveats %}
+      <li>{{ caveat }}</li>
+      {% endfor %}
+    </ul>
+    {% if demo.source_url %}
+    <p>Public source reference: {{ demo.source_url }}</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

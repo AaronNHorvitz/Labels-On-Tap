@@ -505,6 +505,7 @@ Metrics:
 | FR-006 | App stores uploaded files under randomized safe paths. | P0 |
 | FR-007 | App rejects unsafe or unsupported files with clear explanation. | P0 |
 | FR-008 | App supports demonstration-only photo OCR intake for one free-form label photo. | P1 |
+| FR-009 | App supports a local public COLA example demo that compares application fields against OCR evidence from all associated label panels. | P1 |
 
 ### 8.2 OCR and Topology
 
@@ -516,6 +517,7 @@ Metrics:
 | FR-013 | App creates a label topology object from OCR blocks. | P1 |
 | FR-014 | App creates evidence snippets/crops for key failures where feasible. | P1 |
 | FR-015 | App extracts candidate fields from free-form photo OCR text for demonstration only. | P1 |
+| FR-016 | For public example applications, app pools OCR evidence across every associated front/back/neck/side label panel before scoring field support. | P1 |
 
 ### 8.3 Validation
 

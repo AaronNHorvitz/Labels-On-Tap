@@ -155,6 +155,19 @@ COLA Cloud development bridge:
 - Current OCR/model metrics remain COLA Cloud-derived public calibration
   metrics, not direct TTB attachment-download metrics.
 
+Local public comparison demo:
+
+- `/cola-cloud-demo` selects a deterministic local public example from
+  `data/work/cola/` when that corpus exists.
+- It copies all associated label panels into a normal `data/jobs/{job_id}/`
+  upload workspace.
+- It loads cached local OCR conveyor output when available, otherwise falls
+  back to the local OCR adapter.
+- It renders application fields beside OCR evidence, best panel, match score,
+  and reviewer action.
+- It does not call COLA Cloud, TTB, or hosted OCR at runtime. If the local
+  corpus is missing, it shows a missing-data page.
+
 Key local paths:
 
 ```text

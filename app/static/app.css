@@ -267,6 +267,29 @@ pre {
   padding-left: 1.4rem;
 }
 
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.label-panel {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.label-panel img {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+  background: #f3efe6;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
 @media (max-width: 760px) {
   .site-header,
   .intro,
@@ -276,7 +299,8 @@ pre {
 
   .upload-form,
   .summary-grid,
-  .detail-grid {
+  .detail-grid,
+  .panel-grid {
     grid-template-columns: 1fr;
   }
 

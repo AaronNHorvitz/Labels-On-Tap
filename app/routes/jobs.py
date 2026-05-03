@@ -9,18 +9,23 @@ clear future path to background workers if batch sizes grow.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app.config import JOBS_DIR, MAX_MANIFEST_BYTES, MAX_UPLOAD_BYTES, ROOT
 from app.schemas.application import ColaApplication
 from app.schemas.manifest import ManifestItem
 from app.services.csv_export import results_to_csv
+from app.services.cola_cloud_demo import (
+    build_comparison_payload,
+    load_cached_conveyor_ocr,
+    load_cola_cloud_demo_source,
+)
 from app.services.job_store import (
     add_manifest_item,
     create_job,
@@ -29,6 +34,7 @@ from app.services.job_store import (
     load_manifest,
     load_result,
     read_json,
+    save_upload,
     write_result,
     write_json,
 )
@@ -302,6 +308,92 @@ def photo_intake_detail(request: Request, job_id: str, item_id: str) -> HTMLResp
             "intake": read_json(path),
         },
     )
+
+
+@router.get("/cola-cloud-demo")
+def create_cola_cloud_demo(request: Request, ttb_id: str | None = None) -> Response:
+    """Create a side-by-side demo from local COLA Cloud-derived public data.
+
+    Parameters
+    ----------
+    ttb_id:
+        Optional TTB ID to display. When omitted, a deterministic demo record is
+        selected from the local gitignored corpus.
+
+    Returns
+    -------
+    HTMLResponse | RedirectResponse
+        Friendly missing-data page when the local corpus is absent, otherwise a
+        redirect to the generated comparison page.
+
+    Notes
+    -----
+    This route reads already-downloaded files from ``data/work/cola``. It does
+    not call COLA Cloud or TTB at runtime.
+    """
+
+    source = load_cola_cloud_demo_source(ttb_id)
+    if source is None:
+        return templates.TemplateResponse(
+            request,
+            "cola_cloud_demo_missing.html",
+            {"requested_ttb_id": ttb_id},
+            status_code=404,
+        )
+
+    job_id = create_job(label=f"COLA Cloud public example {source.ttb_id}")
+    panel_ocrs = []
+    for panel in source.panels:
+        dest = save_upload(job_id, panel.image_path, panel.image_path.name)
+        copied_panel = replace(panel, image_path=dest, stored_filename=dest.name)
+        ocr = load_cached_conveyor_ocr(panel.image_path) or ocr_engine.run(panel.image_path, fixture_id=source.ttb_id)
+        panel_ocrs.append((copied_panel, ocr))
+        add_manifest_item(
+            job_id,
+            {
+                "item_id": dest.stem,
+                "filename": panel.filename,
+                "stored_filename": dest.name,
+                "panel_order": panel.panel_order,
+                "image_type": panel.image_type,
+                "workflow": "cola_cloud_public_example",
+            },
+        )
+
+    payload = build_comparison_payload(source=source, panel_ocrs=panel_ocrs)
+    payload["job_id"] = job_id
+    write_json(job_dir(job_id) / "cola_cloud_demo" / "result.json", payload)
+    return RedirectResponse(url=f"/cola-cloud-demo/{job_id}", status_code=303)
+
+
+@router.get("/cola-cloud-demo/{job_id}", response_class=HTMLResponse)
+def cola_cloud_demo_detail(request: Request, job_id: str) -> HTMLResponse:
+    """Render the side-by-side COLA Cloud public example comparison."""
+
+    path = job_dir(job_id) / "cola_cloud_demo" / "result.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="COLA Cloud demo result not found")
+    return templates.TemplateResponse(
+        request,
+        "cola_cloud_demo.html",
+        {
+            "job_id": job_id,
+            "demo": read_json(path),
+        },
+    )
+
+
+@router.get("/cola-cloud-demo/{job_id}/images/{filename}")
+def cola_cloud_demo_image(job_id: str, filename: str) -> FileResponse:
+    """Serve a copied local demo label panel image for one generated job."""
+
+    safe_name = Path(filename).name
+    if safe_name != filename:
+        raise HTTPException(status_code=400, detail="Invalid image filename")
+    image_path = job_dir(job_id) / "uploads" / safe_name
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+    return FileResponse(image_path)
 
 
 @router.post("/jobs/batch")

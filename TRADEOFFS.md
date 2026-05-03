@@ -589,6 +589,17 @@ flowchart TB
 
 **Data governance posture:** COLA Cloud is a pragmatic fallback over a weekend outage, not the product architecture. The README and submission notes should state that the deployed prototype remains local-first and can run without COLA Cloud; the commercial data source was used only to obtain public example records/images for OCR evaluation when TTBOnline.gov was unavailable. The measured sprint metrics should be described as **COLA Cloud-derived public COLA calibration results**, not as direct-registry TTB download results.
 
+**Demo posture:** The app now includes a local public-example comparison route
+that can read already-downloaded COLA Cloud-derived application JSON and label
+images from `data/work/cola/`, copy the selected panels into a normal job
+workspace, and render expected application fields beside local OCR evidence.
+This is intentionally a demonstration/evaluation aid. It is not a runtime
+commercial-data dependency, and it does not use COLA Cloud's hosted OCR as the
+system output. The trade-off is that the public deployed app may show a
+missing-data page if the gitignored corpus is not present on that host, while a
+local evaluation machine with the corpus can show the full side-by-side
+comparison.
+
 **Evaluation design:** The current final measurement corpus is 6,000 public
 COLA applications sampled without replacement. The active split is `2,000`
 train, `1,000` validation, and `3,000` locked holdout applications. The

@@ -230,6 +230,20 @@ Purpose:
 - local OCR and field-matching calibration,
 - not a runtime dependency.
 
+Runtime/demo bridge now implemented:
+
+- `GET /cola-cloud-demo` reads an already-downloaded public application from
+  `data/work/cola/` when that local corpus exists.
+- It copies all associated label panels into a generated job under
+  `data/jobs/{job_id}/uploads/`.
+- It loads cached OCR conveyor output when available, otherwise falls back to
+  the local OCR adapter.
+- It renders `GET /cola-cloud-demo/{job_id}` as a side-by-side comparison:
+  application field, expected value, OCR support, best panel, score, and
+  reviewer action.
+- It does not call COLA Cloud, TTB, or hosted OCR/ML APIs at runtime. Hosts
+  without the local gitignored corpus get a friendly missing-data page.
+
 Current local counts after the staged May 3 acquisition:
 
 ```text

@@ -325,6 +325,9 @@ GET /                      Home and upload page
 POST /photo-intake          Demonstration-only photo OCR extraction
 GET /photo-intake/{job_id}/{item_id}
                              Photo OCR candidate-field page
+GET /cola-cloud-demo        Local public COLA application/label comparison demo
+GET /cola-cloud-demo/{job_id}
+                             Side-by-side public example evidence page
 GET /jobs/{job_id}          Batch/single job status page
 GET /jobs/{job_id}/status   HTMX partial for progress/results
 GET /jobs/{job_id}/csv      CSV export
@@ -337,12 +340,35 @@ Primary UX flows:
 ```text
 1. One-click evaluator demo
 2. Demonstration-only photo OCR intake
-3. Single label verification
-4. Batch multi-file verification
-5. Result review and CSV export
+3. Local public COLA example comparison
+4. Single label verification
+5. Batch multi-file verification
+6. Result review and CSV export
 ```
 
 ### 5.2 One-click evaluator demos
+
+### 5.2.1 Local Public COLA Example Demo
+
+The `/cola-cloud-demo` route is a demonstration bridge between the public
+evaluation corpus and the reviewer UI. It reads already-downloaded
+COLA Cloud-derived public records from gitignored `data/work/cola/`, selects a
+deterministic application, copies its associated label panels into a normal
+job-local upload directory, and renders a field-by-field comparison:
+
+```text
+application field
+expected value from the public application record
+best supporting OCR text across all attached label panels
+best panel/image type
+match score
+reviewer action
+```
+
+This route does not call COLA Cloud, TTB, or any hosted OCR service at runtime.
+If the local public-data corpus is absent, it displays a missing-data page
+instead of failing the application. Bulk public data remains outside git under
+`data/work/`.
 
 The app should include demo buttons that immediately exercise the system without requiring the evaluator to find or upload files.
 

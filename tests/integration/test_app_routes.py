@@ -2,6 +2,8 @@ from fastapi.testclient import TestClient
 
 from app.config import JOBS_DIR, ROOT
 from app.main import app
+from app.schemas.ocr import OCRResult
+from app.services.cola_cloud_demo import ColaCloudDemoSource, ColaCloudPanel
 from app.services.job_store import load_manifest, load_result
 
 
@@ -110,6 +112,64 @@ def test_photo_intake_upload_extracts_candidate_fields():
     assert "OLD RIVER BREWING" in response.text
     assert "5% ALC/VOL" in response.text
     assert "fixture ground truth" in response.text
+
+
+def test_cola_cloud_demo_renders_side_by_side_comparison(monkeypatch):
+    from app.routes import jobs
+
+    panel = ColaCloudPanel(
+        panel_order=1,
+        filename="clean_malt_pass.png",
+        image_type="front",
+        image_path=DEMO_FIXTURE,
+    )
+    source = ColaCloudDemoSource(
+        dataset_name="unit-corpus",
+        dataset_root=DEMO_FIXTURE.parent,
+        ttb_id="TEST123",
+        parsed={
+            "source_url": "https://example.test/public-cola",
+            "form_fields": {"status": "approved", "source_of_product": "domestic"},
+            "application": {
+                "fixture_id": "TEST123",
+                "filename": "TEST123.json",
+                "product_type": "malt_beverage",
+                "brand_name": "OLD RIVER BREWING",
+                "fanciful_name": "",
+                "class_type": "Ale",
+                "alcohol_content": "5% ALC/VOL",
+                "net_contents": "1 Pint",
+                "country_of_origin": None,
+                "imported": False,
+            },
+        },
+        panels=[panel],
+    )
+    ocr = OCRResult(
+        fixture_id="TEST123",
+        filename="clean_malt_pass.png",
+        full_text="OLD RIVER BREWING ALE 5% ALC/VOL NET CONTENTS 1 Pint",
+        avg_confidence=0.98,
+        source="unit cached OCR",
+        total_ms=12,
+    )
+
+    monkeypatch.setattr(jobs, "load_cola_cloud_demo_source", lambda ttb_id=None: source)
+    monkeypatch.setattr(jobs, "load_cached_conveyor_ocr", lambda image_path: ocr)
+
+    client = TestClient(app)
+    response = client.get("/cola-cloud-demo", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert "Public COLA Field Comparison" in response.text
+    assert "TTB ID TEST123" in response.text
+    assert "OLD RIVER BREWING" in response.text
+    assert "unit cached OCR" in response.text
+    assert "Side-by-Side Field Support" in response.text
+
+    job_id = str(response.url).rstrip("/").split("/")[-1]
+    image_response = client.get(f"/cola-cloud-demo/{job_id}/images/clean_malt_pass.png")
+    assert image_response.status_code == 200
 
 
 def test_single_upload_rejects_bad_signature():

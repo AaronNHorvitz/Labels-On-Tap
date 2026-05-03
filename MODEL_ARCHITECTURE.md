@@ -140,6 +140,7 @@ There are three separate data classes. They must stay separate.
 |---|---|---:|---|
 | User/demo uploads | Actual app workflow and one-click demos | Yes | `data/jobs/` at runtime |
 | Photo intake uploads | Demonstration-only OCR extraction from free-form bottle/can/shelf photos | Yes for demo | `data/jobs/` at runtime |
+| Local public example demo | Side-by-side application-field/OCR evidence comparison from COLA Cloud-derived public records | Local demo only | `data/work/cola/` input, `data/jobs/` display copy |
 | Synthetic fixtures | Known Pass/Needs Review/Fail regression tests | Yes for demos/tests | `data/fixtures/demo/` |
 | Official public COLA examples | OCR and field-matching evaluation corpus | No | gitignored `data/work/` |
 
@@ -171,6 +172,28 @@ flowchart TD
 This branch does not produce a COLA verification verdict. It proves the OCR and
 field-extraction layer can work on real photos, then keeps formal verification
 dependent on application fields or a manifest.
+
+### Public COLA Example Comparison Contract
+
+The COLA Cloud-derived public example demo is closer to the real agency
+workflow: it has public application fields plus associated label panels.
+
+```mermaid
+flowchart TD
+    A["Local data/work/cola application JSON"] --> B["Application fields"]
+    A --> C["Associated local label panel images"]
+    C --> D["Cached OCR conveyor output<br/>or live local OCR fallback"]
+    B --> E["Field-support comparison"]
+    D --> E
+    E --> F["Side-by-side table<br/>expected value vs OCR evidence"]
+    C --> G["Copied job-local panel images"]
+    G --> H["Panel image + OCR text display"]
+    F --> I["Reviewer can see what lined up<br/>and what needs review"]
+    H --> I
+```
+
+This route does not call COLA Cloud at runtime. It reads already-downloaded
+local files and is mainly for demonstration/evaluation storytelling.
 
 ### Multi-Panel Application Contract
 

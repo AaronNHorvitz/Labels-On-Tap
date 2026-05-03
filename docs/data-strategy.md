@@ -58,6 +58,30 @@ data/work/
     registry.sqlite
 ```
 
+## COLA Cloud-Derived Local Public Examples
+
+When the direct TTB attachment endpoint is unavailable or unstable, COLA Cloud
+may be used as a development-only bridge for public COLA metadata and label
+images. Those files are stored under:
+
+```text
+data/work/cola/
+  official-sample-3000-balanced/
+  official-sample-next-3000-balanced/
+  evaluation-splits/
+  field-support-datasets/
+```
+
+The runtime application does not call COLA Cloud. The `/cola-cloud-demo` route
+uses only already-downloaded local records and images. It copies a selected
+public example's label panels into a normal job directory, loads cached local
+OCR evidence when available, and renders a side-by-side comparison of
+application fields versus label OCR support.
+
+Raw COLA Cloud-derived public data, images, OCR outputs, SQLite files, and
+split manifests remain gitignored. Only code, documentation, and tiny curated
+fixtures should be committed.
+
 The SQLite database is a local indexing/ETL aid. It should store metadata and parsed fields, not image blobs. Label images stay on disk under `data/work/public-cola/raw/images/`.
 
 Curated official examples that are small and reviewer-safe can be exported into:

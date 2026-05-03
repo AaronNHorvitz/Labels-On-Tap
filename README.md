@@ -411,6 +411,7 @@ This is not part of the current measured runtime claim. It is recorded as a futu
 - Local CSS with high-contrast Pass / Needs Review / Fail states.
 - Single-label upload form with product/application fields.
 - Demonstration-only photo OCR intake for real bottle/can/shelf photos.
+- Local COLA Cloud-derived public example demo with side-by-side application-field/OCR evidence comparison.
 - Manifest-backed batch upload for multiple label images.
 - Fixture-backed one-click demos for evaluator review.
 - Filesystem job/result store under `data/jobs/`.
@@ -690,6 +691,41 @@ This is intentionally not a verification result. It is an OCR extraction aid for
 demonstrations and local-photo benchmarking. Formal COLA-style verification
 still requires application fields or a manifest so the app can compare expected
 values against label evidence.
+
+### Public COLA Example Demo
+
+For local demonstrations with the COLA Cloud-derived public evaluation corpus,
+the home page includes:
+
+```text
+Run Public COLA Example Demo
+```
+
+Routes:
+
+```text
+GET /cola-cloud-demo
+GET /cola-cloud-demo/{job_id}
+GET /cola-cloud-demo/{job_id}/images/{filename}
+```
+
+This route reads already-downloaded local files under gitignored
+`data/work/cola/`, copies the selected public label panels into a normal job,
+loads cached local OCR when available, and renders a side-by-side comparison:
+
+```text
+application field
+expected value from public COLA data
+best matching label panel
+OCR evidence text
+match score
+reviewer action
+```
+
+It is designed for demonstration and evaluation storytelling. It does not call
+COLA Cloud or TTB at runtime, and it does not make COLA Cloud a dependency of
+the deployed app. If the local `data/work/cola/` corpus is absent, the route
+shows a friendly missing-data page.
 
 ### Result Review
 
@@ -1080,6 +1116,9 @@ Manual manifest upload is wired into the home page batch form. The fixture gener
 | `/health` | GET | Health check |
 | `/photo-intake` | POST | Create a demonstration-only photo OCR intake job |
 | `/photo-intake/{job_id}/{item_id}` | GET | Photo OCR intake candidate-field page |
+| `/cola-cloud-demo` | GET | Create a local public COLA side-by-side comparison demo if data/work is present |
+| `/cola-cloud-demo/{job_id}` | GET | Public COLA application-field/OCR evidence comparison |
+| `/cola-cloud-demo/{job_id}/images/{filename}` | GET | Copied label panel image for the comparison job |
 | `/jobs` | POST | Create a single-label job |
 | `/jobs/batch` | POST | Create a manifest-backed batch job |
 | `/jobs/{job_id}` | GET | Job result table |

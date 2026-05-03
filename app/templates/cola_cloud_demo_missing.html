@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Public COLA Example Unavailable · Labels On Tap{% endblock %}
+{% block content %}
+<section class="workspace">
+  <div class="page-title">
+    <div>
+      <h1>Public COLA Example Unavailable</h1>
+      <p>The local COLA Cloud-derived evaluation corpus is not present on this host.</p>
+    </div>
+    <a class="button secondary" href="/">Back</a>
+  </div>
+
+  <section class="panel notice">
+    <h2>Local Data Required</h2>
+    <p>This demonstration reads already-downloaded public records and label images from <code>data/work/cola/</code>. Those raw files are intentionally gitignored and are not bundled with the repository.</p>
+    {% if requested_ttb_id %}
+    <p>Requested TTB ID: {{ requested_ttb_id }}</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

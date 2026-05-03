@@ -39,6 +39,7 @@ The sprint priority is now:
 - [x] Current deployment target remains AWS for submission; Azure is a documented portability path if time allows.
 - [x] The app has demo routes, job pages, detail pages, single-label upload, manifest-backed batch upload, and CSV export.
 - [x] Demonstration-only photo OCR intake route exists for real bottle/can/shelf photos without application fields.
+- [x] Local COLA Cloud-derived public example demo exists for side-by-side application field vs OCR evidence review.
 - [x] `country_of_origin` and `imported` are first-class application fields.
 - [x] Demo fixtures/data scaffold exists.
 - [x] Tests scaffold exists.
@@ -311,6 +312,28 @@ comparison because no application fields are supplied.
 - [x] Clearly label the feature as demonstration-only OCR extraction, not COLA verification.
 - [ ] Add a manual "promote candidate to verification form" helper if time allows.
 - [ ] Run a small private local-photo benchmark under `data/work/local-photo-benchmark/` after EXIF/location stripping.
+
+---
+
+## Layer 2 Public COLA Example Comparison Demo
+
+**Priority:** P1 demonstration aid using local public evaluation corpus
+
+This capability lets evaluators see the real workflow on public example data:
+application fields on one side, OCR evidence from associated label panels on
+the other side. It uses already-downloaded local COLA Cloud-derived public data
+under `data/work/cola/`.
+
+- [x] Add home-page **Run Public COLA Example Demo** action.
+- [x] Add `GET /cola-cloud-demo` route that selects a deterministic local public example.
+- [x] Add `GET /cola-cloud-demo/{job_id}` side-by-side comparison page.
+- [x] Add safe image-serving route for copied job-local label panel images.
+- [x] Show application fields, source/product metadata, label panel images, OCR source/confidence/timing, and raw OCR text.
+- [x] Show field-level expected value, best OCR evidence, best panel, score, verdict, and reviewer action.
+- [x] Load cached OCR conveyor output when available before falling back to live local OCR.
+- [x] Keep raw COLA Cloud data, image files, and cached OCR under gitignored `data/work/`.
+- [x] Show a friendly missing-data page when `data/work/cola/` is absent.
+- [ ] Add a small curated public fixture later if a public deployed version needs this demo without local bulk data.
 
 ---
 

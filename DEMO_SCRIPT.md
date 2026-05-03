@@ -73,6 +73,7 @@ https://www.labelsontap.ai
 - Simple reviewer-oriented interface.
 - One-click evaluator demo buttons.
 - Photo OCR Intake Demo for real bottle/can/shelf photos.
+- Public COLA Example Demo for application-field vs attached-label evidence.
 - Manual upload option.
 - Pass / Needs Review / Fail vocabulary.
 - Planned reviewer-policy queues before final acceptance or rejection.
@@ -90,6 +91,10 @@ Optional policy framing:
 Optional real-photo framing:
 
 > The photo intake demo is intentionally separate from verification. It lets us upload a real bottle or shelf photo, run local OCR, and inspect likely extracted fields. Formal COLA verification still requires application fields to compare against.
+
+Optional public-example framing:
+
+> The Public COLA Example Demo uses an already-downloaded public COLA record and its associated label panels. It places application fields on one side and local OCR evidence on the other, so an evaluator can see what lined up, what failed to line up, and what should be routed to review.
 
 ---
 
@@ -360,6 +365,36 @@ Fail: 6
 **Suggested narration:**
 
 > Sarah specifically raised peak-season importer batches. The goal is not to make reviewers wait silently; it is to provide immediate progress and triage visibility.
+
+---
+
+## 11A. Optional Public COLA Example Demo
+
+**Action:** Click:
+
+```text
+Run Public COLA Example Demo
+```
+
+**Expected result:**
+
+```text
+Public COLA Field Comparison page appears.
+```
+
+**What to point out:**
+
+```text
+- The route uses local COLA Cloud-derived public application data and label images.
+- It does not call COLA Cloud, TTB, or hosted OCR at runtime.
+- It compares expected application values against OCR evidence from every label panel associated with the selected application.
+- The side-by-side table shows field, expected value, OCR support, best panel, score, and reviewer action.
+- If the public-data workspace is absent on a host, the route shows a friendly missing-data page.
+```
+
+**Suggested narration:**
+
+> This is the closest demo to the real COLA review motion: the application data already exists, the label artwork is attached, and the tool shows whether the OCR evidence supports each field. The reviewer still owns the final decision.
 
 ---
 
