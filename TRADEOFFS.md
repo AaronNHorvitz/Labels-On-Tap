@@ -937,6 +937,39 @@ The promotion gate is unchanged: no typography model becomes runtime authority u
 
 **Runtime implication:** The current safe deployment posture is to treat the SVM as an experimental typography preflight, not as unchecked final authority. Ambiguous crops still route to `Needs Review`, and the deployed app should continue using `GOV_WARNING_HEADER_BOLD_REVIEW` until real warning-heading crops and stronger negative validation support promotion.
 
+**Real approved COLA smoke test:** We then ran the trained typography stackers
+against cached real-COLA OCR output from 100 approved applications and 203 label
+images. This is a positive smoke test only: approved public COLAs should
+generally contain compliant warning headings, so the run can test crop
+location, pass-through behavior, and latency, but it cannot estimate the
+dangerous false-clear case.
+
+The crop locator found 124 warning-heading crops across 68 of the 100
+applications. PaddleOCR found 62 crops, OpenOCR found 59, and docTR found 3
+with the current block-matching method.
+
+| Classifier | Model | App clear rate | Crop clear rate | Crop review rate | P95 ms/crop |
+|---|---|---:|---:|---:|---:|
+| Boldness | Strict-veto ensemble | 0.01 | 0.0081 | 0.9919 | 13.93 |
+| Boldness | Logistic stacker | 0.08 | 0.0726 | 0.8952 | 3.72 |
+| Boldness | LightGBM reject | 0.06 | 0.0484 | 0.9032 | 3.78 |
+| Boldness | XGBoost reject | 0.07 | 0.0565 | 0.9032 | 3.88 |
+| Boldness | CatBoost stacker | 0.08 | 0.0645 | 0.8871 | 3.83 |
+| Warning text | Strict-veto ensemble | 0.00 | 0.0000 | 1.0000 | 3.70 |
+| Warning text | Logistic stacker | 0.02 | 0.0161 | 0.9194 | 3.78 |
+| Warning text | LightGBM reject | 0.01 | 0.0081 | 0.9597 | 3.94 |
+| Warning text | XGBoost reject | 0.00 | 0.0000 | 0.9677 | 5.08 |
+| Warning text | CatBoost stacker | 0.03 | 0.0242 | 0.9435 | 5.23 |
+
+This smoke test gives a plain engineering answer. The models are fast enough;
+most stackers classify a crop in roughly 3-5 ms at p95. But the synthetic
+training distribution does not transfer cleanly to real COLA crops. The models
+send most real approved headings to `Needs Review`, which is too conservative
+for an automated typography clearance feature and too immature for runtime
+authority. That is not a failure of the MVP. It is the reason the MVP keeps
+boldness as a human-review item instead of making a brittle raster font-weight
+claim.
+
 Reference:
 
 ```text

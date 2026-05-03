@@ -361,6 +361,20 @@ reviewer-assist path, but header text correctness and boldness remain
 human-review defaults in the deployed app until real COLA warning-heading crops
 validate the same false-clear posture.
 
+A real approved-COLA smoke test then checked that transfer assumption directly.
+Using cached docTR, PaddleOCR, and OpenOCR output from `100` approved
+applications and `203` label images, the crop locator found `124`
+warning-heading crops across `68` applications. PaddleOCR found `62` of those
+crops, OpenOCR found `59`, and docTR found `3` with the current block-matching
+method. The classifiers were fast enough, with most stackers around `3-5 ms`
+p95 per crop, but the synthetic-trained typography models cleared only `1-8%`
+of applications for boldness and `0-3%` for warning text, routing nearly
+everything else to review.
+
+That result is useful because it prevents an unsafe promotion. The typography
+models are documented as future reviewer-assist work, while the MVP keeps
+`GOV_WARNING_HEADER_BOLD_REVIEW` as a human-review outcome.
+
 The safe runtime posture is:
 
 | Typography Evidence | Runtime Action |

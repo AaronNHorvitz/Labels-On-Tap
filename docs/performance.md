@@ -746,3 +746,57 @@ Interpretation:
   review volume for lower false-clear rates.
 - All stacker latencies are end-to-end and include base-model prediction plus
   stacker or reject-threshold policy.
+
+## May 3 Real Approved COLA Typography Smoke
+
+This smoke test used cached tri-engine OCR output from real approved public
+COLA label images. It did not run new OCR and did not touch the locked holdout.
+The purpose was narrower than a final metric run: can the system isolate
+`GOVERNMENT WARNING:` heading crops from real labels, and do the trained
+typography models remain fast enough?
+
+Run output:
+
+```text
+data/work/typography-preflight/real-cola-smoke-v1/
+```
+
+Counts:
+
+| Metric | Value |
+|---|---:|
+| Applications selected | 100 |
+| Label images selected | 203 |
+| Cached OCR rows loaded | 15,537 |
+| Heading crops found | 124 |
+| Applications with at least one heading crop | 68 |
+| Application heading-crop rate | 0.68 |
+| PaddleOCR heading crops | 62 |
+| OpenOCR heading crops | 59 |
+| docTR heading crops | 3 |
+
+Real-COLA positive smoke metrics:
+
+| Classifier | Model | App clear rate | Crop clear rate | Crop review rate | Mean ms/crop | P95 ms/crop |
+|---|---|---:|---:|---:|---:|---:|
+| Boldness | Strict-veto ensemble | 0.01 | 0.0081 | 0.9919 | 4.29 | 13.93 |
+| Boldness | Logistic stacker | 0.08 | 0.0726 | 0.8952 | 3.23 | 3.72 |
+| Boldness | LightGBM reject | 0.06 | 0.0484 | 0.9032 | 3.31 | 3.78 |
+| Boldness | XGBoost reject | 0.07 | 0.0565 | 0.9032 | 3.42 | 3.88 |
+| Boldness | CatBoost stacker | 0.08 | 0.0645 | 0.8871 | 3.31 | 3.83 |
+| Warning text | Strict-veto ensemble | 0.00 | 0.0000 | 1.0000 | 3.24 | 3.70 |
+| Warning text | Logistic stacker | 0.02 | 0.0161 | 0.9194 | 3.15 | 3.78 |
+| Warning text | LightGBM reject | 0.01 | 0.0081 | 0.9597 | 3.32 | 3.94 |
+| Warning text | XGBoost reject | 0.00 | 0.0000 | 0.9677 | 3.49 | 5.08 |
+| Warning text | CatBoost stacker | 0.03 | 0.0242 | 0.9435 | 3.38 | 5.23 |
+
+Interpretation:
+
+- The classifier stage is cheap. CPU latency is not the limiting factor.
+- Crop isolation is only partially solved. The current method isolated headings
+  for 68 of 100 approved applications.
+- Synthetic-trained typography models do not transfer cleanly enough to real
+  approved COLA warning crops. They route most real positive crops to review.
+- For tonight's MVP, `GOV_WARNING_HEADER_BOLD_REVIEW` should remain a human
+  review outcome. Typography automation can stay documented as measured future
+  reviewer-assist work.

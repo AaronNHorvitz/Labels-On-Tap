@@ -68,7 +68,7 @@ The app is already deployed and working. The current sprint has shifted from app
 - `country_of_origin` and `imported` are first-class fields.
 - Current runtime reports raw triage verdicts; configurable reviewer-policy
   queues are documented but not implemented yet.
-- Tests last passed with `69 passed`.
+- Tests last passed with `75 passed`.
 
 Useful verification:
 
@@ -532,6 +532,27 @@ Decision:
 Do not promote any typography classifier to runtime authority yet. Treat SVM
 and ensemble policies as viable candidates for a later thresholded preflight.
 Keep GOV_WARNING_HEADER_BOLD_REVIEW as Needs Review for submission.
+```
+
+Real approved COLA smoke:
+
+```text
+script: experiments/typography_preflight/real_cola_smoke.py
+run_output: data/work/typography-preflight/real-cola-smoke-v1/
+sample: 100 approved applications / 203 label images
+cached_ocr_rows: 15,537
+heading_crops: 124 across 68 applications
+crop sources: PaddleOCR 62, OpenOCR 59, docTR 3
+```
+
+Real-smoke result:
+
+```text
+The trained typography stackers are fast enough, roughly 3-5 ms/crop p95 for
+most policies, but they do not transfer cleanly enough from synthetic crops to
+real approved COLA crops. Boldness policies clear only 1-8% of applications.
+Warning-text policies clear only 0-3% of applications. Keep typography as
+human review for the MVP.
 ```
 
 Reference framing:

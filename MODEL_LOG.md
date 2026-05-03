@@ -1283,6 +1283,72 @@ Decision:
   deployed rule as `Needs Review`, and use this run as evidence for a future
   optional preflight/control-board feature.
 
+### E019 - Real Approved COLA Typography Smoke Test
+
+**Date:** May 3, 2026
+**Run output:**
+
+```text
+data/work/typography-preflight/real-cola-smoke-v1/
+```
+
+**Purpose:** Test whether the trained typography classifiers from `E018`
+transfer to real approved COLA warning-heading crops. This run used cached
+train/validation OCR conveyor output only; it did not run new OCR, touch the
+locked holdout, call external services, or modify the deployed app.
+
+Inputs:
+
+| Input | Value |
+|---|---:|
+| Approved COLA applications selected | 100 |
+| Label images selected | 203 |
+| Cached OCR rows loaded | 15,537 |
+| OCR engines | docTR, PaddleOCR, OpenOCR |
+| Heading crops found | 124 |
+| Applications with at least one heading crop | 68 |
+
+Heading crops by engine:
+
+| Engine | Heading crops |
+|---|---:|
+| PaddleOCR | 62 |
+| OpenOCR | 59 |
+| docTR | 3 |
+
+Real-COLA smoke results:
+
+| Classifier | Model | App clear rate | Crop clear rate | Crop review rate | Mean ms/crop | P95 ms/crop |
+|---|---|---:|---:|---:|---:|---:|
+| Boldness | Strict-veto ensemble | 0.01 | 0.0081 | 0.9919 | 4.29 | 13.93 |
+| Boldness | Logistic stacker | 0.08 | 0.0726 | 0.8952 | 3.23 | 3.72 |
+| Boldness | LightGBM reject | 0.06 | 0.0484 | 0.9032 | 3.31 | 3.78 |
+| Boldness | XGBoost reject | 0.07 | 0.0565 | 0.9032 | 3.42 | 3.88 |
+| Boldness | CatBoost stacker | 0.08 | 0.0645 | 0.8871 | 3.31 | 3.83 |
+| Warning text | Strict-veto ensemble | 0.00 | 0.0000 | 1.0000 | 3.24 | 3.70 |
+| Warning text | Logistic stacker | 0.02 | 0.0161 | 0.9194 | 3.15 | 3.78 |
+| Warning text | LightGBM reject | 0.01 | 0.0081 | 0.9597 | 3.32 | 3.94 |
+| Warning text | XGBoost reject | 0.00 | 0.0000 | 0.9677 | 3.49 | 5.08 |
+| Warning text | CatBoost stacker | 0.03 | 0.0242 | 0.9435 | 3.38 | 5.23 |
+
+Decision:
+
+- Do not promote the typography classifiers into the MVP runtime.
+- The compute cost is acceptable, so latency is not the blocker.
+- The blocker is real-crop transfer: synthetic-trained typography classifiers
+  route most approved real warning crops to review.
+- The heading-isolation layer also needs work. PaddleOCR and OpenOCR found
+  most crops; docTR found very few with the current block-matching method.
+- Keep `GOV_WARNING_HEADER_BOLD_REVIEW` as a human-review check for tonight's
+  MVP.
+
+Important limitation:
+
+Approved public COLA records are positive examples. They are useful for testing
+crop location, pass-through behavior, and latency. They cannot estimate the
+dangerous false-clear case. Synthetic non-bold, incorrect, and unreadable
+negative crops remain necessary for false-clear testing.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:

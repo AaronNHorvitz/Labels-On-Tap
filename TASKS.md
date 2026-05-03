@@ -43,7 +43,7 @@ The sprint priority is now:
 - [x] `country_of_origin` and `imported` are first-class application fields.
 - [x] Demo fixtures/data scaffold exists.
 - [x] Tests scaffold exists.
-- [x] Last known complete local test run: `pytest -q` passed with 69 tests.
+- [x] Last known complete local test run: `pytest -q` passed with 75 tests.
 - [x] Local Podman image rebuild passed on May 2, 2026.
 - [x] Local container smoke passed on May 2, 2026 for `/health`, `/`, and `/demo/clean`.
 - [x] Public COLA ETL scripts exist for search-result imports, public form fetches, form parsing, label image download, curated fixture export, and stratified sampling.
@@ -92,6 +92,10 @@ The sprint priority is now:
 - [x] Corrected typography comparison trained SVM, XGBoost, and CatBoost on `audit-v5`; XGBoost wins raw F1, SVM wins false-clear/latency, and no hard-argmax model is promoted.
 - [x] Extended typography comparison trained SVM, LightGBM, Logistic Regression, MLP, strict-veto, logistic stacker, LightGBM reject-threshold stacker, XGBoost reject-threshold stacker, and CatBoost stacker on a **40,000 train / 10,000 test** geometry-stress split.
 - [x] Latest typography result: visual strict-veto is the safety winner (**0.0024** false-clear), visual CatBoost stacker is the raw-F1 winner (**0.9878** macro F1), and header text still requires review-first/reject-threshold handling.
+- [x] Real approved COLA typography smoke test ran on **100 applications** and **203 label images** using cached docTR + PaddleOCR + OpenOCR evidence.
+- [x] Real approved COLA typography smoke found **124 warning-heading crops** across **68 / 100 applications**; PaddleOCR found 62 crops, OpenOCR found 59, and docTR found 3 with the current crop-isolation method.
+- [x] Real approved COLA typography smoke showed classifier latency is not the blocker: most stackers ran around **3-5 ms/crop p95**, with strict-veto boldness at **13.9 ms/crop p95**.
+- [x] Real approved COLA typography smoke showed the synthetic-trained typography classifiers are **not MVP-runtime-ready**: they route most real approved warning crops to `Needs Review` and should stay outside final decision authority.
 - [x] Boldness remains `Needs Review` until the typography preflight is validated on real COLA warning-heading crops with a safe false-clear rate.
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
@@ -640,7 +644,11 @@ Tasks:
 - [x] Run with CPU limits such as `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=2`, `OPENBLAS_NUM_THREADS=2`, and `nice`/`ionice`.
 - [x] Report accuracy, precision, recall, specificity, F1, confusion matrix, mean/p95 crop latency, and false-clear rate.
 - [x] Treat `false clear = non-bold or uncertain heading classified as acceptable bold` as the primary safety metric.
-- [ ] Smoke test approved public COLA warning crops as positive examples if warning-heading crops can be isolated cleanly.
+- [x] Smoke test approved public COLA warning crops as positive examples if warning-heading crops can be isolated cleanly.
+- [x] Add `experiments/typography_preflight/real_cola_smoke.py` to run trained typography stackers against real approved COLA warning-heading crops from cached OCR output.
+- [x] Real positive smoke result: **68 / 100 applications** had an isolated heading crop; **124 crops** were classified.
+- [x] Real positive smoke result: boldness stackers cleared only **1-8%** of applications depending policy; warning-text stackers cleared only **0-3%** of applications depending policy.
+- [x] Real positive smoke result: CPU classification latency was acceptable, but synthetic-to-real crop transfer was too conservative for MVP promotion.
 - [x] Keep all generated crops, features, metrics, and model files under gitignored `data/work/typography-preflight/`.
 - [x] Commit only experiment code/docs, never synthetic image bulk or `.joblib` model artifacts.
 - [x] Update `MODEL_LOG.md`, `TRADEOFFS.md`, `MODEL_ARCHITECTURE.md`, and README after the experiment runs.

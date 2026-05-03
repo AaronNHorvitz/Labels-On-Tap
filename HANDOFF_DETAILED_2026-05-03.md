@@ -135,7 +135,7 @@ Last known local test state:
 
 ```text
 pytest -q
-69 passed
+75 passed
 ```
 
 Deployment smoke commands:
@@ -1045,6 +1045,29 @@ Approved public COLA warning crops can be used as a positive smoke test, but
 they cannot validate the dangerous negative case by themselves. Synthetic
 non-bold and degraded examples are required for false-clear testing.
 
+That positive smoke test has now run:
+
+```text
+script: experiments/typography_preflight/real_cola_smoke.py
+output: data/work/typography-preflight/real-cola-smoke-v1/
+sample: 100 approved applications / 203 label images
+cached OCR rows: 15,537
+heading crops: 124 across 68 applications
+heading crops by engine: PaddleOCR 62, OpenOCR 59, docTR 3
+```
+
+Result:
+
+```text
+The typography classifiers are fast enough. Most stackers classify real crops
+in about 3-5 ms/crop p95. They are not MVP-runtime-ready because they route
+most real approved COLA heading crops to Needs Review. Boldness policies clear
+only 1-8% of applications, and warning-text policies clear only 0-3%.
+```
+
+Decision: keep `GOV_WARNING_HEADER_BOLD_REVIEW` as human review for tonight's
+MVP. Do not wire the typography stackers into final runtime authority.
+
 ---
 
 ## 8. COLA Cloud Quota And Pull Strategy
@@ -1255,15 +1278,17 @@ curl http://localhost:8000/health
    split source.
 3. Completed: chunk-size 16 armored OCR conveyor finished for train/validation.
 4. Completed: isolated OpenCV/SVM typography preflight was built and measured.
-5. Attach conveyor OCR evidence to the generated field-support pair manifests.
-6. Rerun DistilRoBERTa on OCR-backed candidate evidence.
-7. Compare all serious candidates with identical statistics and latency tables.
-8. Freeze thresholds and architecture.
-9. Evaluate once on the 3000-record locked holdout cohort.
-10. Convert final metrics into `docs/performance.md`, `MODEL_LOG.md`,
+5. Completed: real approved COLA typography smoke test showed typography is
+   fast but not safe to promote for the MVP.
+6. Attach conveyor OCR evidence to the generated field-support pair manifests.
+7. Rerun DistilRoBERTa on OCR-backed candidate evidence.
+8. Compare all serious candidates with identical statistics and latency tables.
+9. Freeze thresholds and architecture.
+10. Evaluate once on the 3000-record locked holdout cohort.
+11. Convert final metrics into `docs/performance.md`, `MODEL_LOG.md`,
    `TRADEOFFS.md`, and README.
-11. Build 300-500 synthetic negative cases from `PHASE1_REJECTION.md`.
-12. Keep legal reasoning/guidance last; deterministic evidence first.
+12. Build 300-500 synthetic negative cases from `PHASE1_REJECTION.md`.
+13. Keep legal reasoning/guidance last; deterministic evidence first.
 
 ---
 

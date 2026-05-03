@@ -665,6 +665,29 @@ The typography preflight can become runtime evidence only if validation/test
 false-clear behavior is safe. Until then, boldness remains Needs Review.
 ```
 
+Real approved COLA smoke:
+
+```text
+output: data/work/typography-preflight/real-cola-smoke-v1/
+sample: 100 approved applications / 203 label images
+heading crops: 124 crops across 68 applications
+crop source: cached docTR + PaddleOCR + OpenOCR output
+```
+
+| Classifier | Model | App clear rate | Crop review rate | P95 ms/crop |
+|---|---|---:|---:|---:|
+| Boldness | Strict-veto ensemble | 0.01 | 0.9919 | 13.93 |
+| Boldness | CatBoost stacker | 0.08 | 0.8871 | 3.83 |
+| Warning text | Strict-veto ensemble | 0.00 | 1.0000 | 3.70 |
+| Warning text | CatBoost stacker | 0.03 | 0.9435 | 5.23 |
+
+This real-positive smoke test says the classifier stage is fast enough, but the
+synthetic typography training distribution does not transfer cleanly enough to
+real approved COLA warning crops. It also shows that heading crop isolation is
+part of the problem: PaddleOCR and OpenOCR found nearly all current crops, while
+docTR found very few with the current block-matching method. The architecture
+therefore keeps warning boldness as human review for the MVP.
+
 ---
 
 ## 9. Domain-NER / BERT Arbiter Experiments
