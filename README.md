@@ -27,6 +27,64 @@ uncertain OCR/rule evidence  -> Needs Review
 
 In plain terms: the tool should quickly clear obvious matches, flag obvious problems, and send ambiguous cases to a human reviewer with the evidence attached. Extra human review is acceptable; accidentally passing a bad label is not.
 
+### Human Review Policy Layer
+
+The reviewer workflow should be configurable because TTB may not want the same
+automation posture for every pilot, product line, or batch. The planned policy
+layer adds two independent controls:
+
+```text
+Require reviewer approval before rejection: Yes / No
+Require reviewer approval before acceptance: Yes / No
+```
+
+Recommended defaults:
+
+```text
+Before rejection: Yes
+Before acceptance: No
+```
+
+That keeps the high-volume value Sarah needs while preserving Dave's concern
+that final adverse actions still require judgment. With those defaults, clean
+routine matches can be marked ready to accept, while clear failures become
+rejection candidates that a reviewer can confirm. Conservative pilots can turn
+both toggles on.
+
+Policy-aware routing:
+
+| Raw system result | Rejection review required | Acceptance review required | Queue |
+|---|---|---|---|
+| Pass | n/a | No | Ready to accept |
+| Pass | n/a | Yes | Acceptance review |
+| Fail | Yes | n/a | Rejection review |
+| Fail | No | n/a | Ready to reject |
+| Needs Review | any | any | Manual evidence review |
+
+For a 300-application importer batch, the goal is a reviewer queue summary like:
+
+```text
+Ready to accept: 198
+Acceptance review: 42
+Rejection review: 37
+Manual evidence review: 23
+```
+
+Reviewer actions should remain simple:
+
+```text
+Accept
+Reject
+Request correction / better image
+Override with note
+Escalate
+```
+
+This is a policy layer on top of the rule engine, not a replacement for the
+source-backed checks. The current deployed prototype reports evidence-backed
+`Pass`, `Needs Review`, and `Fail` outcomes; the policy queue layer is the next
+step for making batch review operationally realistic.
+
 The evaluation language follows that product posture:
 
 | Metric | Plain-English Meaning |
@@ -257,6 +315,10 @@ Labels On Tap is a local-first prototype for beverage-alcohol label preflight re
 | **Pass** | Implemented checks appear consistent with the provided application fields. |
 | **Needs Review** | OCR confidence, image quality, typography, or legal context needs a human reviewer. |
 | **Fail** | A deterministic source-backed mismatch was found with adequate evidence. |
+
+The next review-policy layer turns those raw verdicts into queues such as
+`Ready to accept`, `Acceptance review`, `Rejection review`, `Manual evidence
+review`, or `Ready to reject` depending on agency policy toggles.
 
 The core design principle is simple:
 
@@ -1041,6 +1103,7 @@ Performance goals for the deployed prototype:
 | Fixture-backed demo processing | Fast enough for live interview walkthrough |
 | Real OCR upload | Approximately 5 seconds per label after OCR warmup, dependent on VM CPU/RAM and image complexity |
 | Batch UX | Show a job/results page immediately and let reviewers inspect completed results |
+| Review policy | Next layer: route pass/fail candidates through optional reviewer approval before final acceptance or rejection |
 
 The repository does not claim measured production OCR latency yet. Final measured values should be recorded in [docs/performance.md](docs/performance.md) after local Docker and public VM smoke testing.
 

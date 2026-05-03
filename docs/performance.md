@@ -4,6 +4,13 @@ The prototype target is roughly five seconds per single label after OCR warmup, 
 
 The current demo routes use fixture OCR ground truth so evaluator demos are immediate and deterministic. Real uploads use local docTR when installed; first-run model loading may be slower than steady-state processing.
 
+Performance metrics should be interpreted as triage metrics, not final agency
+action metrics. A planned reviewer-policy layer can route raw `Pass`, `Needs
+Review`, and `Fail` verdicts into queues such as `Ready to accept`,
+`Acceptance review`, `Manual evidence review`, `Rejection review`, and `Ready to
+reject`. That queue layer does not change OCR latency, but it changes operational
+throughput and reviewer staffing assumptions for large batches.
+
 ## Local Non-Docker Smoke Measurements
 
 Measured on the development machine on 2026-05-01 with FastAPI `TestClient` and fixture OCR:

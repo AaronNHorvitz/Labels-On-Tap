@@ -17,7 +17,7 @@ The demo should prove five things quickly:
 ```text
 1. The app is deployed and usable.
 2. It can evaluate label artwork against expected application fields.
-3. It returns Pass / Needs Review / Fail outcomes.
+3. It returns raw Pass / Needs Review / Fail triage outcomes.
 4. It explains each result with evidence and source-backed rationale.
 5. It supports a batch-style review workflow without forcing evaluators to prepare their own data.
 ```
@@ -55,7 +55,7 @@ Before sending the deployed URL or presenting the app, verify:
 
 Use this short framing:
 
-> Labels On Tap is a local-first TTB label preflight prototype. It compares uploaded label artwork against Form 5100.31-style application fields using local OCR, deterministic source-backed rules, and fuzzy matching where reviewer judgment is appropriate. It does not use hosted ML endpoints and does not claim to issue final agency decisions.
+> Labels On Tap is a local-first TTB label preflight prototype. It compares uploaded label artwork against Form 5100.31-style application fields using local OCR, deterministic source-backed rules, and fuzzy matching where reviewer judgment is appropriate. It does not use hosted ML endpoints and does not claim to issue final agency decisions. The raw Pass / Needs Review / Fail verdict is evidence for a reviewer workflow, not final agency action.
 
 ---
 
@@ -74,12 +74,17 @@ https://www.labelsontap.ai
 - One-click evaluator demo buttons.
 - Manual upload option.
 - Pass / Needs Review / Fail vocabulary.
+- Planned reviewer-policy queues before final acceptance or rejection.
 - Local-first / no hosted ML runtime positioning.
 ```
 
 **Suggested narration:**
 
 > The assignment emphasized that reviewers have mixed technical comfort levels, so the interface is intentionally simple. The one-click demo buttons remove evaluator friction and show the core workflows immediately.
+
+Optional policy framing:
+
+> In a production pilot, the raw system verdict would feed configurable reviewer queues. The agency could require human approval before rejection, before acceptance, or both. My recommended default is review before rejection on, review before acceptance off, so routine clean matches can move quickly while adverse or uncertain cases remain human-confirmed.
 
 ---
 
@@ -342,6 +347,8 @@ Fail: 6
 - Batch review is a core stakeholder need.
 - The prototype shows results in a triage table.
 - Reviewers can prioritize Fail and Needs Review items.
+- The planned policy layer can split raw results into Ready to accept,
+  Acceptance review, Manual evidence review, Rejection review, and Ready to reject.
 - The workflow is designed to scale toward 200+ label batches.
 ```
 
@@ -429,6 +436,7 @@ Do **not** say:
 
 ```text
 This approves or rejects COLAs.
+The current prototype has final agency-action queues fully implemented.
 This guarantees legal compliance.
 This replaces TTB reviewers.
 This has all federal beverage alcohol law implemented.
@@ -442,6 +450,7 @@ Say:
 This is a source-backed preflight and reviewer-support prototype.
 This catches deterministic routine issues quickly.
 This routes uncertainty to Needs Review.
+This separates raw machine verdicts from future reviewer approval policy.
 This is designed to reduce repetitive matching workload.
 This does not use hosted ML endpoints.
 This is extensible through the legal corpus and rule matrix.

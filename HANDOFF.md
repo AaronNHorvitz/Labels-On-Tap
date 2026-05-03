@@ -20,7 +20,8 @@ COLAs Online-style application data
   + submitted label artwork
   -> local OCR / parsing
   -> deterministic field comparison
-  -> Pass / Needs Review / Fail with evidence
+  -> raw Pass / Needs Review / Fail with evidence
+  -> reviewer-policy queue where configured
 ```
 
 The app is already deployed and working. The current sprint has shifted from app scaffolding to proving OCR/form matching quality with public COLA data and conservative statistics.
@@ -63,6 +64,8 @@ The app is already deployed and working. The current sprint has shifted from app
 - Batch upload exists.
 - CSV export exists.
 - `country_of_origin` and `imported` are first-class fields.
+- Current runtime reports raw triage verdicts; configurable reviewer-policy
+  queues are documented but not implemented yet.
 - Tests last passed with `69 passed`.
 
 Useful verification:
@@ -72,6 +75,49 @@ pytest -q
 python scripts/bootstrap_project.py --if-missing
 curl https://www.labelsontap.ai/health
 ```
+
+## Human Review Policy Layer
+
+This is the newest product decision to preserve human judgment while still
+supporting Sarah's 200-300 application batch workflow.
+
+Planned settings:
+
+```text
+Require reviewer approval before rejection: Yes / No
+Require reviewer approval before acceptance: Yes / No
+```
+
+Recommended defaults:
+
+```text
+Before rejection: Yes
+Before acceptance: No
+```
+
+Routing:
+
+```text
+Pass + acceptance review off -> Ready to accept
+Pass + acceptance review on  -> Acceptance review
+Fail + rejection review on   -> Rejection review
+Fail + rejection review off  -> Ready to reject
+Needs Review                 -> Manual evidence review
+```
+
+Reviewer actions:
+
+```text
+Accept
+Reject
+Request correction / better image
+Override with note
+Escalate
+```
+
+Implementation note: do not describe this as live runtime behavior until the app
+stores `raw_verdict`, `policy_queue`, and reviewer action metadata in job
+results/CSV exports.
 
 ## Current Data State
 
@@ -429,6 +475,8 @@ The user is worried, correctly, that as sample size grows, performance estimates
 Current language should be:
 
 - The prototype is a reviewer-support triage tool.
+- Raw `Pass`/`Fail` verdicts are evidence signals; final acceptance/rejection
+  can be gated by reviewer-policy settings.
 - Current OCR/model numbers are calibration signals until rerun on the full
   6,000-record corpus.
 - Use `official-sample-3000-balanced` as the development cohort.

@@ -10,9 +10,14 @@ At runtime, reviewers provide:
 label image uploads
 Form 5100.31-style application fields
 batch manifest CSV/JSON files, where applicable
+reviewer-policy settings, where applicable
 ```
 
 The app runs local OCR and source-backed validation against those user-provided inputs. It does not train a model from uploaded labels.
+
+Reviewer-policy settings should stay separate from OCR/model evidence. They
+control workflow routing, such as whether raw `Pass` results need acceptance
+review or raw `Fail` results need rejection review before final action.
 
 ## Demo And Test Data
 

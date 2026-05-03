@@ -6,6 +6,9 @@ Labels On Tap is designed for quick review by non-technical users and older revi
 
 - Native buttons, links, selects, file inputs, and form labels.
 - Visible Pass / Needs Review / Fail text alongside color.
+- Future reviewer-policy queues must also use visible text such as Ready to
+  accept, Acceptance review, Manual evidence review, Rejection review, and Ready
+  to reject, not color alone.
 - Large demo actions on the home page.
 - Linear page structure: demo/upload, results, detail.
 - Server-rendered pages that work without a frontend build step.
@@ -19,6 +22,8 @@ Before final submission, manually verify:
 - keyboard tab order reaches demo buttons, upload fields, result links, and CSV export,
 - focus outlines are visible,
 - status meaning is not color-only,
+- reviewer-policy queue names are text-readable and keyboard reachable if/when
+  the queue layer is implemented,
 - labels are associated with inputs,
 - result detail text remains readable on mobile width,
 - CSV export link is reachable without mouse-only interaction.

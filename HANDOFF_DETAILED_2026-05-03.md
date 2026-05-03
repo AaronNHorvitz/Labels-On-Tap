@@ -18,7 +18,8 @@ COLAs Online-style application data
   + submitted label artwork
   -> local OCR / parsing
   -> deterministic field/rule comparison
-  -> Pass / Needs Review / Fail with evidence
+  -> raw Pass / Needs Review / Fail with evidence
+  -> reviewer-policy queue where configured
 ```
 
 The app is **not** intended to replace compliance agents. It is a triage assistant. Its job is to quickly identify applications that appear out of compliance or uncertain enough to need review.
@@ -36,6 +37,33 @@ strong evidence matches       -> Pass
 clear evidence-backed problem -> Fail
 uncertain OCR/rule evidence   -> Needs Review
 ```
+
+Important workflow distinction:
+
+```text
+raw system verdict != final agency action
+```
+
+The planned human-review policy layer maps raw verdicts into reviewer queues.
+Recommended defaults are:
+
+```text
+Require reviewer approval before rejection: Yes
+Require reviewer approval before acceptance: No
+```
+
+Default routing:
+
+```text
+Pass         -> Ready to accept
+Fail         -> Rejection review
+Needs Review -> Manual evidence review
+```
+
+Conservative pilots can also require reviewer approval before acceptance, which
+turns raw `Pass` into `Acceptance review`. If the agency chooses to skip
+mandatory rejection review for a low-risk internal workflow, raw `Fail` can map
+to `Ready to reject`, but that should not be the default federal-facing posture.
 
 ---
 
@@ -506,7 +534,7 @@ PaddleOCR
 OpenOCR
 ```
 
-Best current policy:
+Best current OCR ensemble policy:
 
 ```text
 government-safe ensemble
@@ -522,6 +550,10 @@ false-clear rate: 0.0000
 Interpretation:
 
 This is the strongest small-sample engineering signal so far because it improves over single engines while preserving the government safety posture.
+
+Do not confuse this OCR ensemble policy with the human-review policy layer. The
+OCR/model policy produces raw evidence support. The human-review policy decides
+whether a reviewer must confirm candidate acceptance or rejection.
 
 ### 6.4 BERT/NER Arbiter Smoke Tests
 

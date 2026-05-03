@@ -30,7 +30,7 @@ The current manual process creates three product problems:
 2. **Slow automation is worse than no automation.** A previous scanning pilot reportedly took 30–40 seconds per label, causing agents to abandon it and return to manual review.
 3. **Batch workflows are poorly supported.** Peak-season importers can submit hundreds of labels, but reviewers still process applications one at a time.
 
-Labels On Tap solves the narrow version of this problem: it provides a fast, local, auditable preflight tool that helps agents triage labels and identify obvious matches, deterministic failures, and ambiguous cases requiring human review.
+Labels On Tap solves the narrow version of this problem: it provides a fast, local, auditable preflight tool that helps agents triage labels and identify obvious matches, deterministic failures, and ambiguous cases requiring human review. A production workflow should also let the agency choose whether candidate acceptances, candidate rejections, or both require reviewer approval before final action.
 
 ---
 
@@ -78,6 +78,7 @@ The correct product language is:
 | Source-backed results | Every major rule result links to a source-backed criterion and plain-language rationale. | P0 |
 | Dual-standard validation | Apply fuzzy matching for reviewer-judgment fields and strict checks for deterministic compliance fields. | P0 |
 | Safe uncertainty handling | Route low-confidence OCR, brittle visual checks, and subjective legal risks to Needs Review. | P0 |
+| Human review policy | Support agency-configurable approval gates before final acceptance and/or rejection. | P1 |
 | Research corpus | Maintain a legal/regulatory research corpus that maps sources to rules, fixtures, and UI explanations. | P1 |
 | Synthetic fixture generation | Generate controlled negative examples because true rejected/Needs Correction data is not generally public. | P1 |
 
@@ -152,6 +153,8 @@ Upload Labels
 - Results visible as soon as each label finishes.
 - Evidence shown next to the rule that triggered.
 - Clear difference between Fail and Needs Review.
+- Clear difference between raw system verdicts and final reviewer/agency actions.
+- Batch queues that can require reviewer approval before acceptance, rejection, or both.
 
 ### 6.3 Result States
 
@@ -160,6 +163,48 @@ Upload Labels
 | Pass | The label appears consistent with source-backed checks and OCR confidence is sufficient. | Show green status and completed checks. |
 | Needs Review | The system found ambiguity, low OCR confidence, subjective legal risk, or brittle visual conditions. | Show yellow status, evidence, source, and reviewer action. |
 | Fail | A deterministic, source-backed rule clearly failed with adequate evidence. | Show red status, expected vs observed text/value, and source-backed explanation. |
+
+### 6.4 Review Policy Modes
+
+Raw verdicts should be separated from final agency action. The recommended
+policy controls are:
+
+```text
+Require reviewer approval before rejection: Yes / No
+Require reviewer approval before acceptance: Yes / No
+```
+
+Recommended defaults:
+
+```text
+Before rejection: Yes
+Before acceptance: No
+```
+
+Policy routing:
+
+| Raw system result | Rejection review required | Acceptance review required | Queue |
+|---|---|---|---|
+| Pass | n/a | No | Ready to accept |
+| Pass | n/a | Yes | Acceptance review |
+| Fail | Yes | n/a | Rejection review |
+| Fail | No | n/a | Ready to reject |
+| Needs Review | any | any | Manual evidence review |
+
+Reviewer actions:
+
+```text
+Accept
+Reject
+Request correction / better image
+Override with note
+Escalate
+```
+
+This policy layer is especially important for large importer batches. The tool
+should produce queue counts such as `Ready to accept`, `Acceptance review`,
+`Rejection review`, and `Manual evidence review` so agents can process 200-300
+applications without losing final judgment.
 
 ---
 
@@ -482,6 +527,9 @@ Metrics:
 | FR-032 | App displays completed rows incrementally. | P0 |
 | FR-033 | App handles individual failures without failing the full batch. | P0 |
 | FR-034 | App exports batch results as CSV. | P0 |
+| FR-035 | App supports policy toggles for reviewer approval before rejection and before acceptance. | P1 |
+| FR-036 | App maps raw verdicts into reviewer queues such as Ready to accept, Acceptance review, Rejection review, Manual evidence review, and Ready to reject. | P1 |
+| FR-037 | App records reviewer actions with decision, note, timestamp, and original evidence reference. | P1 |
 
 ### 8.5 Documentation and Research
 
@@ -890,6 +938,8 @@ The research/legal corpus is acceptable if:
 | SQLite/database locks | Batch failures. | Prefer filesystem-first atomic JSON result files for MVP. |
 | Public upload abuse | Security risk. | Implement upload allowlist, signature validation, limits, safe filenames, cleanup. |
 | Legal overclaiming | Credibility risk. | Position as preflight and reviewer support, not final agency action. |
+| Automated adverse action without review | Applicant fairness and reviewer trust risk. | Add policy toggle requiring reviewer approval before rejection; default to Yes. |
+| Over-reviewing clean applications | Efficiency gain may shrink. | Make acceptance review optional; default to No for routine-pass triage. |
 | Data provenance concerns | Ethical/legal risk. | Use public approved data, post-market public context, and synthetic negative fixtures only. |
 
 ---

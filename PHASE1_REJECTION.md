@@ -2,6 +2,11 @@
 
 This checklist captures the Phase 1 rejection and Needs Correction reasons implied by the stakeholder interviews and technical requirements. The app should use these as the first product-completeness target for COLA-style application data plus label artwork verification.
 
+In this document, "rejection" means a raw `Fail` or `Needs Review` preflight
+reason that could prevent a submission from moving cleanly through automated
+triage. It is not final agency action. A planned reviewer-policy layer can
+require human approval before rejection, before acceptance, or both.
+
 ## Application-Label Mismatch Reasons
 
 - [ ] Brand name on the label does not match the application.
@@ -69,3 +74,4 @@ This checklist captures the Phase 1 rejection and Needs Correction reasons impli
 ## Phase 1 Acceptance Gate
 
 - [ ] The app can compare COLA-style application data against label artwork and produce a reviewer-ready Pass / Needs Review / Fail report for the rejection reasons above.
+- [ ] Raw Fail and Needs Review outcomes can be routed through reviewer-policy queues before final acceptance or rejection.

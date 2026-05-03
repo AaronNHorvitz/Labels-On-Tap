@@ -19,6 +19,7 @@ Upload label artwork + expected application fields
   → compare label text to application data
   → apply deterministic source-backed rules
   → return Pass / Needs Review / Fail
+  → route through reviewer-policy queues where configured
   → show evidence and reviewer action
 ```
 
@@ -52,7 +53,48 @@ See [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) for the end-to-end diagrams.
 
 ---
 
-### 2.2 Focused Active Rule Set
+### 2.2 Reviewer Policy Gates Before Acceptance Or Rejection
+
+**Decision:** Raw machine verdicts should remain separate from final workflow
+actions. The planned policy layer has two independent settings:
+
+```text
+Require reviewer approval before rejection: Yes / No
+Require reviewer approval before acceptance: Yes / No
+```
+
+Recommended defaults:
+
+```text
+Before rejection: Yes
+Before acceptance: No
+```
+
+**Why:** This fits the stakeholder reality better than a single automatic
+approve/reject pipeline. Sarah needs batch triage for 200-300 application
+surges, Dave needs the ability to apply judgment, and Jenny's strict warning
+requirements still need a safe path when OCR or image quality is uncertain.
+
+**Implication:** A `Fail` result is a rejection candidate, not necessarily final
+agency action. A `Pass` result can be either `Ready to accept` or
+`Acceptance review`, depending on the pilot's policy posture. `Needs Review`
+always remains a manual evidence-review queue.
+
+| Raw system result | Rejection review required | Acceptance review required | Policy queue |
+|---|---:|---:|---|
+| Pass | n/a | No | Ready to accept |
+| Pass | n/a | Yes | Acceptance review |
+| Fail | Yes | n/a | Rejection review |
+| Fail | No | n/a | Ready to reject |
+| Needs Review | any | any | Manual evidence review |
+
+This choice preserves the efficiency win while avoiding overclaiming automated
+adverse action. It also gives the agency a knob to tighten or loosen review
+requirements without changing OCR, model, or compliance-rule code.
+
+---
+
+### 2.3 Focused Active Rule Set
 
 **Decision:** The MVP prioritizes a focused set of active rules:
 
@@ -75,7 +117,7 @@ See [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) for the end-to-end diagrams.
 
 ---
 
-### 2.3 One-Click Demo Before Full Manual Batch Workflow
+### 2.4 One-Click Demo Before Full Manual Batch Workflow
 
 **Decision:** The MVP includes one-click evaluator demos using deterministic fixtures. Manual upload exists for the single-label workflow. Full manual multi-file batch upload is valuable but can be deferred if time is tight.
 
@@ -382,9 +424,10 @@ flowchart TB
     E --> F["Field evidence JSON<br/>brand, class/type, ABV,<br/>net contents, origin"]
     F --> G["Graph-aware field scorer"]
     F --> H["Deterministic source-backed rules"]
-    G --> I["Pass / Needs Review / Fail"]
+    G --> I["Raw Pass / Needs Review / Fail"]
     H --> I
-    I --> J["Reviewer evidence and action"]
+    I --> J["Reviewer-policy queue"]
+    J --> K["Reviewer evidence and action"]
 ```
 
 **Future experiment design:**
@@ -703,6 +746,40 @@ Hastie, Tibshirani, and Friedman, The Elements of Statistical Learning,
 
 ---
 
+### 5.4 Reviewer Queue Routing Is A Policy Layer
+
+**Decision:** Raw model/rule outputs should feed a configurable reviewer queue,
+not directly become final acceptance or rejection.
+
+**Why:** TTB may want a conservative pilot in which every rejection candidate is
+confirmed by a human reviewer, or a stricter pilot in which both acceptance and
+rejection candidates require reviewer sign-off. Conversely, for high-volume
+routine matches, the agency may want obvious passes to be marked `Ready to
+accept` while preserving mandatory review for uncertain or failing cases.
+
+**Implication:** The system should store both values:
+
+```text
+raw_verdict: Pass / Needs Review / Fail
+policy_queue: Ready to accept / Acceptance review / Manual evidence review / Rejection review / Ready to reject
+```
+
+Reviewer decisions should be auditable and separate from the raw evidence:
+
+```text
+Accept
+Reject
+Request correction / better image
+Override with note
+Escalate
+```
+
+The current deployed app reports raw triage verdicts and reviewer actions. The
+review-policy queue is a planned next workflow layer and should be implemented
+before representing the tool as a production decision system.
+
+---
+
 ## 6. Upload and Security Trade-Offs
 
 ### 6.1 JPEG/PNG Label Images Only for MVP
@@ -836,6 +913,7 @@ The following are intentionally deferred:
 - production authentication / SSO / RBAC,
 - persistent enterprise database,
 - formal audit logging,
+- reviewer-policy queues and decision audit trail,
 - retention/legal-hold policy,
 - direct COLAs Online integration,
 - live TTB Public COLA Registry crawling,
@@ -863,6 +941,7 @@ A production-grade version would add:
 - identity provider integration,
 - role-based reviewer permissions,
 - audit logs for every result,
+- reviewer decision history for accept/reject/request-correction/override/escalate actions,
 - signed result artifacts,
 - approved retention and deletion policy,
 - PostgreSQL or approved database,
@@ -892,6 +971,7 @@ The prototype demonstrates:
 - simple reviewer UX,
 - responsible upload handling,
 - clear Pass / Needs Review / Fail outcomes,
+- planned reviewer-policy queues before final acceptance/rejection,
 - honest limitations.
 ```
 

@@ -25,6 +25,12 @@ The architecture is designed around four non-negotiable constraints from the sta
 
 The system is not a final legal decision-maker. It is a preflight and triage tool that helps reviewers identify routine mismatches, deterministic fatal flaws, and source-backed risk signals more quickly.
 
+The architecture should also separate raw machine verdicts from final reviewer
+workflow. A clear `Pass` can become either `Ready to accept` or `Acceptance
+review` depending on agency policy. A clear `Fail` can become either `Ready to
+reject` or `Rejection review`. `Needs Review` always remains a manual evidence
+review queue.
+
 ---
 
 ## 1. Design Principles
@@ -43,7 +49,8 @@ The core task is not open-ended visual reasoning. It is mostly:
 label artwork text
   + application fields
   + source-backed rules
-  → Pass / Needs Review / Fail
+  → raw Pass / Needs Review / Fail
+  → reviewer-policy queue where configured
 ```
 
 Rules such as the government warning exact text, alcohol terminology, net contents conversions, and field-to-label matching are better served by OCR, regex, numeric parsing, fuzzy matching, and source-backed rule definitions than by large language model inference.
@@ -71,6 +78,34 @@ Needs Review
 Pass
   The label appears consistent with the supplied application fields and implemented rules.
 ```
+
+Planned final workflow routing is governed by two independent policy flags:
+
+```text
+require_review_before_rejection: bool
+require_review_before_acceptance: bool
+```
+
+Recommended defaults:
+
+```text
+require_review_before_rejection = true
+require_review_before_acceptance = false
+```
+
+Routing:
+
+```text
+raw Pass + acceptance review off -> Ready to accept
+raw Pass + acceptance review on  -> Acceptance review
+raw Fail + rejection review on   -> Rejection review
+raw Fail + rejection review off  -> Ready to reject
+raw Needs Review                 -> Manual evidence review
+```
+
+This keeps the system useful for 200-300 application batches without forcing a
+single policy posture. TTB can choose full human confirmation, rejection-only
+confirmation, or higher automation for low-risk pilots.
 
 ### 1.4 Source-backed rules, not invented heuristics
 
@@ -628,10 +663,44 @@ class LabelVerificationResult(BaseModel):
     item_id: str
     filename: str
     overall_verdict: Literal["pass", "needs_review", "fail"]
+    policy_queue: Literal[
+        "ready_to_accept",
+        "acceptance_review",
+        "manual_evidence_review",
+        "rejection_review",
+        "ready_to_reject",
+    ] | None = None
     processing_ms: int
     checks: list[FieldCheck]
     ocr: OCRResult | None = None
 ```
+
+### 7.4 Review policy
+
+```python
+class ReviewPolicy(BaseModel):
+    require_review_before_rejection: bool = True
+    require_review_before_acceptance: bool = False
+
+class ReviewerDecision(BaseModel):
+    item_id: str
+    decision: Literal[
+        "accept",
+        "reject",
+        "request_correction",
+        "cannot_determine",
+        "override_with_note",
+        "escalate",
+    ]
+    note: str | None = None
+    reviewer_id: str | None = None
+    decided_at: datetime
+```
+
+The sprint prototype should represent this as job metadata and result queues in
+JSON once the policy layer is implemented. A production federal workflow would need authenticated reviewer identity,
+authorization, audit logging, retention rules, and integration with agency
+records policy.
 
 ---
 

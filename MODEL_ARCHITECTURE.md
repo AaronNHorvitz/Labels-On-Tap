@@ -16,7 +16,8 @@ COLAs Online-style application data
   -> local OCR evidence
   -> field-support scoring
   -> deterministic safety policy
-  -> Pass / Needs Review / Fail with evidence
+  -> raw Pass / Needs Review / Fail with evidence
+  -> human-review policy routing
 ```
 
 The deployed prototype is intentionally conservative. It does not use hosted OCR
@@ -44,6 +45,8 @@ That keeps the architecture auditable:
 - Rules and safety policy decide whether evidence is strong, missing, or
   contradictory.
 - Human reviewers get the evidence and reviewer action.
+- Agency policy decides whether candidate acceptances, candidate rejections, or
+  both require reviewer confirmation before final action.
 
 ---
 
@@ -62,13 +65,56 @@ flowchart TD
     H --> I["Field matching<br/>RapidFuzz + normalization"]
     I --> J["Deterministic rule engine<br/>source-backed checks"]
     J --> K["Safety policy<br/>Pass only on strong evidence"]
-    K --> L["Pass"]
-    K --> M["Needs Review"]
-    K --> N["Fail"]
-    L --> O["Result table, item detail,<br/>CSV export, evidence"]
+    K --> L["Raw Pass"]
+    K --> M["Raw Needs Review"]
+    K --> N["Raw Fail"]
+    L --> O["Review policy layer"]
     M --> O
     N --> O
+    O --> P["Ready to accept<br/>Acceptance review<br/>Manual evidence review<br/>Rejection review<br/>Ready to reject"]
+    P --> Q["Result table, item detail,<br/>CSV export, evidence"]
 ```
+
+### 2.1 Human-Review Policy Layer
+
+The model stack should not collapse evidence scoring and final agency action
+into one decision. The planned review-policy layer applies two independent
+agency settings after the raw verdict is computed:
+
+```text
+Require reviewer approval before rejection: Yes / No
+Require reviewer approval before acceptance: Yes / No
+```
+
+Recommended defaults:
+
+```text
+Before rejection: Yes
+Before acceptance: No
+```
+
+Routing:
+
+| Raw system result | Policy result |
+|---|---|
+| Pass + acceptance review off | Ready to accept |
+| Pass + acceptance review on | Acceptance review |
+| Fail + rejection review on | Rejection review |
+| Fail + rejection review off | Ready to reject |
+| Needs Review | Manual evidence review |
+
+Reviewer actions remain separate from model outputs:
+
+```text
+Accept
+Reject
+Request correction / better image
+Override with note
+Escalate
+```
+
+This is the right architecture for batch review: the model stack triages and
+explains; the policy layer decides how much human confirmation is required.
 
 Current deployed runtime:
 

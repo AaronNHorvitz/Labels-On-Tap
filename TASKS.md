@@ -13,7 +13,8 @@ COLAs Online-style application data
   + accepted submitted label artwork
   -> local OCR / parsing
   -> deterministic field comparison
-  -> Pass / Needs Review / Fail with evidence
+  -> raw Pass / Needs Review / Fail with evidence
+  -> reviewer-policy queue where configured
 ```
 
 The sprint priority is now:
@@ -21,7 +22,8 @@ The sprint priority is now:
 1. Build a statistically defensible official public COLA evaluation corpus.
 2. Prove OCR + field matching works on accepted public COLAs.
 3. Demonstrate deterministic mismatch detection with synthetic negative cases.
-4. Add legal reasoning/guidance only after the measurement story is solid.
+4. Add configurable human-review policy queues before final acceptance or rejection.
+5. Add legal reasoning/guidance only after the measurement story is solid.
 
 ---
 
@@ -98,6 +100,9 @@ The sprint priority is now:
 - [x] ABINet was added as a recognizer-stage experiment over OpenOCR-detected crops.
 - [x] Deterministic OCR ensemble arbitration exists for docTR + PaddleOCR + OpenOCR field-support scores.
 - [x] Government-safe OCR ensemble smoke produced F1 **0.7416** with false-clear rate **0.0000** on the 20-application / 30-image smoke.
+- [x] Raw `Pass` / `Needs Review` / `Fail` triage vocabulary is documented.
+- [ ] Runtime reviewer-policy queues are not yet implemented; planned queues are `Ready to accept`, `Acceptance review`, `Manual evidence review`, `Rejection review`, and `Ready to reject`.
+- [ ] Planned reviewer-policy defaults are rejection review **on** and acceptance review **off**.
 - [x] WineBERT/o domain-NER smoke benchmark exists and was run against combined docTR + PaddleOCR + OpenOCR text.
 - [x] WineBERT/o was evaluated for deployment and not promoted because it did not improve the government-safe ensemble, lacks ABV/net-contents coverage, is wine-specific, and has unknown public model licensing.
 - [x] OSA market-domain NER smoke benchmark exists and was run against combined docTR + PaddleOCR + OpenOCR text.
@@ -115,7 +120,7 @@ The sprint priority is now:
 - [x] Current month-stratified annual-volume estimate from local daily CSV exports is about **142,510 applications** for May 1, 2025 through April 30, 2026, with an approximate 95% CI of **132,011 to 153,009**.
 - [ ] Public COLA Registry access is currently fragile/resetting; pause further automated registry access until it cools down.
 - [ ] Deployment URL remains live through submission.
-- [x] TASKS.md is committed after the latest OCR conveyor-state update.
+- [x] TASKS.md includes the current reviewer-policy layer update.
 
 ---
 
@@ -140,6 +145,8 @@ Core metrics to report:
 - [ ] Field-level match rate for country of origin when imported/origin data is available.
 - [ ] Field-level match rate for applicant/producer/bottler text when visible.
 - [ ] Application-level Pass / Needs Review / Fail distribution.
+- [ ] Reviewer-policy queue distribution under default settings.
+- [ ] Reviewer-policy queue distribution under conservative settings where both acceptance and rejection require review.
 - [ ] Per-label OCR latency: p50, p95, and worst-case.
 - [ ] OCR failure modes: low confidence, missing field, curved text, rotated text, poor image quality, multi-panel ambiguity.
 - [ ] False-clear rate on known synthetic negative cases.
@@ -270,8 +277,11 @@ Reviewer-ready output requirements:
 - [ ] Expected application value.
 - [ ] Observed OCR evidence.
 - [ ] Match verdict.
+- [ ] Raw system verdict.
+- [ ] Reviewer-policy queue.
 - [ ] OCR source and confidence.
-- [ ] Reviewer action.
+- [ ] Recommended reviewer action.
+- [ ] Final reviewer action / override note when a human decision has been recorded.
 - [ ] Latency.
 
 ---
@@ -637,6 +647,48 @@ Use synthetic negative cases because confidential rejected/Needs Correction reco
 
 ---
 
+## Layer 3A - Human Review Policy Queues
+
+**Priority:** P1 after raw verdicts are stable
+
+Raw `Pass`, `Needs Review`, and `Fail` outputs should feed a reviewer workflow.
+They should not be described as final agency action. The policy layer lets TTB
+choose how much human confirmation is required for a pilot, batch type, or risk
+posture.
+
+Policy settings:
+
+- [ ] Add `require_review_before_rejection: bool`, default `true`.
+- [ ] Add `require_review_before_acceptance: bool`, default `false`.
+- [ ] Document that these are workflow settings, not model thresholds.
+
+Routing contract:
+
+- [ ] `Pass` + acceptance review off -> `Ready to accept`.
+- [ ] `Pass` + acceptance review on -> `Acceptance review`.
+- [ ] `Fail` + rejection review on -> `Rejection review`.
+- [ ] `Fail` + rejection review off -> `Ready to reject`.
+- [ ] `Needs Review` -> `Manual evidence review` regardless of the toggles.
+
+Reviewer action contract:
+
+- [ ] Add reviewer actions: `Accept`, `Reject`, `Request correction / better image`, `Override with note`, and `Escalate`.
+- [ ] Require a note for overrides and escalations.
+- [ ] Preserve raw evidence and source-backed reasons even after reviewer action.
+- [ ] Add CSV/export columns for `raw_verdict`, `policy_queue`, `reviewer_action`, `reviewer_note`, and `reviewed_at`.
+- [ ] Add batch summary counts by policy queue so 200-300 application batches can be worked in priority order.
+- [ ] Add tests for every routing combination.
+
+Documentation contract:
+
+- [x] Document the policy layer in `README.md`.
+- [x] Document the policy layer in `PRD.md`.
+- [x] Document the policy layer in `ARCHITECTURE.md`.
+- [x] Document the policy layer in `MODEL_ARCHITECTURE.md`.
+- [x] Document the policy layer in `TRADEOFFS.md`, `DEMO_SCRIPT.md`, and handoff docs.
+
+---
+
 ## Layer 4 - Legal Reasoning / Guidance
 
 **Priority:** P2, only after the OCR evaluation story is solid
@@ -669,8 +721,9 @@ Legal guidance is valuable, but it should explain deterministic findings rather 
 12. Reconcile a small subset back to direct TTB printable forms if the public endpoint stabilizes.
 13. Export 10-25 curated official public fixtures for committed demo/test use.
 14. Build synthetic negative coverage for the highest-risk mismatch cases.
-15. Update README, `MODEL_ARCHITECTURE.md`, `MODEL_LOG.md`, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the final measurement story.
-16. Redeploy only after local OCR/evaluation changes pass.
+15. Implement reviewer-policy queue routing only after raw verdicts and exports are stable.
+16. Update README, `MODEL_ARCHITECTURE.md`, `MODEL_LOG.md`, `docs/performance.md`, `TRADEOFFS.md`, and `DEMO_SCRIPT.md` around the final measurement story.
+17. Redeploy only after local OCR/evaluation changes pass.
 
 ---
 

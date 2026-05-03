@@ -33,6 +33,11 @@ labelsontap.ai      A  <elastic-ip>
 
 The app does not call hosted OCR or hosted ML APIs. Demo routes use fixture OCR ground truth for deterministic evaluator behavior. Real uploads use the local docTR adapter when available and route OCR failures or low confidence to Needs Review.
 
+The deployed sprint app reports raw triage verdicts. The planned reviewer-policy
+queue layer is a workflow feature above deployment: it should store whether
+human approval is required before acceptance, rejection, or both, then map raw
+verdicts into reviewer queues before final agency action.
+
 Optional OCR warmup on the deployment host:
 
 ```bash

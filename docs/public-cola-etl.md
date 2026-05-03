@@ -393,6 +393,10 @@ The first evaluation fields are:
 Synthetic negative fixtures remain necessary for mismatch and Needs Correction
 coverage because confidential rejected applications are not public.
 
+The ETL produces evidence for raw Pass / Needs Review / Fail evaluation. It does
+not decide final acceptance or rejection. A separate reviewer-policy layer should
+map raw results into workflow queues when the app adds final-review controls.
+
 The first parser target is the public printable Form 5100.31 HTML exposed by:
 
 ```text

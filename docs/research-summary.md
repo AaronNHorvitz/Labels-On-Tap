@@ -15,5 +15,7 @@
         - Runtime OCR and validation are local-first.
         - Hosted ML endpoints and VLMs are excluded from runtime.
         - The app is a preflight and reviewer-support prototype, not final agency action.
+        - Raw Pass / Needs Review / Fail verdicts should feed configurable
+          reviewer-policy queues before final acceptance or rejection.
         - Rejected/Needs Correction data is not treated as public fixture data.
         - Synthetic negative fixtures are used for controlled failure tests.
