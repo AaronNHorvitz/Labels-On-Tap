@@ -10,6 +10,7 @@ services:
       - FIELD_SUPPORT_THRESHOLD=0.53
     volumes:
       - ./data/jobs:/app/data/jobs
+      - ./data/work/demo-upload:/app/data/work/demo-upload:ro
       - ./data/work/field-support-models/distilroberta-field-support-v1-runtime/model:/app/models/field_support/distilroberta:ro
     restart: unless-stopped
 
