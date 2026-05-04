@@ -38,7 +38,7 @@ from app.schemas.application import ColaApplication
 from app.schemas.manifest import ManifestItem
 from app.schemas.ocr import OCRResult
 from app.services.csv_export import results_to_csv
-from app.services.batch_queue import enqueue_batch, load_queue_status
+from app.services.batch_queue import QueueCancelled, enqueue_batch, is_cancel_requested, load_queue_status, request_cancel
 from app.services.cola_cloud_demo import (
     build_comparison_payload,
     load_cached_conveyor_ocr,
@@ -1739,6 +1739,8 @@ def _process_batch_items(
 
     total = len(queued_items)
     for index, queued in enumerate(queued_items, start=1):
+        if is_cancel_requested(job_id):
+            raise QueueCancelled(f"Job {job_id} was cancelled after {index - 1} of {total} applications.")
         item = ManifestItem(**queued["item"])
         item_id = queued["item_id"]
         if (job_dir(job_id) / "results" / f"{item_id}.json").exists():
@@ -1836,6 +1838,16 @@ def job_status(request: Request, job_id: str):
             "comparison_rows": _job_comparison_payload(results),
         },
     )
+
+
+@router.post("/jobs/{job_id}/cancel")
+def cancel_job(job_id: str) -> RedirectResponse:
+    """Request cancellation for a queued or running batch job."""
+
+    status = request_cancel(job_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="This job does not have a cancellable queue record.")
+    return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
 
 
 @router.get("/jobs/{job_id}/items/{item_id}", response_class=HTMLResponse)

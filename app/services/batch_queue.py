@@ -31,6 +31,10 @@ _worker_lock = threading.Lock()
 _wake_event = threading.Event()
 
 
+class QueueCancelled(Exception):
+    """Raised by a worker when a queued job is cancelled cooperatively."""
+
+
 def utc_now() -> str:
     """Return an ISO-8601 UTC timestamp for queue status files."""
 
@@ -87,6 +91,8 @@ def mark_progress(job_id: str, processed: int, total: int) -> None:
     status = load_queue_status(job_id)
     if status is None:
         return
+    if status.get("status") == "cancel_requested":
+        raise QueueCancelled(f"Job {job_id} was cancelled.")
     if not status.get("started_at"):
         status["started_at"] = utc_now()
     status["processed"] = processed
@@ -106,13 +112,40 @@ def _claim(job_id: str) -> dict[str, Any] | None:
     return status
 
 
-def _finish(job_id: str, *, failed: bool = False, error: str = "") -> None:
+def request_cancel(job_id: str) -> dict[str, Any] | None:
+    """Request cancellation for a queued or running job."""
+
+    status = load_queue_status(job_id)
+    if status is None:
+        return None
+    if status.get("status") == "queued":
+        status["status"] = "cancelled"
+        status["finished_at"] = utc_now()
+    elif status.get("status") == "running":
+        status["status"] = "cancel_requested"
+        status.setdefault("failures", []).append({"message": "Cancellation requested by user.", "at": utc_now()})
+    write_queue_status(job_id, status)
+    _wake_event.set()
+    return status
+
+
+def is_cancel_requested(job_id: str) -> bool:
+    """Return whether a job has a pending cancellation request."""
+
+    status = load_queue_status(job_id)
+    return bool(status and status.get("status") in {"cancel_requested", "cancelled"})
+
+
+def _finish(job_id: str, *, failed: bool = False, cancelled: bool = False, error: str = "") -> None:
     """Mark a queue job completed or failed."""
 
     status = load_queue_status(job_id)
     if status is None:
         return
-    status["status"] = "failed" if failed else "completed"
+    if cancelled or status.get("status") == "cancel_requested":
+        status["status"] = "cancelled"
+    else:
+        status["status"] = "failed" if failed else "completed"
     status["finished_at"] = utc_now()
     if error:
         status.setdefault("failures", []).append({"error": error, "at": utc_now()})
@@ -157,6 +190,11 @@ def recover_unfinished_jobs() -> None:
             status["status"] = "queued"
             status["recovered_at"] = utc_now()
             write_json(status_path, status)
+        elif status.get("status") == "cancel_requested":
+            status["status"] = "cancelled"
+            status["finished_at"] = utc_now()
+            status["recovered_at"] = utc_now()
+            write_json(status_path, status)
 
 
 def _worker_loop() -> None:
@@ -174,6 +212,8 @@ def _worker_loop() -> None:
             try:
                 payload = status.get("payload", {})
                 _processor(job_id, payload, lambda processed, total, jid=job_id: mark_progress(jid, processed, total))
+            except QueueCancelled as exc:
+                _finish(job_id, cancelled=True, error=str(exc))
             except Exception as exc:  # pragma: no cover - defensive worker armor
                 _finish(job_id, failed=True, error=str(exc))
             else:

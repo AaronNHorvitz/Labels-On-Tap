@@ -4,6 +4,7 @@ from app.config import JOBS_DIR, ROOT
 from app.main import app
 from app.schemas.application import ColaApplication
 from app.schemas.ocr import OCRResult
+from app.services.batch_queue import load_queue_status, write_queue_status
 from app.services.cola_cloud_demo import ColaCloudDemoSource, ColaCloudPanel
 from app.services.job_store import add_manifest_item, create_job, load_manifest, load_result, save_upload, write_result
 from app.services.rules.registry import verify_label
@@ -239,6 +240,36 @@ def test_reviewer_decision_is_persisted_and_exported():
     csv_response = client.get(f"/jobs/{job_id}/results.csv")
     assert "reviewer_decision,reviewer_note,reviewed_at" in csv_response.text
     assert "Looks clean." in csv_response.text
+
+
+def test_queue_job_can_be_cancelled_from_review_page():
+    client = TestClient(app)
+    job_id = create_job("queued cancel unit")
+    add_manifest_item(job_id, {"item_id": "queued_item", "filename": "queued_item.png"})
+    write_queue_status(
+        job_id,
+        {
+            "job_id": job_id,
+            "kind": "batch",
+            "status": "running",
+            "created_at": "",
+            "started_at": "",
+            "finished_at": "",
+            "total": 1,
+            "processed": 0,
+            "failures": [],
+            "payload": {"items": []},
+        },
+    )
+
+    page = client.get(f"/jobs/{job_id}")
+    assert page.status_code == 200
+    assert "Cancel Process" in page.text
+    assert "Export CSV" in page.text
+
+    response = client.post(f"/jobs/{job_id}/cancel", follow_redirects=False)
+    assert response.status_code == 303
+    assert load_queue_status(job_id)["status"] == "cancel_requested"
 
 
 def test_reviewer_dashboard_lists_existing_results():

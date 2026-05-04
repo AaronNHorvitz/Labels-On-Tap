@@ -18,6 +18,10 @@
     </div>
     {% if queue_status.status in ["queued", "running"] %}
     <span class="badge needs_review">Worker active</span>
+    {% elif queue_status.status == "cancel_requested" %}
+    <span class="badge needs_review">Stopping</span>
+    {% elif queue_status.status == "cancelled" %}
+    <span class="badge fail">Cancelled</span>
     {% elif queue_status.status == "completed" %}
     <span class="badge pass">Completed</span>
     {% elif queue_status.status == "failed" %}
@@ -33,8 +37,16 @@
       · Time per application: {{ queue_timing.per_application_label }}
     {% elif queue_status.status == "running" %}
       · Elapsed: {{ queue_timing.elapsed_label }}
+    {% elif queue_status.status == "cancelled" %}
+      · Stopped after: {{ queue_timing.elapsed_label }}
     {% endif %}
   </p>
+  {% endif %}
+  {% if queue_status.status in ["queued", "running", "cancel_requested"] %}
+  <form action="/jobs/{{ job_id }}/cancel" method="post" class="cancel-process-form">
+    <button class="button secondary" type="submit">Cancel Process</button>
+    <small>You can leave this page without losing results. Use this button to stop the current run.</small>
+  </form>
   {% endif %}
 </section>
 {% endif %}

@@ -8,7 +8,14 @@
       <p>Job {{ job_id }} · {{ manifest.label }}</p>
       <p>The uploaded application directory is stored on the server for this demo job. Results below compare application truth data against parsed label evidence.</p>
     </div>
-    <a class="button secondary" href="/jobs/{{ job_id }}/results.csv">Export CSV</a>
+    <div class="page-actions">
+      {% if queue_status and queue_status.status in ["queued", "running", "cancel_requested"] %}
+      <form action="/jobs/{{ job_id }}/cancel" method="post">
+        <button class="button secondary" type="submit">Cancel Process</button>
+      </form>
+      {% endif %}
+      <a class="button success" href="/jobs/{{ job_id }}/results.csv">Export CSV</a>
+    </div>
   </div>
 
   <div
