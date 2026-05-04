@@ -1437,6 +1437,7 @@ def public_cola_demo(request: Request, job_id: str = "") -> HTMLResponse:
 def parse_public_cola_demo(
     parse_scope: str = Form("application"),
     selected_application: str = Form(""),
+    review_policy: str = Form("human"),
     review_unknown_government_warning: bool = Form(False),
     require_review_before_rejection: bool = Form(False),
     require_review_before_acceptance: bool = Form(False),
@@ -1448,6 +1449,16 @@ def parse_public_cola_demo(
         raise HTTPException(status_code=404, detail=f"Public COLA demo pack missing at {PUBLIC_COLA_DEMO_DIR}")
     if parse_scope not in {"application", "directory"}:
         raise HTTPException(status_code=400, detail="Invalid parse scope.")
+    if review_policy not in {"human", "auto"}:
+        raise HTTPException(status_code=400, detail="Invalid review policy.")
+    if review_policy == "human":
+        review_unknown_government_warning = True
+        require_review_before_rejection = True
+        require_review_before_acceptance = True
+    elif review_policy == "auto":
+        review_unknown_government_warning = False
+        require_review_before_rejection = False
+        require_review_before_acceptance = False
     selected_application = selected_application.strip()
     if parse_scope == "application":
         if not selected_application:

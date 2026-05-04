@@ -253,6 +253,8 @@ def test_public_cola_demo_uses_server_side_pack_and_selected_application(monkeyp
 
     page = client.get("/public-cola-demo")
     assert page.status_code == 200
+    assert "Human Review Required" in page.text
+    assert "Auto-Route Clear Decisions" in page.text
     assert "Parse This Application" in page.text
     assert "Parse This Directory of Applications" in page.text
     assert "Current Application Field Comparison" in page.text
@@ -262,7 +264,7 @@ def test_public_cola_demo_uses_server_side_pack_and_selected_application(monkeyp
 
     response = client.post(
         "/public-cola-demo/parse",
-        data={"parse_scope": "application", "selected_application": "APP-002"},
+        data={"parse_scope": "application", "selected_application": "APP-002", "review_policy": "auto"},
         follow_redirects=False,
     )
 

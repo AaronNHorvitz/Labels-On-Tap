@@ -12,27 +12,31 @@
   <section class="panel demo-control-panel">
     <form action="/public-cola-demo/parse" method="post" class="server-demo-form" id="server-demo-form">
       <input id="selected-application" name="selected_application" type="hidden" value="{{ applications[0].id if applications else '' }}">
-      <fieldset>
+      <fieldset class="review-policy-card">
         <legend>Review policy</legend>
-        <label><input name="review_unknown_government_warning" type="checkbox" value="true"> Send unknown government warning cases to human review</label>
-        <label><input name="require_review_before_rejection" type="checkbox" value="true"> Require reviewer approval before rejection</label>
-        <label><input name="require_review_before_acceptance" type="checkbox" value="true"> Require reviewer approval before acceptance</label>
+        <div class="review-mode-options">
+          <label class="review-mode-card">
+            <input name="review_policy" type="radio" value="human" checked>
+            <span>
+              <strong>Human Review Required</strong>
+              <small>Every parsed application keeps the reviewer accept/reject step.</small>
+            </span>
+          </label>
+          <label class="review-mode-card">
+            <input name="review_policy" type="radio" value="auto">
+            <span>
+              <strong>Auto-Route Clear Decisions</strong>
+              <small>Clear passes and failures are routed automatically; uncertain evidence still needs review.</small>
+            </span>
+          </label>
+        </div>
       </fieldset>
-      <div class="parse-actions">
+      <div class="parse-actions demo-action-row">
         <button class="button primary" name="parse_scope" value="application" type="submit">Parse This Application</button>
         <button class="button primary" name="parse_scope" value="directory" type="submit">Parse This Directory of Applications</button>
+        <button class="button danger" formaction="/public-cola-demo/reset" formmethod="post" name="job_id" value="{{ job_id if job_id else '' }}" type="submit">Reset Demo</button>
       </div>
     </form>
-    {% if job_id %}
-    <form action="/public-cola-demo/reset" method="post">
-      <input name="job_id" type="hidden" value="{{ job_id }}">
-      <button class="button danger" type="submit">Reset Demo</button>
-    </form>
-    {% else %}
-    <form action="/public-cola-demo/reset" method="post">
-      <button class="button danger" type="submit">Reset Demo</button>
-    </form>
-    {% endif %}
   </section>
 
   <section class="application-preview-card server-demo-preview" aria-live="polite">
