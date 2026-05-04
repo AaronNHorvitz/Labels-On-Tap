@@ -1045,6 +1045,25 @@ of true-bold crops. That is promising, but the promotion gate remains strict:
 compare it against the deployed logistic bridge on the exact same audit-v6 and
 real-COLA holdout policy before allowing it to become runtime evidence.
 
+**Audit-v6 baseline retrain:** To make the CNN comparison fair, the earlier
+classical baselines were retrained on the same `audit-v6` split. The best raw
+single-model result was LightGBM (`0.9753` test macro F1), but its test
+false-clear rate was `0.0198`. The best learned stackers reached about `0.9721`
+test macro F1 with `0.0143` false-clear. The strict-veto ensemble lowered
+false-clear to `0.0077`, but macro F1 fell to `0.8841`. These models are useful
+benchmarks, but none beat the thresholded CNN's safety posture.
+
+| Audit-v6 model / policy | Test macro F1 | Test false-clear | p95 ms/crop |
+|---|---:|---:|---:|
+| SVM | 0.9467 | 0.0363 | 0.11 |
+| LightGBM | 0.9753 | 0.0198 | 2.13 |
+| Logistic Regression | 0.9546 | 0.0242 | 0.15 |
+| MLP | 0.9656 | 0.0275 | 0.26 |
+| CatBoost stacker | 0.9721 | 0.0143 | 11.34 |
+| Strict-veto ensemble | 0.8841 | 0.0077 | 10.56 |
+| CNN threshold, zero validation false-clear | n/a | 0.0000 | 5.21 |
+| CNN threshold, 0.005 validation tolerance | n/a | 0.0022 | 5.21 |
+
 Reference:
 
 ```text

@@ -1621,6 +1621,93 @@ Decision:
 - If promoted later, use it as a conservative pass evidence source only;
   non-clear cases should route to `Needs Review`.
 
+### E023 - Audit-v6 Classical Baseline Retrain
+
+**Date:** 2026-05-03
+**Status:** Offline baseline comparison completed; not promoted to runtime
+**Code path:**
+
+```text
+experiments/typography_preflight/compare_audit_v6_baselines.py
+```
+
+**Local output:**
+
+```text
+data/work/typography-preflight/model-comparison-audit-v6-baselines-v1/
+```
+
+Purpose:
+
+Retrain the earlier non-CNN baseline families on the same `audit-v6`
+train/validation/test split used by the MobileNetV3 CNN challenger. This makes
+the side-by-side comparison statistically cleaner than comparing CNN results to
+older `audit-v5` synthetic-only metrics.
+
+Target:
+
+```text
+boldness_label:
+  bold / not_bold / unreadable_review / not_applicable
+positive class:
+  bold
+false clear:
+  actual != bold, predicted as bold
+```
+
+Dataset:
+
+| Split | Images | Bold | Not Bold | Unreadable Review | Not Applicable |
+|---|---:|---:|---:|---:|---:|
+| Train | 6,000 | 2,385 | 2,415 | 600 | 600 |
+| Validation | 1,500 | 607 | 593 | 150 | 150 |
+| Test | 1,500 | 592 | 608 | 150 | 150 |
+
+Base-model test results:
+
+| Model | Test Accuracy | Test Macro F1 | Test False-Clear | Single-row p95 ms |
+|---|---:|---:|---:|---:|
+| SVM | 0.9473 | 0.9467 | 0.0363 | 0.1103 |
+| XGBoost | 0.9647 | 0.9633 | 0.0297 | 0.1763 |
+| LightGBM | 0.9747 | 0.9753 | 0.0198 | 2.1329 |
+| Logistic Regression | 0.9600 | 0.9546 | 0.0242 | 0.1471 |
+| MLP | 0.9653 | 0.9656 | 0.0275 | 0.2645 |
+| CatBoost | 0.9507 | 0.9472 | 0.0452 | 2.1046 |
+
+Ensemble test results:
+
+| Model | Test Accuracy | Test Macro F1 | Test False-Clear | Single-row p95 ms |
+|---|---:|---:|---:|---:|
+| Strict-veto ensemble | 0.9153 | 0.8841 | 0.0077 | 10.5609 |
+| Calibrated logistic stacker | 0.9707 | 0.9715 | 0.0176 | 6.2460 |
+| LightGBM reject-threshold stacker | 0.9707 | 0.9721 | 0.0143 | 11.2825 |
+| XGBoost reject-threshold stacker | 0.9693 | 0.9700 | 0.0176 | 11.4115 |
+| CatBoost stacker | 0.9727 | 0.9721 | 0.0143 | 11.3355 |
+
+Comparison against E022 CNN:
+
+| Model / Policy | Test Macro F1 | Test False-Clear | Notes |
+|---|---:|---:|---|
+| Best base classical model: LightGBM | 0.9753 | 0.0198 | Best raw F1 among single CPU baselines, but too many false clears. |
+| Best learned stackers: LightGBM/CatBoost | 0.9721 | 0.0143 | Good raw F1, still weaker safety posture. |
+| Strict-veto ensemble | 0.8841 | 0.0077 | Safer, but gives up too much recall/F1. |
+| CNN hard argmax | 0.9686 | 0.0055 | Better safety than classical argmax, but still not the right policy by itself. |
+| CNN threshold, zero validation false-clear | n/a | 0.0000 | Clears 52.20% of true-bold test crops. |
+| CNN threshold, 0.005 validation tolerance | n/a | 0.0022 | Clears 74.32% of true-bold test crops. |
+
+Decision:
+
+- The audit-v6 retrain confirms that classical OpenCV-feature baselines are very
+  fast and useful as reference models.
+- LightGBM is the best single classical baseline by raw F1, but its test
+  false-clear rate is still about `2%`, which is too high for unattended
+  government-warning boldness clearance.
+- The strict-veto ensemble improves safety but sacrifices too much useful
+  clearance.
+- The thresholded CNN remains the stronger challenger for a future runtime
+  promotion, but the current deployed logistic bridge remains the MVP runtime
+  choice because it is already simple, JSON-exported, and conservative.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:

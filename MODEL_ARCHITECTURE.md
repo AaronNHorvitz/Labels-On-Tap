@@ -768,6 +768,48 @@ real-adapted logistic bridge and a threshold that preserves the government-safe
 false-clear posture. If promoted later, it should be pass evidence only; all
 non-clear cases still route to `Needs Review`.
 
+Audit-v6 baseline retrain:
+
+```text
+code:
+  experiments/typography_preflight/compare_audit_v6_baselines.py
+
+output:
+  data/work/typography-preflight/model-comparison-audit-v6-baselines-v1/
+
+target:
+  boldness_label
+
+base models:
+  SVM, XGBoost, LightGBM, Logistic Regression, MLP, CatBoost
+
+ensembles:
+  strict veto
+  calibrated logistic stacker
+  LightGBM reject-threshold stacker
+  XGBoost reject-threshold stacker
+  CatBoost stacker
+```
+
+| Audit-v6 model / policy | Test macro F1 | Test false-clear | p95 ms/crop |
+|---|---:|---:|---:|
+| SVM | 0.9467 | 0.0363 | 0.11 |
+| XGBoost | 0.9633 | 0.0297 | 0.18 |
+| LightGBM | 0.9753 | 0.0198 | 2.13 |
+| Logistic Regression | 0.9546 | 0.0242 | 0.15 |
+| MLP | 0.9656 | 0.0275 | 0.26 |
+| CatBoost | 0.9472 | 0.0452 | 2.10 |
+| Strict-veto ensemble | 0.8841 | 0.0077 | 10.56 |
+| CatBoost stacker | 0.9721 | 0.0143 | 11.34 |
+| CNN threshold, zero validation false-clear | n/a | 0.0000 | 5.21 |
+| CNN threshold, 0.005 validation tolerance | n/a | 0.0022 | 5.21 |
+
+Architectural implication: the classical baselines are useful sanity checks and
+latency references, but their audit-v6 false-clear rates are still too high for
+automatic government-warning boldness clearance. The CNN is the stronger future
+challenger; the deployed logistic JSON bridge remains the simpler MVP runtime
+model until a same-split promotion gate is completed.
+
 ---
 
 ## 9. Domain-NER / BERT Arbiter Experiments

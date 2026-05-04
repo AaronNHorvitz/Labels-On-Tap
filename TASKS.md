@@ -683,6 +683,8 @@ Tasks:
 - [x] Record the `audit-v6` source breakdown in `MODEL_LOG.md` and local `data/work/typography-preflight/audit-v6/summary.json`.
 - [x] Train MobileNetV3-Small transfer-learning CNN challenger on `audit-v6` boldness labels using the local RTX 4090.
 - [x] Evaluate CNN hard-argmax and thresholded bold-clear policies; record results in `MODEL_LOG.md`.
+- [x] Retrain SVM, XGBoost, LightGBM, Logistic Regression, MLP, CatBoost, and stacker/veto baselines on the same `audit-v6` split for a proper side-by-side comparison.
+- [x] Record that the best classical baselines still have materially higher audit-v6 false-clear rates than thresholded CNN clearance.
 
 Documentation framing:
 
