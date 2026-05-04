@@ -595,6 +595,17 @@ textarea {
   color: var(--muted);
 }
 
+.submit-status {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--blue-dark);
+  background: var(--blue-faint);
+  font-weight: 700;
+  text-align: center;
+}
+
 .dashboard-filter {
   display: flex;
   justify-content: space-between;

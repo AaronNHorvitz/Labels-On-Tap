@@ -51,6 +51,7 @@
           <button class="button primary" name="parse_scope" value="directory" type="submit">Parse This Directory of Applications</button>
           <button class="button secondary" type="reset">Reset</button>
         </div>
+        <p class="submit-status" id="actual-submit-status" hidden>Uploading files and starting the parse run...</p>
       </div>
       <div class="application-preview-card server-demo-preview" aria-live="polite">
         <div class="application-nav" aria-label="Application browser controls">
@@ -95,6 +96,7 @@
 <script>
   (() => {
     const folderInput = document.getElementById("batch-folder-files");
+    const form = document.getElementById("application-batch-form");
     const viewport = document.getElementById("batch-preview-viewport");
     const preview = document.getElementById("batch-preview");
     const empty = document.getElementById("batch-preview-empty");
@@ -107,6 +109,7 @@
     const photoNext = document.getElementById("batch-photo-next");
     const comparisonBody = document.getElementById("live-comparison-body");
     const comparisonStatus = document.getElementById("live-comparison-status");
+    const submitStatus = document.getElementById("actual-submit-status");
     if (!folderInput || !viewport || !preview || !empty || !selectedApplicationInput || !appCounter || !photoCounter || !appPrev || !appNext || !photoPrev || !photoNext) {
       return;
     }
@@ -160,6 +163,16 @@
       }
       return "Application 1";
     };
+    const uploadRelativeKey = (file) => {
+      const parts = displayKey(file).split("/");
+      const imagesIndex = parts.indexOf("images");
+      if (imagesIndex >= 0) {
+        return parts.slice(imagesIndex).join("/");
+      }
+      return parts[parts.length - 1] || file.name;
+    };
+    const manifestFile = () => Array.from(folderInput.files || [])
+      .find((file) => /(^|\/)manifest\.csv$/i.test(file.webkitRelativePath || file.name));
     const parseCsvLine = (line) => {
       const cells = [];
       let cell = "";
@@ -192,7 +205,7 @@
       });
     };
     const loadManifestPreview = async () => {
-      const manifest = Array.from(folderInput.files || []).find((file) => /(^|\/)manifest\.csv$/i.test(file.webkitRelativePath || file.name));
+      const manifest = manifestFile();
       if (!manifest) {
         manifestRows = [];
         renderComparison();
@@ -213,9 +226,29 @@
       if (!application) return null;
       return manifestRows.find((row) => row.filename === application || row.fixture_id === application) || null;
     };
-    const labelForField = (field) => field
-      .replaceAll("_", " ")
-      .replace(/\b\w/g, (match) => match.toUpperCase());
+    const formattedValue = (field, value) => {
+      if (field === "product_type" && value) {
+        return String(value).replaceAll("_", " ").replace(/\b\w/g, (match) => match.toUpperCase());
+      }
+      if (field === "imported") {
+        return String(value).toLowerCase() === "true" ? "Yes" : "No";
+      }
+      return value || "Not provided";
+    };
+    const actualRows = (row) => [
+      ["Brand name", formattedValue("brand_name", row.brand_name)],
+      ["Fanciful name", formattedValue("fanciful_name", row.fanciful_name)],
+      ["Product type", formattedValue("product_type", row.product_type)],
+      ["Class/type", formattedValue("class_type", row.class_type)],
+      ["Alcohol content", formattedValue("alcohol_content", row.alcohol_content)],
+      ["Net contents", formattedValue("net_contents", row.net_contents)],
+      ["Bottler / producer", formattedValue("bottler_producer_name_address", row.bottler_producer_name_address)],
+      ["Imported", formattedValue("imported", row.imported)],
+      ["Country of origin", formattedValue("country_of_origin", row.country_of_origin)],
+      ["Government warning text", "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems."],
+      ["Government warning heading", "GOVERNMENT WARNING:"],
+      ["Government warning boldness", "Bold heading required"],
+    ];
     const renderComparison = () => {
       if (!comparisonBody) return;
       const row = selectedManifestRow();
@@ -226,17 +259,15 @@
         }
         return;
       }
-      const fields = ["brand_name", "fanciful_name", "product_type", "class_type", "alcohol_content", "net_contents", "bottler_producer_name_address", "imported", "country_of_origin"];
-      comparisonBody.innerHTML = fields
-        .filter((field) => row[field])
-        .map((field) => `
+      comparisonBody.innerHTML = actualRows(row)
+        .map(([label, actual]) => `
           <tr>
-            <td>${escapeHtml(labelForField(field))}</td>
-            <td>${escapeHtml(row[field])}</td>
+            <td>${escapeHtml(label)}</td>
+            <td>${escapeHtml(actual)}</td>
             <td><span class="muted-cell">Waiting for parse</span></td>
           </tr>
         `)
-        .join("") || '<tr><td colspan="3">This manifest row does not include previewable application fields.</td></tr>';
+        .join("");
       if (comparisonStatus) {
         comparisonStatus.textContent = "Actual values are loaded from your manifest. Scraped values appear after parsing on the result page.";
       }
@@ -299,8 +330,63 @@
       window.setTimeout(() => {
         selectedIndex = 0;
         manifestRows = [];
+        if (submitStatus) {
+          submitStatus.hidden = true;
+          submitStatus.textContent = "Uploading files and starting the parse run...";
+        }
         render();
       }, 0);
+    });
+    form?.addEventListener("submit", async (event) => {
+      const submitter = event.submitter;
+      if (!submitter || submitter.name !== "parse_scope") {
+        return;
+      }
+      const parseScope = submitter.value;
+      const selectedApplication = selectedApplicationInput.value;
+      const manifest = manifestFile();
+      if (submitStatus) {
+        submitStatus.hidden = false;
+        submitStatus.textContent = parseScope === "application"
+          ? "Uploading this application and starting the parse run..."
+          : "Uploading the full directory and starting the parse run...";
+      }
+      if (parseScope !== "application") {
+        return;
+      }
+      event.preventDefault();
+      if (!manifest || !selectedApplication) {
+        if (submitStatus) submitStatus.textContent = "Choose an application directory before parsing.";
+        return;
+      }
+      const { applicationFiles } = browserState();
+      const payload = new FormData();
+      payload.append("parse_scope", "application");
+      payload.append("selected_application", selectedApplication);
+      const selectedReviewPolicy = form.querySelector('input[name="review_policy"]:checked');
+      payload.append("review_policy", selectedReviewPolicy ? selectedReviewPolicy.value : "human");
+      payload.append("application_directory", manifest, "labels-on-tap-upload/manifest.csv");
+      applicationFiles.forEach((file) => {
+        payload.append("application_directory", file, `labels-on-tap-upload/${uploadRelativeKey(file)}`);
+      });
+      try {
+        const response = await fetch(form.action, { method: "POST", body: payload });
+        if (response.redirected) {
+          window.location.href = response.url;
+          return;
+        }
+        if (response.ok) {
+          window.location.href = response.url || "/app";
+          return;
+        }
+        if (submitStatus) {
+          submitStatus.textContent = `Upload problem: ${response.status}`;
+        }
+      } catch (_error) {
+        if (submitStatus) {
+          submitStatus.textContent = "Upload problem. Please try again.";
+        }
+      }
     });
     appPrev.addEventListener("click", () => {
       const { files, applications, applicationIndex } = browserState();
