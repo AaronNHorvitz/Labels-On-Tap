@@ -685,6 +685,7 @@ Tasks:
 - [x] Evaluate CNN hard-argmax and thresholded bold-clear policies; record results in `MODEL_LOG.md`.
 - [x] Retrain SVM, XGBoost, LightGBM, Logistic Regression, MLP, CatBoost, and stacker/veto baselines on the same `audit-v6` split for a proper side-by-side comparison.
 - [x] Record that the best classical baselines still have materially higher audit-v6 false-clear rates than thresholded CNN clearance.
+- [x] Rerun `audit-v6` baseline/ensemble comparison with a statistically cleaner protocol: base-train, meta-train, validation threshold tuning, and untouched test scoring.
 
 Documentation framing:
 

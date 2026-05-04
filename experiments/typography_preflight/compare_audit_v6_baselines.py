@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import time
@@ -32,6 +33,7 @@ import joblib
 import numpy as np
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
+from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -61,7 +63,7 @@ except Exception:  # pragma: no cover - optional experiment dependency
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_AUDIT_DIR = ROOT / "data/work/typography-preflight/audit-v6"
-DEFAULT_OUTPUT_DIR = ROOT / "data/work/typography-preflight/model-comparison-audit-v6-baselines-v1"
+DEFAULT_OUTPUT_DIR = ROOT / "data/work/typography-preflight/model-comparison-audit-v6-defensible-v2"
 CLASS_NAMES = ("bold", "not_bold", "unreadable_review", "not_applicable")
 POSITIVE_CLASS = "bold"
 REVIEW_CLASS = "unreadable_review"
@@ -163,6 +165,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--logistic-max-iter", type=int, default=1_000)
     parser.add_argument("--mlp-max-iter", type=int, default=180)
     parser.add_argument("--target-false-clear", type=float, default=0.0025)
+    parser.add_argument("--meta-fraction", type=float, default=0.20)
     parser.add_argument("--reuse-features", action="store_true")
     parser.add_argument("--models", nargs="+", default=list(BASE_MODELS))
     return parser.parse_args()
@@ -215,11 +218,32 @@ def main() -> None:
         split: np.array([class_to_idx[row.boldness_label] for row in rows_by_split[split]], dtype=np.int64)
         for split in ("train", "validation", "test")
     }
+    base_train_idx, meta_train_idx = make_base_meta_split(y["train"], meta_fraction=args.meta_fraction, seed=args.seed)
+    training_views = {
+        "base_train": (
+            datasets["train"][0][base_train_idx],
+            [datasets["train"][1][idx] for idx in base_train_idx],
+        ),
+        "meta_train": (
+            datasets["train"][0][meta_train_idx],
+            [datasets["train"][1][idx] for idx in meta_train_idx],
+        ),
+        "validation": datasets["validation"],
+        "test": datasets["test"],
+    }
+    y_views = {
+        "base_train": y["train"][base_train_idx],
+        "meta_train": y["train"][meta_train_idx],
+        "validation": y["validation"],
+        "test": y["test"],
+    }
     base_results: list[dict[str, Any]] = []
     ensemble_results: list[dict[str, Any]] = []
     fitted_models: dict[str, Any] = {}
     print(
-        f"Loaded audit-v6 features: train={len(y['train'])}, validation={len(y['validation'])}, test={len(y['test'])}",
+        "Loaded audit-v6 features: "
+        f"base_train={len(y_views['base_train'])}, meta_train={len(y_views['meta_train'])}, "
+        f"validation={len(y_views['validation'])}, test={len(y_views['test'])}",
         flush=True,
     )
 
@@ -227,17 +251,26 @@ def main() -> None:
         print(f"Training baseline: {model_name}", flush=True)
         model = build_model(model_name, args)
         started = time.perf_counter()
-        model.fit(datasets["train"][0], y["train"])
+        model.fit(training_views["base_train"][0], y_views["base_train"])
         train_ms = (time.perf_counter() - started) * 1000
         fitted_models[model_name] = model
         result = evaluate_predictor(
             model,
             model_name=model_name,
             train_ms=train_ms,
-            datasets=datasets,
-            y=y,
-            rows_by_split=rows_by_split,
+            datasets={
+                "train": training_views["base_train"],
+                "validation": training_views["validation"],
+                "test": training_views["test"],
+            },
+            y={
+                "train": y_views["base_train"],
+                "validation": y_views["validation"],
+                "test": y_views["test"],
+            },
+            test_rows=rows_by_split["test"],
             latency_rows=args.latency_rows,
+            extra={"fit_split": "base_train"},
         )
         base_results.append(result)
         write_confusion_csv(output_dir / f"metrics/{model_name}__test_confusion.csv", result["test"]["confusion"])
@@ -252,12 +285,14 @@ def main() -> None:
             output_dir / f"models/{model_name}.joblib",
         )
 
-    stacker_features = build_stacker_features(fitted_models, datasets["validation"][0])
-    y_validation = y["validation"]
+    meta_stack = build_stacker_features(fitted_models, training_views["meta_train"][0])
+    validation_stack = build_stacker_features(fitted_models, training_views["validation"][0])
     for model_name, predictor, extra in build_ensemble_predictors(
         base_models=fitted_models,
-        validation_stack=stacker_features,
-        y_validation=y_validation,
+        meta_stack=meta_stack,
+        y_meta=y_views["meta_train"],
+        validation_stack=validation_stack,
+        y_validation=y_views["validation"],
         args=args,
     ):
         print(f"Evaluating ensemble: {model_name}", flush=True)
@@ -265,9 +300,17 @@ def main() -> None:
             predictor,
             model_name=model_name,
             train_ms=extra.pop("train_ms", 0.0),
-            datasets=datasets,
-            y=y,
-            rows_by_split=rows_by_split,
+            datasets={
+                "train": training_views["meta_train"],
+                "validation": training_views["validation"],
+                "test": training_views["test"],
+            },
+            y={
+                "train": y_views["meta_train"],
+                "validation": y_views["validation"],
+                "test": y_views["test"],
+            },
+            test_rows=rows_by_split["test"],
             latency_rows=args.latency_rows,
             extra=extra,
         )
@@ -286,26 +329,34 @@ def main() -> None:
 
     summary = {
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "purpose": "Audit-v6 CPU baseline comparison against the same split used by the CNN challenger.",
+        "purpose": "Audit-v6 CPU baseline and ensemble comparison with separated base-train, meta-train, validation, and test roles.",
         "audit_dir": str(audit_dir.relative_to(ROOT)),
+        "audit_manifest_sha256": sha256_file(audit_dir / "manifest.csv"),
         "output_dir": str(output_dir.relative_to(ROOT)),
         "seed": args.seed,
         "target": args.target,
         "class_names": list(CLASS_NAMES),
         "positive_class": POSITIVE_CLASS,
         "review_class": REVIEW_CLASS,
+        "methodology": {
+            "base_models_fit_on": "stratified 80% subset of audit-v6 train",
+            "stackers_fit_on": "stratified 20% meta subset of audit-v6 train",
+            "thresholds_tuned_on": "audit-v6 validation",
+            "final_scored_on": "audit-v6 test",
+            "test_usage": "never used for fitting, threshold selection, or model selection",
+        },
         "split_counts": {
-            split: {
-                "rows": len(rows_by_split[split]),
-                "labels": dict(sorted(Counter(row.boldness_label for row in rows_by_split[split]).items())),
-            }
-            for split in ("train", "validation", "test")
+            "audit_v6_train_total": summarize_labels(rows_by_split["train"]),
+            "base_train": summarize_encoded_labels(y_views["base_train"]),
+            "meta_train": summarize_encoded_labels(y_views["meta_train"]),
+            "validation": summarize_labels(rows_by_split["validation"]),
+            "test": summarize_labels(rows_by_split["test"]),
         },
         "base_results": base_results,
         "ensemble_results": ensemble_results,
         "notes": [
             "False clear means actual class is not bold but predicted/cleared as bold.",
-            "Base models train on audit-v6 train; stackers tune on audit-v6 validation; all final comparisons use audit-v6 test.",
+            "Base models fit on base_train; stackers fit on meta_train; reject thresholds tune on validation; final comparisons use test only.",
             "This is an offline experiment and does not promote a runtime model.",
         ],
     }
@@ -328,6 +379,48 @@ def configure_cpu(threads: int) -> None:
     os.environ.setdefault("OPENBLAS_NUM_THREADS", value)
     os.environ.setdefault("MKL_NUM_THREADS", value)
     os.environ.setdefault("NUMEXPR_NUM_THREADS", value)
+
+
+def sha256_file(path: Path) -> str:
+    """Return a SHA-256 digest for a local file."""
+
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def make_base_meta_split(y_train: np.ndarray, *, meta_fraction: float, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    """Create a stratified base-train/meta-train split inside audit-v6 train."""
+
+    indices = np.arange(len(y_train))
+    base_idx, meta_idx = train_test_split(
+        indices,
+        test_size=meta_fraction,
+        random_state=seed,
+        stratify=y_train,
+    )
+    return np.sort(base_idx), np.sort(meta_idx)
+
+
+def summarize_labels(rows: list[AuditRow]) -> dict[str, Any]:
+    """Summarize split row counts and labels."""
+
+    return {
+        "rows": len(rows),
+        "labels": dict(sorted(Counter(row.boldness_label for row in rows).items())),
+    }
+
+
+def summarize_encoded_labels(labels: np.ndarray) -> dict[str, Any]:
+    """Summarize encoded labels using class names."""
+
+    counts = Counter(CLASS_NAMES[int(label)] for label in labels)
+    return {
+        "rows": int(len(labels)),
+        "labels": dict(sorted(counts.items())),
+    }
 
 
 def load_manifest(path: Path) -> dict[str, list[AuditRow]]:
@@ -505,11 +598,13 @@ def require(factory: Any, package_name: str) -> None:
 def build_ensemble_predictors(
     *,
     base_models: dict[str, Any],
+    meta_stack: np.ndarray,
+    y_meta: np.ndarray,
     validation_stack: np.ndarray,
     y_validation: np.ndarray,
     args: argparse.Namespace,
 ) -> list[tuple[str, Any, dict[str, Any]]]:
-    """Train stackers and tune reject-threshold wrappers on validation data."""
+    """Train stackers on meta data and tune reject wrappers on validation data."""
 
     positive_idx = CLASS_NAMES.index(POSITIVE_CLASS)
     review_idx = CLASS_NAMES.index(REVIEW_CLASS)
@@ -537,7 +632,7 @@ def build_ensemble_predictors(
         ]
     )
     started = time.perf_counter()
-    logistic.fit(validation_stack, y_validation)
+    logistic.fit(meta_stack, y_meta)
     predictors.append(
         (
             "calibrated_logistic_regression_stacker",
@@ -545,7 +640,7 @@ def build_ensemble_predictors(
             {
                 "train_ms": (time.perf_counter() - started) * 1000,
                 "stacker_input": list(base_models),
-                "stacker_training_split": "validation",
+                "stacker_training_split": "meta_train",
             },
         )
     )
@@ -556,13 +651,13 @@ def build_ensemble_predictors(
         ("catboost_stacker", build_catboost_stacker(args)),
     ]:
         started = time.perf_counter()
-        stacker.fit(validation_stack, y_validation)
+        stacker.fit(meta_stack, y_meta)
         train_ms = (time.perf_counter() - started) * 1000
         pipeline = StackerPipeline(base_models, stacker)
         extra: dict[str, Any] = {
             "train_ms": train_ms,
             "stacker_input": list(base_models),
-            "stacker_training_split": "validation",
+            "stacker_training_split": "meta_train",
         }
         predictor: Any = pipeline
         if name in {"lightgbm_reject_threshold", "xgboost_reject_threshold"}:
@@ -578,7 +673,7 @@ def build_ensemble_predictors(
                 positive_class=positive_idx,
                 review_class=review_idx,
             )
-            extra.update({"threshold": threshold, "threshold_tuning": tuning})
+            extra.update({"threshold": threshold, "threshold_tuning": tuning, "threshold_tuning_split": "validation"})
         predictors.append((name, predictor, extra))
     return predictors
 
@@ -710,7 +805,7 @@ def evaluate_predictor(
     train_ms: float,
     datasets: dict[str, tuple[np.ndarray, list[dict[str, Any]]]],
     y: dict[str, np.ndarray],
-    rows_by_split: dict[str, list[AuditRow]],
+    test_rows: list[AuditRow],
     latency_rows: int,
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -728,7 +823,7 @@ def evaluate_predictor(
         "train": compute_metrics(y["train"], predictions["train"]),
         "validation": compute_metrics(y["validation"], predictions["validation"]),
         "test": compute_metrics(y["test"], predictions["test"]),
-        "test_breakdowns": compute_breakdowns(y["test"], predictions["test"], rows_by_split["test"]),
+        "test_breakdowns": compute_breakdowns(y["test"], predictions["test"], test_rows),
         "latency": measure_latency(predictor, datasets["test"][0], latency_rows),
     }
     if extra:
@@ -836,16 +931,22 @@ def write_markdown_report(path: Path, summary: dict[str, Any]) -> None:
         "",
         "## Data",
         "",
-        "| Split | Crops | Bold | Not bold | Unreadable review | Not applicable |",
+        "| Split role | Crops | Bold | Not bold | Unreadable review | Not applicable |",
         "|---|---:|---:|---:|---:|---:|",
     ]
-    for split in ("train", "validation", "test"):
+    for split in ("base_train", "meta_train", "validation", "test"):
         labels = summary["split_counts"][split]["labels"]
         lines.append(
             f"| {split} | {summary['split_counts'][split]['rows']:,} | "
             f"{labels.get('bold', 0):,} | {labels.get('not_bold', 0):,} | "
             f"{labels.get('unreadable_review', 0):,} | {labels.get('not_applicable', 0):,} |"
         )
+    lines.extend(
+        [
+            "",
+            "Protocol: base models fit on `base_train`; stackers fit on `meta_train` using base-model outputs; reject thresholds tune on `validation`; final metrics are scored once on `test`.",
+        ]
+    )
     lines.extend(["", "## Base Model Metrics", ""])
     lines.extend(metric_table_header())
     for result in summary["base_results"]:

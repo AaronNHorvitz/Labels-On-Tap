@@ -1634,15 +1634,34 @@ experiments/typography_preflight/compare_audit_v6_baselines.py
 **Local output:**
 
 ```text
-data/work/typography-preflight/model-comparison-audit-v6-baselines-v1/
+data/work/typography-preflight/model-comparison-audit-v6-defensible-v2/
 ```
 
 Purpose:
 
-Retrain the earlier non-CNN baseline families on the same `audit-v6`
-train/validation/test split used by the MobileNetV3 CNN challenger. This makes
-the side-by-side comparison statistically cleaner than comparing CNN results to
-older `audit-v5` synthetic-only metrics.
+Retrain the earlier non-CNN baseline families and ensemble policies on the
+same `audit-v6` image set used by the MobileNetV3 CNN challenger, with a
+defensible split protocol:
+
+```text
+audit-v6 manifest SHA-256:
+  81d8155b457f519b9885fd3826d7ade0ffcd52c0230d36209b0f89f768717e46
+
+base models fit on:
+  stratified 80% subset of audit-v6 train
+
+stackers fit on:
+  stratified 20% meta subset of audit-v6 train
+
+reject thresholds tuned on:
+  audit-v6 validation
+
+final metrics scored on:
+  audit-v6 test
+
+test data usage:
+  never used for fitting, threshold selection, or model selection
+```
 
 Target:
 
@@ -1657,9 +1676,10 @@ false clear:
 
 Dataset:
 
-| Split | Images | Bold | Not Bold | Unreadable Review | Not Applicable |
+| Split Role | Images | Bold | Not Bold | Unreadable Review | Not Applicable |
 |---|---:|---:|---:|---:|---:|
-| Train | 6,000 | 2,385 | 2,415 | 600 | 600 |
+| Base train | 4,800 | 1,908 | 1,932 | 480 | 480 |
+| Meta train | 1,200 | 477 | 483 | 120 | 120 |
 | Validation | 1,500 | 607 | 593 | 150 | 150 |
 | Test | 1,500 | 592 | 608 | 150 | 150 |
 
@@ -1667,30 +1687,31 @@ Base-model test results:
 
 | Model | Test Accuracy | Test Macro F1 | Test False-Clear | Single-row p95 ms |
 |---|---:|---:|---:|---:|
-| SVM | 0.9473 | 0.9467 | 0.0363 | 0.1103 |
-| XGBoost | 0.9647 | 0.9633 | 0.0297 | 0.1763 |
-| LightGBM | 0.9747 | 0.9753 | 0.0198 | 2.1329 |
-| Logistic Regression | 0.9600 | 0.9546 | 0.0242 | 0.1471 |
-| MLP | 0.9653 | 0.9656 | 0.0275 | 0.2645 |
-| CatBoost | 0.9507 | 0.9472 | 0.0452 | 2.1046 |
+| SVM | 0.9420 | 0.9377 | 0.0385 | 0.1113 |
+| XGBoost | 0.9627 | 0.9613 | 0.0341 | 0.1835 |
+| LightGBM | 0.9727 | 0.9703 | 0.0242 | 2.2283 |
+| Logistic Regression | 0.9580 | 0.9529 | 0.0297 | 0.1282 |
+| MLP | 0.9433 | 0.9398 | 0.0518 | 0.2883 |
+| CatBoost | 0.9507 | 0.9471 | 0.0407 | 2.0370 |
 
 Ensemble test results:
 
 | Model | Test Accuracy | Test Macro F1 | Test False-Clear | Single-row p95 ms |
 |---|---:|---:|---:|---:|
-| Strict-veto ensemble | 0.9153 | 0.8841 | 0.0077 | 10.5609 |
-| Calibrated logistic stacker | 0.9707 | 0.9715 | 0.0176 | 6.2460 |
-| LightGBM reject-threshold stacker | 0.9707 | 0.9721 | 0.0143 | 11.2825 |
-| XGBoost reject-threshold stacker | 0.9693 | 0.9700 | 0.0176 | 11.4115 |
-| CatBoost stacker | 0.9727 | 0.9721 | 0.0143 | 11.3355 |
+| Strict-veto ensemble | 0.9013 | 0.8679 | 0.0110 | 10.9409 |
+| Calibrated logistic stacker | 0.9707 | 0.9696 | 0.0198 | 11.3848 |
+| LightGBM reject-threshold stacker | 0.9360 | 0.9181 | 0.0033 | 11.5176 |
+| XGBoost reject-threshold stacker | 0.9387 | 0.9208 | 0.0033 | 12.7176 |
+| CatBoost stacker | 0.9687 | 0.9677 | 0.0209 | 11.2089 |
 
 Comparison against E022 CNN:
 
 | Model / Policy | Test Macro F1 | Test False-Clear | Notes |
 |---|---:|---:|---|
-| Best base classical model: LightGBM | 0.9753 | 0.0198 | Best raw F1 among single CPU baselines, but too many false clears. |
-| Best learned stackers: LightGBM/CatBoost | 0.9721 | 0.0143 | Good raw F1, still weaker safety posture. |
-| Strict-veto ensemble | 0.8841 | 0.0077 | Safer, but gives up too much recall/F1. |
+| Best base classical model: LightGBM | 0.9703 | 0.0242 | Best raw F1 among single CPU baselines, but too many false clears. |
+| Best learned stacker: Calibrated logistic | 0.9696 | 0.0198 | Good raw F1, still weaker safety posture. |
+| Best reject-threshold ensemble: XGBoost | 0.9208 | 0.0033 | Safer, but gives up meaningful recall/F1. |
+| Strict-veto ensemble | 0.8679 | 0.0110 | Safer than raw models, but worse than tuned reject thresholds. |
 | CNN hard argmax | 0.9686 | 0.0055 | Better safety than classical argmax, but still not the right policy by itself. |
 | CNN threshold, zero validation false-clear | 0.7755* | 0.0000 | Clears 52.20% of true-bold test crops. |
 | CNN threshold, 0.005 validation tolerance | 0.8864* | 0.0022 | Clears 74.32% of true-bold test crops. |
@@ -1700,16 +1721,15 @@ four-class argmax macro F1.
 
 Decision:
 
-- The audit-v6 retrain confirms that classical OpenCV-feature baselines are very
-  fast and useful as reference models.
-- LightGBM is the best single classical baseline by raw F1, but its test
-  false-clear rate is still about `2%`, which is too high for unattended
-  government-warning boldness clearance.
-- The strict-veto ensemble improves safety but sacrifices too much useful
-  clearance.
-- The thresholded CNN remains the stronger challenger for a future runtime
-  promotion, but the current deployed logistic bridge remains the MVP runtime
-  choice because it is already simple, JSON-exported, and conservative.
+- The v2 retrain is the statistically defensible audit-v6 comparison because
+  stacker training, threshold tuning, and final testing are separated.
+- LightGBM remains the best single classical baseline by raw F1, but its
+  false-clear rate is still too high for unattended warning-boldness clearance.
+- Reject-threshold ensembles are safer than raw stackers, but their F1 falls
+  below the practical CNN threshold policy.
+- The thresholded CNN remains the stronger future challenger for runtime
+  promotion. The current deployed logistic bridge remains the MVP runtime choice
+  because it is already simple, JSON-exported, and conservative.
 
 ## Current Best Result
 

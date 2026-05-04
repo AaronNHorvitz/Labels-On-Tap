@@ -779,7 +779,14 @@ code:
   experiments/typography_preflight/compare_audit_v6_baselines.py
 
 output:
-  data/work/typography-preflight/model-comparison-audit-v6-baselines-v1/
+  data/work/typography-preflight/model-comparison-audit-v6-defensible-v2/
+
+methodology:
+  base models fit on stratified 80% subset of audit-v6 train
+  stackers fit on stratified 20% meta subset of audit-v6 train
+  reject thresholds tune on audit-v6 validation
+  final metrics score once on audit-v6 test
+  test is never used for fitting, threshold selection, or model selection
 
 target:
   boldness_label
@@ -797,14 +804,15 @@ ensembles:
 
 | Audit-v6 model / policy | Test macro F1 | Test false-clear | p95 ms/crop |
 |---|---:|---:|---:|
-| SVM | 0.9467 | 0.0363 | 0.11 |
-| XGBoost | 0.9633 | 0.0297 | 0.18 |
-| LightGBM | 0.9753 | 0.0198 | 2.13 |
-| Logistic Regression | 0.9546 | 0.0242 | 0.15 |
-| MLP | 0.9656 | 0.0275 | 0.26 |
-| CatBoost | 0.9472 | 0.0452 | 2.10 |
-| Strict-veto ensemble | 0.8841 | 0.0077 | 10.56 |
-| CatBoost stacker | 0.9721 | 0.0143 | 11.34 |
+| SVM | 0.9377 | 0.0385 | 0.11 |
+| XGBoost | 0.9613 | 0.0341 | 0.18 |
+| LightGBM | 0.9703 | 0.0242 | 2.23 |
+| Logistic Regression | 0.9529 | 0.0297 | 0.13 |
+| MLP | 0.9398 | 0.0518 | 0.29 |
+| CatBoost | 0.9471 | 0.0407 | 2.04 |
+| Strict-veto ensemble | 0.8679 | 0.0110 | 10.94 |
+| Calibrated logistic stacker | 0.9696 | 0.0198 | 11.38 |
+| XGBoost reject-threshold stacker | 0.9208 | 0.0033 | 12.72 |
 | CNN threshold, zero validation false-clear | 0.7755* | 0.0000 | 5.21 |
 | CNN threshold, 0.005 validation tolerance | 0.8864* | 0.0022 | 5.21 |
 
@@ -814,9 +822,10 @@ narrow pass-evidence policy.
 
 Architectural implication: the classical baselines are useful sanity checks and
 latency references, but their audit-v6 false-clear rates are still too high for
-automatic government-warning boldness clearance. The CNN is the stronger future
-challenger; the deployed logistic JSON bridge remains the simpler MVP runtime
-model until a same-split promotion gate is completed.
+automatic government-warning boldness clearance. Reject-threshold ensembles
+improve safety but lose too much useful clearance. The CNN remains the stronger
+future challenger; the deployed logistic JSON bridge remains the simpler MVP
+runtime model until a same-split promotion gate is completed.
 
 ---
 
