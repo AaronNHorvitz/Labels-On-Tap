@@ -24,7 +24,15 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Red
 from fastapi.templating import Jinja2Templates
 from PIL import Image
 
-from app.config import JOBS_DIR, MAX_ARCHIVE_BYTES, MAX_BATCH_ITEMS, MAX_MANIFEST_BYTES, MAX_UPLOAD_BYTES, ROOT
+from app.config import (
+    JOBS_DIR,
+    MAX_ARCHIVE_BYTES,
+    MAX_BATCH_ITEMS,
+    MAX_MANIFEST_BYTES,
+    MAX_UPLOAD_BYTES,
+    PUBLIC_COLA_DEMO_DIR,
+    ROOT,
+)
 from app.schemas.application import ColaApplication
 from app.schemas.manifest import ManifestItem
 from app.schemas.ocr import OCRResult
@@ -38,6 +46,7 @@ from app.services.cola_cloud_demo import (
 from app.services.job_store import (
     add_manifest_item,
     create_job,
+    delete_job,
     job_dir,
     list_results,
     load_manifest,
@@ -488,6 +497,126 @@ def _queue_manifest_batch(
         },
     )
     return job_id
+
+
+def _queue_manifest_batch_from_paths(
+    *,
+    manifest_items: list[ManifestItem],
+    image_root: Path,
+    job_label: str,
+    review_unknown_government_warning: bool,
+    require_review_before_rejection: bool,
+    require_review_before_acceptance: bool,
+) -> str:
+    """Persist a server-side demo pack as a normal queued batch job.
+
+    Parameters
+    ----------
+    manifest_items:
+        Application rows selected from the server-side public COLA demo
+        manifest.
+    image_root:
+        Root directory containing manifest-referenced image paths.
+    job_label:
+        Human-readable job label written to ``manifest.json``.
+
+    Notes
+    -----
+    This intentionally copies the server-hosted demo images into ``data/jobs``
+    so the resulting parse run is durable and inspectable like an uploaded job.
+    """
+
+    if len(manifest_items) > MAX_BATCH_ITEMS:
+        raise HTTPException(status_code=400, detail=f"Batch contains more than the maximum {MAX_BATCH_ITEMS} applications.")
+    job_id = create_job(label=job_label)
+    queued_items = []
+    for item in manifest_items:
+        filenames = _manifest_item_filenames(item)
+        source_paths = [_safe_demo_pack_path(image_root, filename) for filename in filenames]
+        item_id = item.fixture_id or Path(item.filename).stem
+        destinations = [
+            save_upload(job_id, source_path, f"{item_id}_{index:02d}_{source_path.name}")
+            for index, source_path in enumerate(source_paths, start=1)
+        ]
+        add_manifest_item(
+            job_id,
+            {
+                "item_id": item_id,
+                "filename": item.filename,
+                "fixture_id": item.fixture_id,
+                "original_filename": filenames[0],
+                "stored_filename": destinations[0].name,
+                "upload_size": sum(source_path.stat().st_size for source_path in source_paths),
+                "original_filenames": filenames,
+                "stored_filenames": [dest.name for dest in destinations],
+                "upload_sizes": [source_path.stat().st_size for source_path in source_paths],
+                "workflow": "server_public_cola_demo",
+            },
+        )
+        item_payload = item.model_dump() if hasattr(item, "model_dump") else item.dict()
+        queued_items.append(
+            {
+                "item": item_payload,
+                "item_id": item_id,
+                "stored_filename": destinations[0].name,
+                "stored_filenames": [dest.name for dest in destinations],
+                "original_filenames": filenames,
+            }
+        )
+
+    enqueue_batch(
+        job_id,
+        {
+            "items": queued_items,
+            "review_unknown_government_warning": review_unknown_government_warning,
+            "require_review_before_rejection": require_review_before_rejection,
+            "require_review_before_acceptance": require_review_before_acceptance,
+        },
+    )
+    return job_id
+
+
+def _safe_demo_pack_path(root: Path, relative_name: str) -> Path:
+    """Resolve one server demo image path without allowing traversal."""
+
+    normalized = relative_name.replace("\\", "/").strip("/")
+    path = PurePosixPath(normalized)
+    if path.is_absolute() or not path.name or any(part in {"", ".", ".."} for part in path.parts):
+        raise HTTPException(status_code=400, detail="Demo manifest contains an unsafe image path.")
+    full_path = (root / path.as_posix()).resolve()
+    if not full_path.is_relative_to(root.resolve()) or not full_path.exists():
+        raise HTTPException(status_code=400, detail=f"Demo image missing: {relative_name}")
+    if full_path.suffix.lower() not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Demo image has unsupported suffix: {relative_name}")
+    if not has_allowed_image_signature(full_path) or not is_pillow_decodable_image(full_path):
+        raise HTTPException(status_code=400, detail=f"Demo image is not a valid JPG/PNG: {relative_name}")
+    return full_path
+
+
+def _public_cola_demo_manifest_items() -> list[ManifestItem]:
+    """Load the server-side public COLA demo manifest."""
+
+    manifest_path = PUBLIC_COLA_DEMO_DIR / "manifest.csv"
+    if not manifest_path.exists():
+        return []
+    return parse_manifest(manifest_path.name, manifest_path.read_bytes())
+
+
+def _public_cola_demo_applications(items: list[ManifestItem]) -> list[dict[str, Any]]:
+    """Return browser data for the server-side public COLA demo viewer."""
+
+    applications = []
+    for item in items:
+        images = []
+        for filename in _manifest_item_filenames(item):
+            try:
+                _safe_demo_pack_path(PUBLIC_COLA_DEMO_DIR, filename)
+            except HTTPException:
+                continue
+            images.append({"url": f"/public-cola-demo/images/{filename}"})
+        if images:
+            applications.append({"id": item.filename, "images": images})
+    return applications
 
 
 def _normalize_letters(text: str) -> str:
@@ -1185,6 +1314,91 @@ def review_dashboard(request: Request, queue: str = "all") -> HTMLResponse:
             "total_items": sum(queue_counts.values()),
         },
     )
+
+
+@router.get("/public-cola-demo", response_class=HTMLResponse)
+def public_cola_demo(request: Request, job_id: str = "") -> HTMLResponse:
+    """Render the server-side public COLA demo browser and parse results."""
+
+    items = _public_cola_demo_manifest_items()
+    results = []
+    manifest: dict[str, Any] = {"items": [], "label": "No demo parse run yet"}
+    queue_status = None
+    if job_id:
+        try:
+            manifest = load_manifest(job_id)
+            results = list_results(job_id)
+            queue_status = load_queue_status(job_id)
+        except Exception:
+            job_id = ""
+    return templates.TemplateResponse(
+        request,
+        "public_cola_demo.html",
+        {
+            "applications": _public_cola_demo_applications(items),
+            "missing_pack": not items,
+            "demo_dir": PUBLIC_COLA_DEMO_DIR,
+            "job_id": job_id,
+            "manifest": manifest,
+            "results": results,
+            "queue_status": queue_status,
+            "queue_timing": _queue_timing_metrics(queue_status),
+            "comparison_rows": _job_comparison_payload(results),
+        },
+    )
+
+
+@router.post("/public-cola-demo/parse")
+def parse_public_cola_demo(
+    parse_scope: str = Form("application"),
+    selected_application: str = Form(""),
+    review_unknown_government_warning: bool = Form(False),
+    require_review_before_rejection: bool = Form(False),
+    require_review_before_acceptance: bool = Form(False),
+) -> RedirectResponse:
+    """Queue parsing for one server-hosted application or the full demo pack."""
+
+    manifest_items = _public_cola_demo_manifest_items()
+    if not manifest_items:
+        raise HTTPException(status_code=404, detail=f"Public COLA demo pack missing at {PUBLIC_COLA_DEMO_DIR}")
+    if parse_scope not in {"application", "directory"}:
+        raise HTTPException(status_code=400, detail="Invalid parse scope.")
+    selected_application = selected_application.strip()
+    if parse_scope == "application":
+        if not selected_application:
+            raise HTTPException(status_code=400, detail="Choose an application before parsing a single application.")
+        manifest_items = [item for item in manifest_items if item.filename == selected_application or item.fixture_id == selected_application]
+        if not manifest_items:
+            raise HTTPException(status_code=400, detail=f"Selected application was not found: {selected_application}")
+    job_id = _queue_manifest_batch_from_paths(
+        manifest_items=manifest_items,
+        image_root=PUBLIC_COLA_DEMO_DIR,
+        job_label=(
+            f"public COLA demo application {selected_application}"
+            if parse_scope == "application"
+            else f"public COLA demo directory ({len(manifest_items)} applications)"
+        ),
+        review_unknown_government_warning=review_unknown_government_warning,
+        require_review_before_rejection=require_review_before_rejection,
+        require_review_before_acceptance=require_review_before_acceptance,
+    )
+    return RedirectResponse(url=f"/public-cola-demo?job_id={job_id}", status_code=303)
+
+
+@router.post("/public-cola-demo/reset")
+def reset_public_cola_demo(job_id: str = Form("")) -> RedirectResponse:
+    """Clear one server-side demo parse run and return to the demo browser."""
+
+    if job_id:
+        delete_job(job_id)
+    return RedirectResponse(url="/public-cola-demo", status_code=303)
+
+
+@router.get("/public-cola-demo/images/{image_path:path}")
+def public_cola_demo_image(image_path: str) -> FileResponse:
+    """Serve one image from the server-side public COLA demo pack."""
+
+    return FileResponse(_safe_demo_pack_path(PUBLIC_COLA_DEMO_DIR, image_path))
 
 
 @router.post("/jobs/batch")

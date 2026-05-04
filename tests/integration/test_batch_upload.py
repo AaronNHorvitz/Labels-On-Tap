@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.config import JOBS_DIR, ROOT
 from app.main import app
+from app.routes import jobs
 from app.services.batch_queue import wait_for_completion
 from app.services.job_store import load_manifest
 
@@ -227,6 +228,56 @@ def test_application_directory_upload_can_parse_selected_application_only():
     assert "Time per application:" in page.text
     assert "APP-002" in page.text
     assert "APP-001" not in page.text
+
+
+def test_public_cola_demo_uses_server_side_pack_and_selected_application(monkeypatch, tmp_path):
+    demo_root = tmp_path / "public-cola-300"
+    image_dir = demo_root / "images" / "APP-002"
+    image_dir.mkdir(parents=True)
+    (demo_root / "images" / "APP-001").mkdir(parents=True)
+    (demo_root / "images" / "APP-001" / "clean_malt_pass.png").write_bytes((DEMO_DIR / "clean_malt_pass.png").read_bytes())
+    (image_dir / "warning_missing_comma_fail.png").write_bytes((DEMO_DIR / "warning_missing_comma_fail.png").read_bytes())
+    (demo_root / "manifest.csv").write_text(
+        "\n".join(
+            [
+                "filename,panel_filenames,fixture_id,product_type,brand_name,class_type,alcohol_content,net_contents",
+                "APP-001,images/APP-001/clean_malt_pass.png,app_001,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint",
+                "APP-002,images/APP-002/warning_missing_comma_fail.png,app_002,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(jobs, "PUBLIC_COLA_DEMO_DIR", demo_root)
+    client = TestClient(app)
+
+    page = client.get("/public-cola-demo")
+    assert page.status_code == 200
+    assert "Parse This Application" in page.text
+    assert "Parse This Directory of Applications" in page.text
+    assert "Application directory" not in page.text
+
+    response = client.post(
+        "/public-cola-demo/parse",
+        data={"parse_scope": "application", "selected_application": "APP-002"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    job_id = response.headers["location"].split("job_id=")[-1]
+    status = wait_for_completion(job_id, timeout_seconds=5)
+    assert status and status["status"] == "completed"
+    manifest_doc = load_manifest(job_id)
+    assert manifest_doc["label"] == "public COLA demo application APP-002"
+    assert len(manifest_doc["items"]) == 1
+    assert manifest_doc["items"][0]["filename"] == "APP-002"
+    result_page = client.get(f"/public-cola-demo?job_id={job_id}")
+    assert "Total parse time:" in result_page.text
+    assert "Time per application:" in result_page.text
+
+    reset = client.post("/public-cola-demo/reset", data={"job_id": job_id}, follow_redirects=False)
+    assert reset.status_code == 303
+    assert not (JOBS_DIR / job_id).exists()
 
 
 def test_batch_upload_rejects_malformed_csv():

@@ -123,3 +123,17 @@ def load_manifest(job_id: str) -> dict:
     """Load a job manifest."""
 
     return read_json(job_dir(job_id) / "manifest.json")
+
+
+def delete_job(job_id: str) -> None:
+    """Delete a filesystem-backed job if it exists.
+
+    Notes
+    -----
+    This is used by the public demo reset button. It removes copied uploads,
+    queued status, reviewer decisions, and parsed results for that demo run.
+    """
+
+    path = job_dir(job_id)
+    if path.exists():
+        shutil.rmtree(path)

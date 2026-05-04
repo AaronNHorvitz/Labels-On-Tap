@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = Path(os.getenv("DATA_DIR", ROOT / "data"))
 JOBS_DIR = DATA_DIR / "jobs"
 DEMO_FIXTURE_DIR = DATA_DIR / "fixtures/demo"
+PUBLIC_COLA_DEMO_DIR = DATA_DIR / "work/demo-upload/public-cola-300"
 SOURCE_MAP_DIR = DATA_DIR / "source-maps"
 OCR_CONFIDENCE_THRESHOLD = float(os.getenv("OCR_CONFIDENCE_THRESHOLD", "0.70"))
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
