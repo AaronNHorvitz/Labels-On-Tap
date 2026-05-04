@@ -247,6 +247,17 @@ button {
   justify-items: center;
 }
 
+.demo-control-panel .application-batch-form {
+  display: grid;
+  width: min(1200px, 100%);
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+.demo-control-panel .application-batch-controls {
+  width: min(760px, 100%);
+}
+
 .review-policy-card {
   width: min(760px, 100%);
   padding: 1rem;
@@ -438,7 +449,7 @@ fieldset.full {
   border-radius: 6px;
 }
 
-.application-batch-controls fieldset label {
+.application-batch-controls fieldset label:not(.review-mode-card) {
   display: flex;
   align-items: center;
   gap: 0.55rem;

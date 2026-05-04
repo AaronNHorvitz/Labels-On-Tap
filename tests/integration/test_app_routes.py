@@ -49,7 +49,10 @@ def test_actual_app_workspace_keeps_upload_controls():
     response = client.get("/app")
 
     assert response.status_code == 200
-    assert "Upload Application Directory" in response.text
+    assert "LOT Actual" in response.text
+    assert "Human Review Required" in response.text
+    assert "Auto-Route Clear Decisions" in response.text
+    assert "Current Application Field Comparison" in response.text
     assert 'name="application_directory"' in response.text
 
 

@@ -1582,6 +1582,7 @@ def create_application_directory_job(
     application_directory: list[UploadFile] = File(...),
     parse_scope: str = Form("directory"),
     selected_application: str = Form(""),
+    review_policy: str = Form("human"),
     review_unknown_government_warning: bool = Form(False),
     require_review_before_rejection: bool = Form(False),
     require_review_before_acceptance: bool = Form(False),
@@ -1620,6 +1621,16 @@ def create_application_directory_job(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if parse_scope not in {"application", "directory"}:
         raise HTTPException(status_code=400, detail="Invalid parse scope.")
+    if review_policy not in {"human", "auto"}:
+        raise HTTPException(status_code=400, detail="Invalid review policy.")
+    if review_policy == "human":
+        review_unknown_government_warning = True
+        require_review_before_rejection = True
+        require_review_before_acceptance = True
+    elif review_policy == "auto":
+        review_unknown_government_warning = False
+        require_review_before_rejection = False
+        require_review_before_acceptance = False
     selected_application = selected_application.strip()
     if parse_scope == "application":
         if not selected_application:
