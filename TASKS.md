@@ -30,6 +30,8 @@ https://www.labelsontap.ai
 - [x] DistilRoBERTa field-support bridge wired as optional runtime evidence.
 - [x] Logistic warning-heading boldness model exported in `app/models/typography/`.
 - [x] README includes setup, run, test, deployment, assumptions, and measured results.
+- [x] `MODEL_LOG.md` expanded into a chronological experiment ledger with model statistics.
+- [x] `MODEL_ARCHITECTURE.md`, `TRADEOFFS.md`, `MODEL_LOG.md`, and `docs/performance.md` include Mermaid diagrams for runtime, ensemble, graph-scorer, and future model paths.
 - [x] Handoff and local AI-agent files removed from the submission surface.
 
 ## Verification
@@ -38,10 +40,36 @@ Last full container test run:
 
 ```text
 pytest -q
-91 passed
+102 passed
 ```
 
-Important smoke checks before final submission:
+## Current Website Debugging
+
+The repository is current, but the live site still needs final user-facing smoke
+testing after each deploy.
+
+- [x] Landing page exists at `/` with `Home`, `LOT Demo`, and `LOT Actual`.
+- [x] `LOT Demo` links to the server-hosted public COLA demo path.
+- [x] `LOT Actual` links to the user-upload application path.
+- [x] Example data download includes `manifest.csv` plus application image folders.
+- [x] Single-application actual upload processes immediately instead of waiting in the queue.
+- [x] Batch/directory processing uses the durable queue and can be cancelled.
+- [ ] Pull latest `main` on AWS.
+- [ ] Rebuild and restart Docker Compose on AWS.
+- [ ] Confirm mounted demo data exists inside the app container at `/app/data/work/demo-upload/public-cola-curated-300`.
+- [ ] Confirm `/health` returns `{"status":"ok"}` on the public URL.
+- [ ] Confirm home page nav works: `Home`, `LOT Demo`, `LOT Actual`.
+- [ ] Confirm `LOT Demo` loads the curated 300-application server data.
+- [ ] Confirm `LOT Demo` can parse one application and show Actual vs Scraped fields.
+- [ ] Confirm `LOT Demo` can parse the directory and show progress, timing, and queue status.
+- [ ] Confirm `LOT Actual` can upload the downloaded example data.
+- [ ] Confirm `LOT Actual` can parse one application and show Actual vs Scraped fields.
+- [ ] Confirm `LOT Actual` can parse a directory batch and cancel cleanly.
+- [ ] Confirm CSV export downloads from review results.
+
+## Final Smoke Checks
+
+Important smoke checks before submission:
 
 - [ ] Pull latest commit on the AWS host.
 - [ ] Rebuild containers.
@@ -65,6 +93,8 @@ Important smoke checks before final submission:
 - [x] Graph scorer: documented offline experiment, not deployed.
 - [x] CNN-inclusive typography ensembles: documented offline experiments, not deployed.
 - [x] PaddleOCR/OpenOCR/PARSeq/ASTER/FCENet/ABINet: measured offline candidates, not deployed.
+- [x] WineBERT/o, OSA, and FoodBaseBERT domain-NER probes: measured offline candidates, not deployed.
+- [x] LayoutLMv3 and HO-GNN/TPS/SVTR paths: documented future architecture, not deployed.
 
 ## Future Production Work
 
