@@ -712,6 +712,53 @@ def _compact_evidence(text: str, limit: int = 240) -> str:
     return f"{compact[: limit - 1]}..."
 
 
+def _queue_timing_metrics(queue_status: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Return progress and elapsed-time metrics for a queue status object."""
+
+    if not queue_status:
+        return None
+    total = int(queue_status.get("total") or 0)
+    processed = int(queue_status.get("processed") or 0)
+    started_at = _parse_iso_datetime(queue_status.get("started_at"))
+    finished_at = _parse_iso_datetime(queue_status.get("finished_at"))
+    end_at = finished_at if finished_at else datetime.now(timezone.utc)
+    elapsed_seconds = (end_at - started_at).total_seconds() if started_at else 0.0
+    per_application = elapsed_seconds / processed if processed else 0.0
+    progress_percent = round((processed / total) * 100, 1) if total else 0.0
+    return {
+        "progress_percent": progress_percent,
+        "elapsed_label": _format_seconds(elapsed_seconds),
+        "per_application_label": _format_seconds(per_application),
+        "elapsed_seconds": elapsed_seconds,
+        "per_application_seconds": per_application,
+    }
+
+
+def _parse_iso_datetime(value: Any) -> datetime | None:
+    """Parse an ISO-8601 timestamp from the local queue file."""
+
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _format_seconds(seconds: float) -> str:
+    """Format short durations for the browser status panel."""
+
+    if seconds < 1:
+        return f"{seconds * 1000:.0f} ms"
+    if seconds < 60:
+        return f"{seconds:.2f} s"
+    minutes, remainder = divmod(seconds, 60)
+    return f"{int(minutes)}m {remainder:.1f}s"
+
+
 @router.post("/jobs")
 def create_single_job(
     brand_name: str = Form(...),
@@ -1211,6 +1258,8 @@ def create_batch_job(
 @router.post("/jobs/application-directory")
 def create_application_directory_job(
     application_directory: list[UploadFile] = File(...),
+    parse_scope: str = Form("directory"),
+    selected_application: str = Form(""),
     review_unknown_government_warning: bool = Form(False),
     require_review_before_rejection: bool = Form(False),
     require_review_before_acceptance: bool = Form(False),
@@ -1247,6 +1296,20 @@ def create_application_directory_job(
         manifest_items = parse_manifest(PurePosixPath(manifest_key).name, manifest_content)
     except (ValueError, ManifestParseError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if parse_scope not in {"application", "directory"}:
+        raise HTTPException(status_code=400, detail="Invalid parse scope.")
+    selected_application = selected_application.strip()
+    if parse_scope == "application":
+        if not selected_application:
+            raise HTTPException(status_code=400, detail="Choose an application before parsing a single application.")
+        manifest_items = [
+            item
+            for item in manifest_items
+            if item.filename == selected_application or item.fixture_id == selected_application
+        ]
+        if not manifest_items:
+            raise HTTPException(status_code=400, detail=f"Selected application was not found in the manifest: {selected_application}")
+    expected_upload_names = {filename for item in manifest_items for filename in _manifest_item_filenames(item)}
 
     JOBS_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="_upload-", dir=JOBS_DIR) as temp_dir:
@@ -1257,13 +1320,20 @@ def create_application_directory_job(
                 continue
             if PurePosixPath(key).suffix.lower() not in ALLOWED_IMAGE_EXTENSIONS:
                 continue
+            relative_key = _strip_directory_root(key, root_prefix)
+            if relative_key not in expected_upload_names:
+                continue
             staged = _validate_image_upload_with_policy(upload, Path(temp_dir), allow_relative_name=True)
             staged.original_filename = _strip_directory_root(staged.original_filename, root_prefix)
             uploads.append(staged)
         job_id = _queue_manifest_batch(
             manifest_items=manifest_items,
             uploads=uploads,
-            job_label=f"directory demo upload ({len(manifest_items)} applications)",
+            job_label=(
+                f"single application demo upload ({selected_application})"
+                if parse_scope == "application"
+                else f"directory demo upload ({len(manifest_items)} applications)"
+            ),
             review_unknown_government_warning=review_unknown_government_warning,
             require_review_before_rejection=require_review_before_rejection,
             require_review_before_acceptance=require_review_before_acceptance,
@@ -1341,6 +1411,7 @@ def job_page(request: Request, job_id: str):
     """Render a job's result table."""
 
     results = list_results(job_id)
+    queue_status = load_queue_status(job_id)
     return templates.TemplateResponse(
         request,
         "job.html",
@@ -1348,7 +1419,8 @@ def job_page(request: Request, job_id: str):
             "job_id": job_id,
             "manifest": load_manifest(job_id),
             "results": results,
-            "queue_status": load_queue_status(job_id),
+            "queue_status": queue_status,
+            "queue_timing": _queue_timing_metrics(queue_status),
             "comparison_rows": _job_comparison_payload(results),
         },
     )
@@ -1359,6 +1431,7 @@ def job_status(request: Request, job_id: str):
     """Render the HTMX status/result table partial for a job."""
 
     results = list_results(job_id)
+    queue_status = load_queue_status(job_id)
     return templates.TemplateResponse(
         request,
         "partials/job_status.html",
@@ -1366,7 +1439,8 @@ def job_status(request: Request, job_id: str):
             "job_id": job_id,
             "results": results,
             "manifest": load_manifest(job_id),
-            "queue_status": load_queue_status(job_id),
+            "queue_status": queue_status,
+            "queue_timing": _queue_timing_metrics(queue_status),
             "comparison_rows": _job_comparison_payload(results),
         },
     )

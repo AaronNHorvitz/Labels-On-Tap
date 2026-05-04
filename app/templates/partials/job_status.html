@@ -24,6 +24,18 @@
     <span class="badge fail">Failed</span>
     {% endif %}
   </div>
+  <progress class="progress-meter" value="{{ queue_status.processed }}" max="{{ queue_status.total or 1 }}"></progress>
+  {% if queue_timing %}
+  <p class="queue-timing">
+    Progress: {{ queue_timing.progress_percent }}%
+    {% if queue_status.status == "completed" %}
+      · Total parse time: {{ queue_timing.elapsed_label }}
+      · Time per application: {{ queue_timing.per_application_label }}
+    {% elif queue_status.status == "running" %}
+      · Elapsed: {{ queue_timing.elapsed_label }}
+    {% endif %}
+  </p>
+  {% endif %}
 </section>
 {% endif %}
 

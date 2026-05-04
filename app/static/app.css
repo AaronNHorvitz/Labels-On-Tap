@@ -155,6 +155,11 @@ button {
   gap: 1rem;
 }
 
+.parse-actions {
+  display: grid;
+  gap: 0.65rem;
+}
+
 .photo-counter {
   color: var(--blue-dark);
   font-weight: 700;
@@ -362,6 +367,31 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.progress-meter {
+  width: 100%;
+  height: 0.9rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.progress-meter::-webkit-progress-bar {
+  background: #ffffff;
+}
+
+.progress-meter::-webkit-progress-value {
+  background: var(--blue);
+}
+
+.progress-meter::-moz-progress-bar {
+  background: var(--blue);
+}
+
+.queue-timing {
+  margin: 0.6rem 0 0;
 }
 
 .dashboard-filter {

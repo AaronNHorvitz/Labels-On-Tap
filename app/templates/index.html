@@ -27,7 +27,11 @@
           <label><input name="require_review_before_rejection" type="checkbox" value="true"> Require reviewer approval before rejection</label>
           <label><input name="require_review_before_acceptance" type="checkbox" value="true"> Require reviewer approval before acceptance</label>
         </fieldset>
-        <button class="button primary" type="submit">Upload Directory And Run Demo</button>
+        <input id="selected-application" name="selected_application" type="hidden">
+        <div class="parse-actions">
+          <button class="button primary" name="parse_scope" value="application" type="submit">Parse This Application</button>
+          <button class="button primary" name="parse_scope" value="directory" type="submit">Parse This Directory of Applications</button>
+        </div>
         <button class="button secondary" type="reset">Reset</button>
       </div>
       <div class="application-preview-card" aria-live="polite">
@@ -55,13 +59,14 @@
     const viewport = document.getElementById("batch-preview-viewport");
     const preview = document.getElementById("batch-preview");
     const empty = document.getElementById("batch-preview-empty");
+    const selectedApplicationInput = document.getElementById("selected-application");
     const appCounter = document.getElementById("batch-app-counter");
     const photoCounter = document.getElementById("batch-photo-counter");
     const appPrev = document.getElementById("batch-app-prev");
     const appNext = document.getElementById("batch-app-next");
     const photoPrev = document.getElementById("batch-photo-prev");
     const photoNext = document.getElementById("batch-photo-next");
-    if (!folderInput || !viewport || !preview || !empty || !appCounter || !photoCounter || !appPrev || !appNext || !photoPrev || !photoNext) {
+    if (!folderInput || !viewport || !preview || !empty || !selectedApplicationInput || !appCounter || !photoCounter || !appPrev || !appNext || !photoPrev || !photoNext) {
       return;
     }
 
@@ -133,6 +138,7 @@
         empty.hidden = false;
         appCounter.textContent = "No application selected";
         photoCounter.textContent = "No application photos selected";
+        selectedApplicationInput.value = "";
         appPrev.hidden = true;
         appNext.hidden = true;
         photoPrev.hidden = true;
@@ -149,6 +155,7 @@
       resetTransform();
       appCounter.textContent = `Application ${applicationIndex + 1} of ${applications.length} · ${application}`;
       photoCounter.textContent = `Photo ${photoIndex + 1} of ${applicationFiles.length}: ${displayKey(file)}`;
+      selectedApplicationInput.value = application;
       appPrev.hidden = applicationIndex <= 0;
       appNext.hidden = applicationIndex < 0 || applicationIndex >= applications.length - 1;
       photoPrev.hidden = photoIndex <= 0;

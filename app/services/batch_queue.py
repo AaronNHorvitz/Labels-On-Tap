@@ -87,6 +87,8 @@ def mark_progress(job_id: str, processed: int, total: int) -> None:
     status = load_queue_status(job_id)
     if status is None:
         return
+    if not status.get("started_at"):
+        status["started_at"] = utc_now()
     status["processed"] = processed
     status["total"] = total
     write_queue_status(job_id, status)

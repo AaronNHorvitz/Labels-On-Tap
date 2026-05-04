@@ -180,6 +180,55 @@ def test_application_directory_upload_discovers_manifest_and_nested_images():
     assert "Real Label Images And OCR Evidence" in page.text
 
 
+def test_application_directory_upload_can_parse_selected_application_only():
+    client = TestClient(app)
+    manifest = (
+        "filename,panel_filenames,fixture_id,product_type,brand_name,class_type,alcohol_content,net_contents\n"
+        "APP-001,images/APP-001/clean_malt_pass.png,app_001,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint\n"
+        "APP-002,images/APP-002/warning_missing_comma_fail.png,app_002,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint\n"
+    ).encode()
+    response = client.post(
+        "/jobs/application-directory",
+        data={"parse_scope": "application", "selected_application": "APP-002"},
+        files=[
+            ("application_directory", ("public-cola-300/manifest.csv", manifest, "text/csv")),
+            (
+                "application_directory",
+                (
+                    "public-cola-300/images/APP-001/clean_malt_pass.png",
+                    (DEMO_DIR / "clean_malt_pass.png").read_bytes(),
+                    "image/png",
+                ),
+            ),
+            (
+                "application_directory",
+                (
+                    "public-cola-300/images/APP-002/warning_missing_comma_fail.png",
+                    (DEMO_DIR / "warning_missing_comma_fail.png").read_bytes(),
+                    "image/png",
+                ),
+            ),
+        ],
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    job_id = response.headers["location"].rstrip("/").split("/")[-1]
+    status = wait_for_completion(job_id, timeout_seconds=5)
+    assert status and status["status"] == "completed"
+
+    manifest_doc = load_manifest(job_id)
+    assert manifest_doc["label"] == "single application demo upload (APP-002)"
+    assert len(manifest_doc["items"]) == 1
+    assert manifest_doc["items"][0]["filename"] == "APP-002"
+    page = client.get(f"/jobs/{job_id}")
+    assert "1 / 1" in page.text
+    assert "Total parse time:" in page.text
+    assert "Time per application:" in page.text
+    assert "APP-002" in page.text
+    assert "APP-001" not in page.text
+
+
 def test_batch_upload_rejects_malformed_csv():
     client = TestClient(app)
     files = [
