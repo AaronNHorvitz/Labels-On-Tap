@@ -14,6 +14,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
+from pathlib import PurePosixPath
 from tempfile import TemporaryDirectory
 from typing import Any
 from zipfile import BadZipFile, ZipFile
@@ -120,11 +121,35 @@ def _validate_image_upload(upload: UploadFile, temp_dir: Path) -> ValidatedUploa
     as display metadata so result pages remain understandable to reviewers.
     """
 
+    return _validate_image_upload_with_policy(upload, temp_dir, allow_relative_name=False)
+
+
+def _normalize_relative_upload_name(filename: str) -> str:
+    """Return a safe relative upload key for application-folder matching."""
+
+    normalized = filename.replace("\\", "/").strip("/")
+    path = PurePosixPath(normalized)
+    if path.is_absolute() or not path.name or any(part in {"", ".", ".."} for part in path.parts):
+        raise ValueError("Upload filename must be a safe relative path.")
+    suffixes = [suffix.lower() for suffix in PurePosixPath(path.name).suffixes]
+    if not suffixes or suffixes[-1] not in ALLOWED_IMAGE_EXTENSIONS:
+        raise ValueError("Unsupported label image type. Use JPG or PNG.")
+    if len(suffixes) > 1:
+        raise ValueError("Double-extension uploads are not accepted.")
+    return path.as_posix()
+
+
+def _validate_image_upload_with_policy(upload: UploadFile, temp_dir: Path, *, allow_relative_name: bool) -> ValidatedUpload:
+    """Validate and stage an upload, optionally preserving a safe folder key."""
+
     if not upload.filename:
         raise HTTPException(status_code=400, detail="Missing upload filename")
     original_filename = upload.filename
     try:
-        validate_upload_name(original_filename)
+        if allow_relative_name:
+            original_filename = _normalize_relative_upload_name(original_filename)
+        else:
+            validate_upload_name(original_filename)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -152,7 +177,7 @@ def _validate_image_bytes(original_filename: str, content: bytes, temp_dir: Path
     """Validate one in-memory image extracted from a ZIP archive."""
 
     try:
-        validate_upload_name(original_filename)
+        original_filename = _normalize_relative_upload_name(original_filename)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"{original_filename}: {exc}") from exc
     if len(content) > MAX_UPLOAD_BYTES:
@@ -200,10 +225,10 @@ def _validate_zip_upload(upload: UploadFile, temp_dir: Path) -> list[ValidatedUp
         for member in archive.infolist():
             if member.is_dir():
                 continue
-            original_filename = Path(member.filename).name
+            original_filename = member.filename.replace("\\", "/").strip("/")
             if not original_filename:
                 continue
-            if Path(original_filename).suffix.lower() not in ALLOWED_IMAGE_EXTENSIONS:
+            if PurePosixPath(original_filename).suffix.lower() not in ALLOWED_IMAGE_EXTENSIONS:
                 continue
             total_uncompressed += member.file_size
             if total_uncompressed > MAX_ARCHIVE_BYTES:
@@ -960,7 +985,11 @@ def create_batch_job(
 
     JOBS_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="_upload-", dir=JOBS_DIR) as temp_dir:
-        uploads = [_validate_image_upload(upload, Path(temp_dir)) for upload in (label_images or []) if upload.filename]
+        uploads = [
+            _validate_image_upload_with_policy(upload, Path(temp_dir), allow_relative_name=True)
+            for upload in (label_images or [])
+            if upload.filename
+        ]
         if image_archive is not None and image_archive.filename:
             uploads.extend(_validate_zip_upload(image_archive, Path(temp_dir)))
         if not uploads:
@@ -968,15 +997,32 @@ def create_batch_job(
         if len(uploads) > MAX_BATCH_ITEMS:
             raise HTTPException(status_code=400, detail=f"Batch contains more than the maximum {MAX_BATCH_ITEMS} label images.")
         by_filename: dict[str, ValidatedUpload] = {}
+        by_basename: dict[str, ValidatedUpload | None] = {}
         for upload in uploads:
             if upload.original_filename in by_filename:
                 raise HTTPException(status_code=400, detail=f"Duplicate uploaded image: {upload.original_filename}")
             by_filename[upload.original_filename] = upload
+            basename = PurePosixPath(upload.original_filename).name
+            if basename in by_basename:
+                by_basename[basename] = None
+            else:
+                by_basename[basename] = upload
+
+        def upload_for_manifest_filename(filename: str) -> ValidatedUpload | None:
+            """Return an uploaded image by exact relative key or unique basename."""
+
+            return by_filename.get(filename) or by_basename.get(PurePosixPath(filename).name)
 
         expected_filenames = {filename for item in manifest_items for filename in _manifest_item_filenames(item)}
-        uploaded_filenames = set(by_filename)
-        missing = sorted(expected_filenames - uploaded_filenames)
-        extra = sorted(uploaded_filenames - expected_filenames)
+        used_uploads: set[str] = set()
+        missing = []
+        for filename in sorted(expected_filenames):
+            upload = upload_for_manifest_filename(filename)
+            if upload is None:
+                missing.append(filename)
+            else:
+                used_uploads.add(upload.original_filename)
+        extra = sorted(set(by_filename) - used_uploads)
         if missing:
             raise HTTPException(status_code=400, detail=f"Manifest references missing images: {', '.join(missing)}")
         if extra:
@@ -985,7 +1031,10 @@ def create_batch_job(
         job_id = create_job(label=f"batch upload ({len(manifest_items)} labels)")
         queued_items = []
         for item in manifest_items:
-            item_uploads = [by_filename[filename] for filename in _manifest_item_filenames(item)]
+            item_uploads = [upload_for_manifest_filename(filename) for filename in _manifest_item_filenames(item)]
+            if any(upload is None for upload in item_uploads):
+                raise HTTPException(status_code=400, detail=f"Manifest references missing images for {item.filename}")
+            item_uploads = [upload for upload in item_uploads if upload is not None]
             destinations = [_move_validated_upload(job_id, upload) for upload in item_uploads]
             item_id = item.fixture_id or Path(item.filename).stem
             add_manifest_item(

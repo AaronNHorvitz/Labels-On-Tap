@@ -135,14 +135,16 @@ button {
   gap: 1rem;
 }
 
-.photo-intake-form {
+.photo-intake-form,
+.application-batch-form {
   display: grid;
-  grid-template-columns: minmax(280px, 0.85fr) minmax(320px, 1.15fr);
+  grid-template-columns: minmax(300px, 1fr) minmax(260px, 0.55fr);
   gap: 1rem;
   align-items: stretch;
 }
 
-.photo-picker {
+.photo-picker,
+.application-batch-controls {
   display: grid;
   gap: 1rem;
 }
@@ -152,9 +154,10 @@ button {
   font-weight: 700;
 }
 
-.photo-preview-card {
+.photo-preview-card,
+.application-preview-card {
   display: grid;
-  min-height: 360px;
+  min-height: 210px;
   place-items: center;
   padding: 1rem;
   border: 1px solid var(--line);
@@ -162,14 +165,20 @@ button {
   background: #f3efe6;
 }
 
-.photo-preview-card img {
+.photo-preview-card img,
+.application-preview-card img {
   display: block;
   width: 100%;
-  max-height: 520px;
+  max-height: 240px;
   object-fit: contain;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: white;
+}
+
+.application-preview-card {
+  align-content: center;
+  gap: 0.75rem;
 }
 
 .review-form {
@@ -195,6 +204,22 @@ fieldset.full {
   padding: 0.85rem;
   border: 1px solid var(--line);
   border-radius: 6px;
+}
+
+.application-batch-controls fieldset {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.application-batch-controls fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 600;
 }
 
 fieldset.full legend {
@@ -422,7 +447,7 @@ pre {
 .photo-result-image img {
   display: block;
   width: 100%;
-  max-height: 720px;
+  max-height: 360px;
   object-fit: contain;
   background: #f3efe6;
   border: 1px solid var(--line);
@@ -439,7 +464,7 @@ pre {
 .label-panel img {
   display: block;
   width: 100%;
-  max-height: 520px;
+  max-height: 320px;
   object-fit: contain;
   background: #f3efe6;
   border: 1px solid var(--line);
@@ -461,6 +486,7 @@ pre {
 
   .upload-form,
   .photo-intake-form,
+  .application-batch-form,
   .review-form,
   .summary-grid,
   .queue-grid,

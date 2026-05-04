@@ -109,32 +109,47 @@
 
   <section class="panel">
     <h2>COLA Application Batch Upload</h2>
-    <p>Upload up to {{ max_batch_items or 400 }} label images for a manifest. Each manifest row can represent one application with a single image, or one application with multiple panels using <code>panel_filenames</code> separated by semicolons.</p>
-    <form action="/jobs/batch" method="post" enctype="multipart/form-data" class="upload-form">
-      <label class="full">
-        Application manifest
-        <input name="manifest_file" type="file" accept=".csv,.json" required>
-      </label>
-      <label class="full">
-        Label panel images
-        <input name="label_images" type="file" accept=".jpg,.jpeg,.png" multiple>
-      </label>
-      <label class="full">
-        Or ZIP archive of label panel images
-        <input name="image_archive" type="file" accept=".zip">
-      </label>
-      <details class="full manifest-help">
-        <summary>Manifest columns for multi-panel applications</summary>
-        <pre>filename,panel_filenames,product_type,brand_name,fanciful_name,class_type,alcohol_content,net_contents,bottler_producer_name_address,imported,country_of_origin
-APP-001,app001-front.png;app001-back.png;app001-neck.png,wine,Example Winery,,Sauvignon Blanc,12% BY VOL,750 mL,"Example Winery, Napa CA",true,France</pre>
-      </details>
-      <fieldset class="full">
-        <legend>Review policy</legend>
-        <label><input name="review_unknown_government_warning" type="checkbox" value="true"> Send unknown government-warning cases to human review</label>
-        <label><input name="require_review_before_rejection" type="checkbox" value="true"> Require reviewer approval before rejection</label>
-        <label><input name="require_review_before_acceptance" type="checkbox" value="true"> Require reviewer approval before acceptance</label>
-      </fieldset>
-      <button class="button primary" type="submit">Verify Batch</button>
+    <p>Upload a manifest plus the panel images. Each manifest row is one application; <code>panel_filenames</code> can point to one, two, three, or more photos for that application.</p>
+    <form action="/jobs/batch" method="post" enctype="multipart/form-data" class="application-batch-form" id="application-batch-form">
+      <div class="application-batch-controls">
+        <label>
+          COLA application manifest
+          <input name="manifest_file" type="file" accept=".csv,.json" required>
+        </label>
+        <label>
+          Upload image files
+          <input id="batch-image-files" name="label_images" type="file" accept=".jpg,.jpeg,.png" multiple>
+        </label>
+        <label>
+          Or upload an application folder
+          <input id="batch-folder-files" name="label_images" type="file" accept=".jpg,.jpeg,.png" multiple webkitdirectory directory>
+        </label>
+        <label>
+          Or ZIP all application folders
+          <input name="image_archive" type="file" accept=".zip">
+        </label>
+        <details class="manifest-help">
+          <summary>Manifest example</summary>
+          <pre>filename,panel_filenames,product_type,brand_name,class_type,alcohol_content,net_contents,imported,country_of_origin
+APP-001,APP-001/front.png;APP-001/back.png;APP-001/neck.png,wine,Example Winery,Sauvignon Blanc,12% BY VOL,750 mL,true,France</pre>
+        </details>
+        <fieldset>
+          <legend>Review policy</legend>
+          <label><input name="review_unknown_government_warning" type="checkbox" value="true"> Send unknown government-warning cases to human review</label>
+          <label><input name="require_review_before_rejection" type="checkbox" value="true"> Require reviewer approval before rejection</label>
+          <label><input name="require_review_before_acceptance" type="checkbox" value="true"> Require reviewer approval before acceptance</label>
+        </fieldset>
+        <button class="button primary" type="submit">Parse And Compare Applications</button>
+      </div>
+      <div class="application-preview-card" aria-live="polite">
+        <img id="batch-preview" alt="Selected application panel preview">
+        <p id="batch-preview-empty">Choose image files or an application folder to browse panels before parsing.</p>
+        <div class="photo-controls" aria-label="Application folder browser controls">
+          <button class="button secondary" id="batch-prev" type="button">Previous</button>
+          <span id="batch-counter" class="photo-counter">No application photos selected</span>
+          <button class="button secondary" id="batch-next" type="button">Next</button>
+        </div>
+      </div>
     </form>
   </section>
 
@@ -251,6 +266,82 @@ APP-001,app001-front.png;app001-back.png;app001-neck.png,wine,Example Winery,,Sa
     });
     next.addEventListener("click", () => {
       const files = Array.from(input.files || []);
+      if (!files.length) {
+        return;
+      }
+      selectedIndex = (selectedIndex + 1) % files.length;
+      render();
+    });
+    render();
+  })();
+  (() => {
+    const fileInput = document.getElementById("batch-image-files");
+    const folderInput = document.getElementById("batch-folder-files");
+    const preview = document.getElementById("batch-preview");
+    const empty = document.getElementById("batch-preview-empty");
+    const counter = document.getElementById("batch-counter");
+    const prev = document.getElementById("batch-prev");
+    const next = document.getElementById("batch-next");
+    if (!fileInput || !folderInput || !preview || !empty || !counter || !prev || !next) {
+      return;
+    }
+
+    let selectedIndex = 0;
+    let objectUrl = null;
+
+    const fileKey = (file) => file.webkitRelativePath || file.name;
+    const applicationName = (file) => {
+      const key = fileKey(file);
+      return key.includes("/") ? key.split("/")[0] : "Application 1";
+    };
+    const collectFiles = () => [...Array.from(fileInput.files || []), ...Array.from(folderInput.files || [])]
+      .sort((left, right) => fileKey(left).localeCompare(fileKey(right)));
+
+    const render = () => {
+      const files = collectFiles();
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+      }
+      if (!files.length) {
+        preview.removeAttribute("src");
+        preview.hidden = true;
+        empty.hidden = false;
+        counter.textContent = "No application photos selected";
+        return;
+      }
+      selectedIndex = Math.min(Math.max(selectedIndex, 0), files.length - 1);
+      const file = files[selectedIndex];
+      const app = applicationName(file);
+      const apps = [...new Set(files.map(applicationName))];
+      const appFiles = files.filter((candidate) => applicationName(candidate) === app);
+      const appIndex = apps.indexOf(app);
+      const panelIndex = appFiles.indexOf(file);
+      objectUrl = URL.createObjectURL(file);
+      preview.src = objectUrl;
+      preview.hidden = false;
+      empty.hidden = true;
+      counter.textContent = `Application ${appIndex + 1} of ${apps.length} · Photo ${panelIndex + 1} of ${appFiles.length}: ${fileKey(file)}`;
+    };
+
+    fileInput.addEventListener("change", () => {
+      selectedIndex = 0;
+      render();
+    });
+    folderInput.addEventListener("change", () => {
+      selectedIndex = 0;
+      render();
+    });
+    prev.addEventListener("click", () => {
+      const files = collectFiles();
+      if (!files.length) {
+        return;
+      }
+      selectedIndex = (selectedIndex - 1 + files.length) % files.length;
+      render();
+    });
+    next.addEventListener("click", () => {
+      const files = collectFiles();
       if (!files.length) {
         return;
       }
