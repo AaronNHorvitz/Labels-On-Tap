@@ -286,12 +286,12 @@ DistilRoBERTa/RoBERTa field-support plan are documented in
 | WineBERT/o domain NER | Wine-label token classifier tested as a post-OCR entity arbiter over combined docTR/PaddleOCR/OpenOCR text. | `panigrah/wineberto-labels` entity-only F1 was `0.4865` with false-clear `0.0000`; hybrid support tied the government-safe ensemble but did not improve it. | Not promoted: unknown public model license, no ABV/net-contents extraction, wine-domain mismatch for beer/spirits, and no measured lift over deterministic ensemble. |
 | OSA market-domain NER | Apache-2.0 DistilBERT token classifier with product and market-characteristic entities. | 30-image smoke improved the hybrid government-safe ensemble from F1 `0.7416` to `0.7486` with false-clear `0.0000`. | Worth testing on the 100-app calibration set, but not deployed from a 20-app smoke alone. |
 | FoodBaseBERT-NER | MIT food-entity token classifier tested as a culinary-domain control. | Entity-only F1 was `0.0522`; hybrid support tied the government-safe ensemble at F1 `0.7416` with false-clear `0.0000`. | Pruned: it is fast and licensed cleanly, but food-only semantics do not transfer to alcohol regulatory field extraction. |
-| Graph-aware evidence scorer | Post-OCR model that scores whether OCR fragments support a target field. | Experimental proof exists under `experiments/graph_ocr/`. | Can only be promoted if it improves matching while lowering or preserving the false-clear rate on held-out data. |
+| Graph-aware evidence scorer | Post-OCR model that scores whether OCR fragments support a target field, especially when curved or multi-panel OCR fragments arrive out of order. | Experimental proof exists under `experiments/graph_ocr/`: F1 improved from `0.7714` to `0.8714`, and false-clear rate fell from `0.0439` to `0.0132` on the first 100-application calibration split. | Deferred to post-submission deployment. It needs a saved runtime artifact, same-split comparison against the DistilRoBERTa bridge, CPU latency proof, tests, and locked-holdout evaluation. |
 | HO-GNN / TPS / SVTR custom vision model | Long-term curved-text research path. | Future state only. | Requires annotation strategy, training/evaluation plan, CPU inference proof, and deployment packaging. |
 
 Early OCR-engine metrics are deliberately labeled as smoke results. Small sample sizes increase variance, so the 20-application / 30-image comparison is directional only and must not be treated as a stable engine ranking. That said, the current PaddleOCR F1 lift is meaningful enough to keep PaddleOCR in contention, not reject it. The first deterministic ensemble result is even more interesting for the government workflow: it improved the single-engine F1 while forcing ambiguous alcohol-content evidence to human review instead of allowing false clears.
 
-This sequencing keeps the product disciplined. Better OCR engines can improve what text is read. The graph-aware scorer can improve how OCR fragments are assembled into field evidence. Deterministic validation rules still decide `Pass`, `Needs Review`, or `Fail`.
+This sequencing keeps the product disciplined. Better OCR engines can improve what text is read. DistilRoBERTa now improves whether OCR text supports application fields. The graph-aware scorer is the next post-submission local deployment candidate for curved and fragmented text, but it is not in the Monday runtime. Deterministic validation rules and reviewer queues still decide `Pass`, `Needs Review`, or `Fail`.
 
 The curved-text research brief changed the experimental priority in one practical way: the next serious attempt should start with mature pre-trained OCR systems such as PaddleOCR or OpenOCR rather than training a custom curved-text model from scratch. Modern OCR systems trained on large distorted-text corpora may provide useful zero-shot performance on alcohol labels, avoiding the immediate need for custom polygon-level annotation.
 
@@ -575,11 +575,23 @@ This could later become a Higher-Order Graph Neural Network or Hypergraph Neural
 
 A first experimental version of this near-term graph layer now exists under
 `experiments/graph_ocr/`. It trains a small PyTorch graph-aware evidence scorer
-over cached local OCR boxes. On the initial COLA Cloud-derived 100-application calibration test,
-the safety-weighted GPU run improved F1 from `0.7714` to `0.8714` and reduced
-false-clear rate from `0.0439` to `0.0132` on shuffled negative examples. This
-is a proof of signal, not a final accuracy claim; the full HO-GNN/TPS/SVTR
-architecture below remains the longer research path.
+over cached local OCR boxes. On the initial COLA Cloud-derived 100-application
+calibration test, the safety-weighted GPU run improved F1 from `0.7714` to
+`0.8714` and reduced false-clear rate from `0.0439` to `0.0132` on shuffled
+negative examples.
+
+That result matters, but it is not wired into the live app. The Monday runtime
+uses docTR OCR, the mounted DistilRoBERTa field-support bridge, deterministic
+rules, typography preflight, and reviewer queues. The graph scorer is
+deliberately deferred to a Tuesday/local continuation branch because it still
+needs a saved deployable artifact, runtime conversion from OCR blocks into graph
+features, side-by-side statistics against DistilRoBERTa, CPU latency proof,
+integration tests, and locked-holdout evaluation.
+
+This is the correct trade-off for submission. The graph scorer is promising for
+curved label text, circular warning statements, and fragmented multi-panel
+evidence, but rushing it into runtime without those gates would make the final
+app less defensible.
 
 Relevant research and implementation links:
 
@@ -612,6 +624,7 @@ This is not part of the current measured runtime claim. It is recorded as a futu
 - Demonstration-only photo OCR intake for real bottle/can/shelf photos.
 - Local COLA Cloud-derived public example demo with side-by-side application-field/OCR evidence comparison.
 - Manifest-backed batch upload for multiple label images.
+- Batch classification/routing into reviewer policy queues.
 - Fixture-backed one-click demos for evaluator review.
 - Filesystem job/result store under `data/jobs/`.
 - Reviewer-ready CSV export with expected values, observed values, evidence,

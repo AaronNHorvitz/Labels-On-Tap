@@ -321,6 +321,12 @@ docTR + PaddleOCR + OpenOCR
   -> deterministic compliance rules
 ```
 
+Submission reality: the Monday runtime stops at the DistilRoBERTa field-support
+bridge plus deterministic rules. The graph scorer is not deployed. It remains a
+post-submission local continuation item because it needs a saved artifact,
+runtime graph-feature conversion, same-split statistics against DistilRoBERTa,
+CPU latency proof, tests, and locked-holdout evaluation.
+
 That path must run through the armored OCR conveyor before final evidence
 attachment. The conveyor preflights image bytes, validates Pillow decode,
 creates a resumable image/job manifest, and executes OCR chunks in subprocesses
@@ -1090,6 +1096,12 @@ for text fields such as brand, fanciful name, class/type, and bottler/producer.
 If the saved model artifact is missing, the bridge is unavailable and the app
 falls back to deterministic matching. The final disposition still flows through
 source-backed rules and reviewer queues.
+
+The graph scorer stays outside the Monday runtime. It is the correct next local
+experiment for curved text, circular labels, wraparound panels, and fragmented
+multi-panel evidence, but it should be promoted only after it beats the
+DistilRoBERTa bridge on the same evaluation split without worsening the
+false-clear rate.
 
 ---
 

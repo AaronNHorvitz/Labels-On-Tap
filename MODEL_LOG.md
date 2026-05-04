@@ -2060,6 +2060,36 @@ Interpretation:
 - The model artifact is too large for normal GitHub commit, so deployment must
   mount or copy the gitignored artifact separately.
 
+### E025 - Graph Scorer Runtime Deferral
+
+**Date:** May 3, 2026
+**Status:** Deferred to post-submission local deployment work
+
+The graph-aware evidence scorer remains one of the best ideas in the project,
+especially for curved labels, circular warning statements, wraparound panels,
+and fragmented multi-panel OCR. The first POC improved F1 from `0.7714` to
+`0.8714` and lowered false-clear rate from `0.0439` to `0.0132` on the
+100-application calibration test.
+
+It is not deployed in the Monday runtime because the remaining work is not just
+"train it." The missing deployment work is:
+
+```text
+1. export a saved graph model artifact
+2. convert runtime OCR blocks into graph features
+3. compare graph scores against DistilRoBERTa on the same split
+4. measure CPU latency on the deployment VM
+5. add runtime and regression tests
+6. evaluate on the locked holdout before final authority
+```
+
+Decision:
+
+- Keep graph scorer as a future local branch after submission.
+- Do not wire it into Pass/Fail before the deadline.
+- Use the current runtime stack: docTR OCR, DistilRoBERTa field-support bridge,
+  deterministic rules, typography preflight, batch routing, and reviewer queues.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:
@@ -2095,6 +2125,7 @@ for weak crops.
 - The current graph and BERT text-pair labels are weak labels from accepted application fields and shuffled negatives, not human-labeled OCR spans.
 - The DistilRoBERTa runtime bridge needs its `327 MB` model artifact copied or mounted separately because it is intentionally not committed to Git.
 - The earlier graph scorer test split is drawn from the COLA Cloud-derived 100-application calibration set, not the 3,000-application locked holdout.
+- The graph scorer is not wired into runtime and is explicitly deferred to post-submission local work.
 - The graph scorer and deterministic ensemble cannot recover text no OCR engine detected.
 - Class/type remains difficult and probably needs better product taxonomy handling, better OCR, or field-specific candidate generation.
 - The current model processes variable-size graphs one at a time; batching/padding should be added before larger runs.

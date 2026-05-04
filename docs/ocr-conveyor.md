@@ -107,7 +107,9 @@ data/work/ocr-conveyor/tri-engine-v1/
 
 ## Current Decision
 
-The deployed app remains stable while this experiment runs offline. No
-tri-engine/BERT/graph path becomes the runtime default until it beats the
-current baseline on validation, survives the locked holdout, and fits the CPU
-latency budget.
+The deployed app remains stable while this experiment runs offline.
+DistilRoBERTa has been promoted only as an optional mounted field-support
+bridge. The graph scorer is not promoted for the Monday submission. It remains
+a post-submission local branch until it has a saved artifact, runtime graph
+feature builder, same-split comparison against DistilRoBERTa, CPU latency proof,
+tests, and locked-holdout evaluation.

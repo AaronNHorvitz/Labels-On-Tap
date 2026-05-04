@@ -254,6 +254,12 @@ The graph scorer improved support detection for brand name, fanciful name, and
 net contents while lowering false clears on shuffled negative examples. This is
 an experimental calibration result, not a locked-holdout production claim.
 
+It is not in the Monday runtime. After DistilRoBERTa was wired as the field
+support bridge, the graph scorer became a post-submission deployment candidate.
+To promote it later, run it against the same data as DistilRoBERTa, export a
+saved artifact, measure CPU latency, add runtime tests, and evaluate the locked
+holdout. Until that is done, graph scores remain experimental documentation.
+
 ## May 2-3 Alternate OCR CPU Smoke Benchmarks
 
 The curved-text OCR research brief suggested that a mature pre-trained OCR

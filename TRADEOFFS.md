@@ -475,9 +475,16 @@ which is the wrong trade-off for government triage.
 
 ### 3.2.2 Graph Scorer as Post-OCR Evidence, Not OCR Replacement
 
-**Decision:** The graph-aware experiment remains a post-OCR evidence scorer. It does not replace the image-to-text OCR engine.
+**Decision:** The graph-aware experiment remains a post-OCR evidence scorer for
+a future local deployment branch. It does not replace the image-to-text OCR
+engine, and it is not part of the Monday runtime.
 
-**Why:** OCR engines and graph scorers solve different problems. PaddleOCR/OpenOCR can improve what text is read from a label image. The graph scorer can improve how OCR fragments are assembled and matched to expected application fields. These layers can stack, but they should be measured independently.
+**Why:** OCR engines, BERT field-support scoring, and graph scorers solve
+different problems. PaddleOCR/OpenOCR can improve what text is read from a label
+image. DistilRoBERTa can judge whether candidate OCR text supports an expected
+application value. The graph scorer can improve how OCR fragments are assembled
+and matched when text is curved, split across panels, rotated, or fragmented.
+These layers can stack, but they must be measured independently.
 
 **Current evidence:** The first safety-weighted graph scorer improved F1 from `0.7714` to `0.8714` and lowered false-clear rate from `0.0439` to `0.0132` on the initial COLA Cloud-derived 100-application calibration test split with shuffled negative examples.
 
@@ -488,7 +495,28 @@ Graph-aware scorer POC:
 | Baseline fuzzy matcher | 0.8947 | 0.8438 | 0.7105 | 0.9561 | 0.7714 | 0.0439 | CPU/simple |
 | Graph-aware scorer | 0.9408 | 0.9531 | 0.8026 | 0.9868 | 0.8714 | 0.0132 | Trained on local RTX 4090 |
 
-**Implication:** The graph scorer is promising but remains experimental until it is tested on a larger calibration split and then a locked holdout. It should not be wired into the deployed default path without a CPU latency and false-clear check.
+**Reason for deferral:** There was not enough time left to train/export a graph
+model artifact, wire OCR blocks into graph features, compare it against the new
+DistilRoBERTa bridge, run latency tests, add runtime tests, and redeploy safely.
+Rushing it would create a larger risk than the benefit it could add before
+submission.
+
+**Future deployment path:** After the Monday deadline, the graph scorer should
+be revived locally as a Tuesday branch:
+
+```text
+docTR/PaddleOCR/OpenOCR blocks
+-> graph feature builder
+-> saved graph scorer artifact
+-> graph support probabilities
+-> compare against DistilRoBERTa field-support probabilities
+-> deterministic rules and reviewer queues
+```
+
+**Implication:** The graph scorer is promising for curved/circular/wraparound
+label evidence, but it remains experimental until it is tested on a larger
+calibration split and then a locked holdout. It should not be wired into the
+deployed default path without CPU latency and false-clear checks.
 
 ---
 
@@ -535,7 +563,7 @@ flowchart TB
 7. Promote only if it improves F1 while preserving or lowering false-clear rate and staying inside the CPU latency budget.
 ```
 
-**Implication:** LayoutLMv3 is a strong candidate for the next serious research iteration because it directly addresses the two-dimensional label-layout problem. However, it requires label alignment, model training, latency measurement, and a clean deployment story. Until those are measured, the current runtime should remain OCR + deterministic rules + optional graph-aware scoring rather than a multimodal ensemble arbiter.
+**Implication:** LayoutLMv3 is a strong candidate for the next serious research iteration because it directly addresses the two-dimensional label-layout problem. However, it requires label alignment, model training, latency measurement, and a clean deployment story. Until those are measured, the current runtime should remain OCR + DistilRoBERTa field-support evidence + deterministic rules rather than a multimodal ensemble arbiter.
 
 ---
 

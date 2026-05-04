@@ -99,6 +99,8 @@ The correct product language is:
 | Safe uncertainty handling | Route low-confidence OCR, brittle visual checks, and subjective legal risks to Needs Review. | P0 |
 | Human review policy | Support agency-configurable approval gates before final acceptance and/or rejection. | P1 |
 | Photo OCR intake demo | Let evaluators upload a real bottle/can/shelf photo and inspect extracted candidate fields without claiming COLA verification. | P1 |
+| Field-support arbiter | Use mounted DistilRoBERTa evidence to help decide whether OCR text supports application fields. | P1 |
+| Graph-aware scorer | Future local continuation item for curved, circular, wraparound, and fragmented multi-panel OCR evidence. | Future |
 | Research corpus | Maintain a legal/regulatory research corpus that maps sources to rules, fixtures, and UI explanations. | P1 |
 | Synthetic fixture generation | Generate controlled negative examples because true rejected/Needs Correction data is not generally public. | P1 |
 
@@ -575,6 +577,14 @@ Metrics:
 | FR-035 | App supports policy toggles for reviewer approval before rejection, before acceptance, and for unknown government-warning evidence. | P1 |
 | FR-036 | App maps raw verdicts into reviewer queues such as Ready to accept, Acceptance review, Rejection review, Manual evidence review, and Ready to reject. | P1 |
 | FR-037 | App records reviewer actions with decision, note, timestamp, and original evidence reference. | P1 |
+
+### 8.4.1 Post-Submission Model Expansion
+
+| ID | Requirement | Priority |
+|---|---|---:|
+| FR-040 | App can mount a saved DistilRoBERTa field-support artifact and use it as evidence for text-field matches. | P1 |
+| FR-041 | Graph scorer remains outside Monday runtime until it has a saved artifact, runtime graph features, CPU latency proof, tests, and locked-holdout comparison against DistilRoBERTa. | Future |
+| FR-042 | Graph scorer should target curved/circular/wraparound labels and fragmented multi-panel OCR evidence. | Future |
 
 ### 8.5 Documentation and Research
 

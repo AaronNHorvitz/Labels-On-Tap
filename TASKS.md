@@ -108,6 +108,7 @@ The sprint priority is now:
 - [x] GPU PyTorch path works locally in `.venv-gpu` with CUDA 13.0 and the RTX 4090.
 - [x] Experimental graph-aware OCR evidence scorer exists under `experiments/graph_ocr/`.
 - [x] First safety-weighted graph scorer POC improved F1 from **0.7714** to **0.8714** and lowered false-clear rate from **0.0439** to **0.0132** on the COLA Cloud-derived 100-application calibration test split.
+- [x] Graph scorer runtime promotion is explicitly deferred to post-submission local work because it needs artifact export, runtime graph-feature conversion, same-split comparison against DistilRoBERTa, CPU latency proof, tests, and locked-holdout evaluation.
 - [x] Curved-text OCR research changed the next experiment: evaluate mature pre-trained local OCR engines before attempting a custom HO-GNN/TPS/SVTR vision model.
 - [x] PaddleOCR / PP-OCR is the first alternate OCR engine candidate to benchmark against docTR.
 - [x] OpenOCR / SVTRv2 is the second alternate OCR engine candidate and now has a 30-image smoke benchmark.
@@ -405,7 +406,7 @@ Experimental candidates:
 - [x] Record the statistical caveat that small sample sizes increase variance and the current 20-application / 30-image result is directional only.
 - [ ] Promote PaddleOCR into a fuller experimental adapter only if field-level comparison beats or complements docTR.
 - [ ] Promote OpenOCR into a fuller experimental adapter only if a larger run shows it beats or complements docTR/PaddleOCR.
-- [ ] Keep the graph-aware scorer as a post-OCR evidence layer, not an OCR replacement.
+- [x] Keep the graph-aware scorer as a post-OCR evidence layer, not an OCR replacement.
 - [ ] Keep the full custom HO-GNN/TPS/SVTR model as documented future research unless a mature pre-trained shortcut fails and time remains.
 
 Isolation and dependency safety:
@@ -540,7 +541,7 @@ The max-win architecture is:
 ```text
 docTR + PaddleOCR + OpenOCR
   -> DistilRoBERTa field-support arbiter
-  -> graph-aware evidence scorer
+  -> graph-aware evidence scorer (future/post-submission)
   -> deterministic compliance rules
 ```
 

@@ -49,6 +49,17 @@ The architecture keeps the MVP runtime on the real-adapted JSON logistic
 typography bridge and treats CNN-inclusive reject ensembles as the next
 promotion candidates.
 
+DistilRoBERTa is now wired as an optional runtime field-support bridge when its
+`327 MB` model artifact is mounted on the host. It scores whether OCR candidate
+text supports application fields. It is not OCR and it is not final legal
+authority.
+
+The graph-aware scorer is not deployed for Monday. It remains a future local
+deployment branch for curved/circular/wraparound and fragmented multi-panel
+text. The POC result was strong enough to preserve, but promotion requires a
+saved graph artifact, runtime feature conversion, CPU latency proof, tests, and
+locked-holdout comparison against DistilRoBERTa.
+
 ---
 
 ## 1. Design Principles
