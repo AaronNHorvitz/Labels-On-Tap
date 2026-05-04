@@ -278,6 +278,16 @@ filename,panel_filenames,product_type,brand_name,class_type,alcohol_content,net_
 APP-001,front.png;back.png;neck.png,wine,Example Winery,Sauvignon Blanc,12% BY VOL,750 mL,true,France
 ```
 
+When local COLA Cloud-derived working data is present, create a 300-application
+upload pack for the batch form:
+
+```bash
+python scripts/create_public_cola_demo_upload_pack.py --limit 300 --zip --force
+```
+
+Output is written to `data/work/demo-upload/public-cola-300/` and is intentionally
+gitignored.
+
 ## Deployment
 
 Production demo target:

@@ -38,6 +38,7 @@
         <div class="photo-actions">
           <button class="button secondary" name="parse_mode" value="current" type="submit">Parse Showing Photo</button>
           <button class="button primary" name="parse_mode" value="all" type="submit">Parse All Photos</button>
+          <button class="button secondary" type="reset">Reset</button>
         </div>
       </div>
       <div class="photo-preview-card" aria-live="polite">
@@ -140,6 +141,7 @@ APP-001,APP-001/front.png;APP-001/back.png;APP-001/neck.png,wine,Example Winery,
           <label><input name="require_review_before_acceptance" type="checkbox" value="true"> Require reviewer approval before acceptance</label>
         </fieldset>
         <button class="button primary" type="submit">Parse And Compare Applications</button>
+        <button class="button secondary" type="reset">Reset Batch</button>
       </div>
       <div class="application-preview-card" aria-live="polite">
         <img id="batch-preview" alt="Selected application panel preview">
@@ -256,6 +258,12 @@ APP-001,APP-001/front.png;APP-001/back.png;APP-001/neck.png,wine,Example Winery,
       selectedIndex = 0;
       render();
     });
+    input.form?.addEventListener("reset", () => {
+      window.setTimeout(() => {
+        selectedIndex = 0;
+        render();
+      }, 0);
+    });
     prev.addEventListener("click", () => {
       const files = Array.from(input.files || []);
       if (!files.length) {
@@ -331,6 +339,12 @@ APP-001,APP-001/front.png;APP-001/back.png;APP-001/neck.png,wine,Example Winery,
     folderInput.addEventListener("change", () => {
       selectedIndex = 0;
       render();
+    });
+    fileInput.form?.addEventListener("reset", () => {
+      window.setTimeout(() => {
+        selectedIndex = 0;
+        render();
+      }, 0);
     });
     prev.addEventListener("click", () => {
       const files = collectFiles();

@@ -69,12 +69,12 @@ def test_item_detail_page_shows_rule_evidence_and_actions():
 
     assert detail.status_code == 200
     assert "GOV_WARNING_EXACT_TEXT" in detail.text
-    assert "Expected:" in detail.text
-    assert "Observed:" in detail.text
+    assert "Actual application value" in detail.text
+    assert "Real label / OCR evidence" in detail.text
     assert "Evidence text" in detail.text
     assert "Reviewer action:" in detail.text
     assert "Sources:" in detail.text
-    assert "Label Image And Detected Warning Evidence" in detail.text
+    assert "Real Label Images And OCR Evidence" in detail.text
     assert "Submitted Label" in detail.text
     assert f"/jobs/{job_id}/uploads/warning_missing_comma_fail.png" in detail.text
 

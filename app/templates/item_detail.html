@@ -11,7 +11,7 @@
   </div>
 
   <section class="panel">
-    <h2>Application Fields</h2>
+    <h2>Actual COLA Application Data</h2>
     <dl class="detail-grid">
       <div><dt>Brand</dt><dd>{{ result.application.brand_name }}</dd></div>
       <div><dt>Fanciful name</dt><dd>{{ result.application.fanciful_name or "Not provided" }}</dd></div>
@@ -26,7 +26,7 @@
   </section>
 
   <section class="panel">
-    <h2>Label Image And Detected Warning Evidence</h2>
+    <h2>Real Label Images And OCR Evidence</h2>
     <div class="evidence-grid">
       <div class="label-panel">
         <h3>Submitted Label{% if evidence.panel_image_urls|length > 1 %} Panels{% endif %}</h3>
@@ -85,8 +85,16 @@
           <span class="badge {{ check.verdict }}">{{ check.verdict|replace("_", " ")|title }}</span>
         </div>
         <p>{{ check.message }}</p>
-        {% if check.expected %}<p><b>Expected:</b> {{ check.expected }}</p>{% endif %}
-        {% if check.observed %}<p><b>Observed:</b> {{ check.observed }}</p>{% endif %}
+        <div class="comparison-pair">
+          <div>
+            <b>Actual application value</b>
+            <p>{{ check.expected or "Not provided" }}</p>
+          </div>
+          <div>
+            <b>Real label / OCR evidence</b>
+            <p>{{ check.observed or "No direct observed value" }}</p>
+          </div>
+        </div>
         {% if check.evidence_text %}
         <details>
           <summary>Evidence text</summary>
