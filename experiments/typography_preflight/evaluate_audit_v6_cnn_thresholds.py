@@ -118,6 +118,13 @@ def compute_clear_metrics(preds: dict[str, list[Any]], threshold: float) -> dict
     precision = tp / max(tp + fp, 1)
     recall = tp / max(tp + fn, 1)
     f1 = (2 * precision * recall / max(precision + recall, 1e-12)) if (precision + recall) else 0.0
+    negative_precision = tn / max(tn + fn, 1)
+    negative_recall = tn / max(tn + fp, 1)
+    negative_f1 = (
+        2 * negative_precision * negative_recall / max(negative_precision + negative_recall, 1e-12)
+        if (negative_precision + negative_recall)
+        else 0.0
+    )
     return {
         "threshold": float(threshold),
         "examples": int(len(true)),
@@ -125,11 +132,16 @@ def compute_clear_metrics(preds: dict[str, list[Any]], threshold: float) -> dict
         "tn": tn,
         "fp": fp,
         "fn": fn,
+        "accuracy": float((tp + tn) / max(len(true), 1)),
         "precision": float(precision),
         "bold_clear_rate": float(recall),
         "false_clear_rate": float(fp / max(non_bold.sum(), 1)),
         "non_clear_rate": float((~clear).sum() / max(len(clear), 1)),
         "f1": float(f1),
+        "negative_precision": float(negative_precision),
+        "negative_recall": float(negative_recall),
+        "negative_f1": float(negative_f1),
+        "binary_macro_f1": float((f1 + negative_f1) / 2),
     }
 
 
@@ -162,11 +174,12 @@ def write_report(path: Path, summary: dict[str, Any]) -> None:
         test = item["test"]
         rows.append(
             "| {tol:.4f} | {thr:.4f} | {val_fc:.6f} | {val_clear:.4f} | "
-            "{test_fc:.6f} | {test_clear:.4f} | {test_non_clear:.4f} |".format(
+            "{test_macro:.4f} | {test_fc:.6f} | {test_clear:.4f} | {test_non_clear:.4f} |".format(
                 tol=item["tolerance"],
                 thr=item["threshold"],
                 val_fc=val["false_clear_rate"],
                 val_clear=val["bold_clear_rate"],
+                test_macro=test["binary_macro_f1"],
                 test_fc=test["false_clear_rate"],
                 test_clear=test["bold_clear_rate"],
                 test_non_clear=test["non_clear_rate"],
@@ -177,8 +190,8 @@ def write_report(path: Path, summary: dict[str, Any]) -> None:
 
 Clearance policy: `prob_bold >= threshold`.
 
-| Validation false-clear tolerance | Threshold | Val false-clear | Val bold clear | Test false-clear | Test bold clear | Test non-clear |
-|---:|---:|---:|---:|---:|---:|---:|
+| Validation false-clear tolerance | Threshold | Val false-clear | Val bold clear | Test binary macro F1 | Test false-clear | Test bold clear | Test non-clear |
+|---:|---:|---:|---:|---:|---:|---:|---:|
 {chr(10).join(rows)}
 """,
         encoding="utf-8",

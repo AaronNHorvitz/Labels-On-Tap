@@ -1589,13 +1589,13 @@ question is whether `prob_bold` is high enough to automatically clear the
 boldness check. Thresholds were selected on validation false-clear tolerance
 and then evaluated on test.
 
-| Validation false-clear tolerance | Threshold | Test false-clear | Test bold clear | Test non-clear |
-|---:|---:|---:|---:|---:|
-| 0.0000 | 0.9970 | 0.000000 | 0.5220 | 0.7940 |
-| 0.0010 | 0.9970 | 0.000000 | 0.5220 | 0.7940 |
-| 0.0025 | 0.9669 | 0.002203 | 0.6774 | 0.7313 |
-| 0.0050 | 0.9289 | 0.002203 | 0.7432 | 0.7053 |
-| 0.0100 | 0.5000 | 0.005507 | 0.8970 | 0.6427 |
+| Validation false-clear tolerance | Threshold | Test binary policy macro F1 | Test false-clear | Test bold clear | Test non-clear |
+|---:|---:|---:|---:|---:|---:|
+| 0.0000 | 0.9970 | 0.7755 | 0.000000 | 0.5220 | 0.7940 |
+| 0.0010 | 0.9970 | 0.7755 | 0.000000 | 0.5220 | 0.7940 |
+| 0.0025 | 0.9669 | 0.8549 | 0.002203 | 0.6774 | 0.7313 |
+| 0.0050 | 0.9289 | 0.8864 | 0.002203 | 0.7432 | 0.7053 |
+| 0.0100 | 0.5000 | 0.9531 | 0.005507 | 0.8970 | 0.6427 |
 
 Latency:
 
@@ -1692,8 +1692,11 @@ Comparison against E022 CNN:
 | Best learned stackers: LightGBM/CatBoost | 0.9721 | 0.0143 | Good raw F1, still weaker safety posture. |
 | Strict-veto ensemble | 0.8841 | 0.0077 | Safer, but gives up too much recall/F1. |
 | CNN hard argmax | 0.9686 | 0.0055 | Better safety than classical argmax, but still not the right policy by itself. |
-| CNN threshold, zero validation false-clear | n/a | 0.0000 | Clears 52.20% of true-bold test crops. |
-| CNN threshold, 0.005 validation tolerance | n/a | 0.0022 | Clears 74.32% of true-bold test crops. |
+| CNN threshold, zero validation false-clear | 0.7755* | 0.0000 | Clears 52.20% of true-bold test crops. |
+| CNN threshold, 0.005 validation tolerance | 0.8864* | 0.0022 | Clears 74.32% of true-bold test crops. |
+
+`*` CNN threshold rows are binary clear/not-clear policy macro F1, not
+four-class argmax macro F1.
 
 Decision:
 

@@ -752,9 +752,13 @@ test hard-argmax:
   false-clear rate: 0.005507
 
 thresholded clearance:
-  zero validation false-clear threshold: test false-clear 0.000000,
+  zero validation false-clear threshold:
+    binary policy macro F1 0.7755
+    test false-clear 0.000000
     true-bold clear rate 0.5220
-  0.005 validation false-clear tolerance: test false-clear 0.002203,
+  0.005 validation false-clear tolerance:
+    binary policy macro F1 0.8864
+    test false-clear 0.002203
     true-bold clear rate 0.7432
 
 latency:
@@ -801,8 +805,12 @@ ensembles:
 | CatBoost | 0.9472 | 0.0452 | 2.10 |
 | Strict-veto ensemble | 0.8841 | 0.0077 | 10.56 |
 | CatBoost stacker | 0.9721 | 0.0143 | 11.34 |
-| CNN threshold, zero validation false-clear | n/a | 0.0000 | 5.21 |
-| CNN threshold, 0.005 validation tolerance | n/a | 0.0022 | 5.21 |
+| CNN threshold, zero validation false-clear | 0.7755* | 0.0000 | 5.21 |
+| CNN threshold, 0.005 validation tolerance | 0.8864* | 0.0022 | 5.21 |
+
+`*` CNN threshold rows report binary clear/not-clear policy macro F1. They are
+not four-class argmax macro F1 because thresholding converts the CNN into a
+narrow pass-evidence policy.
 
 Architectural implication: the classical baselines are useful sanity checks and
 latency references, but their audit-v6 false-clear rates are still too high for

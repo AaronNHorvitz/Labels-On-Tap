@@ -126,9 +126,11 @@ label by itself from one raster crop.
 Offline challengers are tracked separately. On the `audit-v6` image set, the
 best retrained classical baseline reached `0.9753` test macro F1 but still
 false-cleared `0.0198` of non-bold/non-clear crops. A MobileNetV3 CNN challenger
-produced safer thresholded policies, including `0.0000` test false-clear at the
-most conservative threshold, but it is not promoted to runtime until the
-same-split promotion gate is complete.
+produced safer thresholded policies, including `0.0000` test false-clear with
+binary policy macro F1 `0.7755` at the most conservative threshold and `0.0022`
+test false-clear with binary policy macro F1 `0.8864` at the practical
+threshold. It is not promoted to runtime until the same-split promotion gate is
+complete.
 
 A production-grade evaluation would use a larger random or stratified holdout set across product types, statuses, dates, form versions, and known regulatory/form-change boundaries. For this take-home, the practical goal is narrower: prove that public COLA application data and label images can be parsed, OCR'd, compared, and evaluated with conservative human-review routing.
 

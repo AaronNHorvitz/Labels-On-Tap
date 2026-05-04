@@ -1061,8 +1061,12 @@ benchmarks, but none beat the thresholded CNN's safety posture.
 | MLP | 0.9656 | 0.0275 | 0.26 |
 | CatBoost stacker | 0.9721 | 0.0143 | 11.34 |
 | Strict-veto ensemble | 0.8841 | 0.0077 | 10.56 |
-| CNN threshold, zero validation false-clear | n/a | 0.0000 | 5.21 |
-| CNN threshold, 0.005 validation tolerance | n/a | 0.0022 | 5.21 |
+| CNN threshold, zero validation false-clear | 0.7755* | 0.0000 | 5.21 |
+| CNN threshold, 0.005 validation tolerance | 0.8864* | 0.0022 | 5.21 |
+
+`*` CNN threshold rows report binary clear/not-clear policy macro F1. They are
+not four-class argmax macro F1, because the threshold policy answers a narrower
+runtime question: "is this crop safe to clear as bold?"
 
 Reference:
 
