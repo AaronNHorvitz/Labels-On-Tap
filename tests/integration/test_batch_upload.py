@@ -15,6 +15,7 @@ from app.services.job_store import load_manifest
 
 
 DEMO_DIR = ROOT / "data/fixtures/demo"
+DEMO_FIXTURE = DEMO_DIR / "clean_malt_pass.png"
 
 
 def image_part(filename: str) -> tuple[str, tuple[str, bytes, str]]:
@@ -293,10 +294,16 @@ def test_public_cola_demo_uses_server_side_pack_and_selected_application(monkeyp
 
 def test_example_data_download_serves_demo_pack(monkeypatch, tmp_path):
     demo_root = tmp_path / "public-cola-demo"
-    demo_root.mkdir()
-    archive = demo_root / "public-cola-demo-pack.zip"
-    archive.write_bytes(b"example zip")
+    (demo_root / "images" / "APP-001").mkdir(parents=True)
+    (demo_root / "manifest.csv").write_text(
+        "filename,panel_filenames,product_type,brand_name,class_type,alcohol_content,net_contents\n"
+        "APP-001,images/APP-001/clean_malt_pass.png,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint\n",
+        encoding="utf-8",
+    )
+    (demo_root / "README.md").write_text("Example data\n", encoding="utf-8")
+    (demo_root / "images" / "APP-001" / "clean_malt_pass.png").write_bytes(DEMO_FIXTURE.read_bytes())
     monkeypatch.setattr(jobs, "PUBLIC_COLA_DEMO_DIR", demo_root)
+    monkeypatch.setattr(jobs, "JOBS_DIR", tmp_path / "jobs")
     client = TestClient(app)
 
     response = client.get("/example-data")
@@ -304,7 +311,11 @@ def test_example_data_download_serves_demo_pack(monkeypatch, tmp_path):
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/zip"
     assert "labels-on-tap-example-data.zip" in response.headers["content-disposition"]
-    assert response.content == b"example zip"
+    with ZipFile(BytesIO(response.content)) as archive:
+        names = set(archive.namelist())
+    assert "labels-on-tap-example-data/manifest.csv" in names
+    assert "labels-on-tap-example-data/README.md" in names
+    assert "labels-on-tap-example-data/images/APP-001/clean_malt_pass.png" in names
 
 
 def test_batch_upload_rejects_malformed_csv():

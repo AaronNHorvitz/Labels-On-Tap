@@ -50,7 +50,7 @@ def test_actual_app_workspace_keeps_upload_controls():
 
     assert response.status_code == 200
     assert "LOT Actual" in response.text
-    assert "Data Format" in response.text
+    assert "Data Format Instructions" in response.text
     assert "Example Data" in response.text
     assert "Human Review Required" in response.text
     assert "Auto-Route Clear Decisions" in response.text

@@ -661,6 +661,45 @@ def _public_cola_demo_manifest_items() -> list[ManifestItem]:
     return parse_manifest(manifest_path.name, manifest_path.read_bytes())
 
 
+def _example_data_archive_path() -> Path:
+    """Build and return a user-uploadable example-data ZIP.
+
+    The original curated demo archive was created for internal server use and
+    may contain image files without the root ``manifest.csv``. This archive is
+    built specifically for users downloading the sample data from LOT Actual:
+    it always includes one top-level folder containing ``manifest.csv``,
+    ``README.md``, and the label-image tree.
+    """
+
+    manifest_path = PUBLIC_COLA_DEMO_DIR / "manifest.csv"
+    images_root = PUBLIC_COLA_DEMO_DIR / "images"
+    if not manifest_path.exists() or not images_root.exists():
+        raise HTTPException(status_code=404, detail="Example data is not available on this server yet.")
+    download_dir = JOBS_DIR / "_downloads"
+    download_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = download_dir / "labels-on-tap-example-data.zip"
+    newest_source_mtime = max(
+        [manifest_path.stat().st_mtime]
+        + [path.stat().st_mtime for path in images_root.rglob("*") if path.is_file()]
+    )
+    if archive_path.exists() and archive_path.stat().st_mtime >= newest_source_mtime:
+        return archive_path
+    with ZipFile(archive_path, "w") as archive:
+        archive.write(manifest_path, "labels-on-tap-example-data/manifest.csv")
+        readme_path = PUBLIC_COLA_DEMO_DIR / "README.md"
+        if readme_path.exists():
+            archive.write(readme_path, "labels-on-tap-example-data/README.md")
+        else:
+            archive.writestr(
+                "labels-on-tap-example-data/README.md",
+                "Upload this folder in LOT Actual. It contains manifest.csv and label images for testing.\n",
+            )
+        for path in sorted(images_root.rglob("*")):
+            if path.is_file() and path.suffix.lower() in ALLOWED_IMAGE_EXTENSIONS:
+                archive.write(path, Path("labels-on-tap-example-data/images") / path.relative_to(images_root))
+    return archive_path
+
+
 def _public_cola_demo_applications(items: list[ManifestItem]) -> list[dict[str, Any]]:
     """Return browser data for the server-side public COLA demo viewer."""
 
@@ -1513,7 +1552,7 @@ def public_cola_demo_image(image_path: str) -> FileResponse:
 def download_example_data() -> FileResponse:
     """Download the server-hosted example application folder as a ZIP file."""
 
-    archive_path = PUBLIC_COLA_DEMO_DIR / "public-cola-demo-pack.zip"
+    archive_path = _example_data_archive_path()
     if not archive_path.exists() or not archive_path.is_file():
         raise HTTPException(status_code=404, detail="Example data is not available on this server yet.")
     return FileResponse(
