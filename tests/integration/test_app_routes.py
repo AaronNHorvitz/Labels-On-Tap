@@ -245,6 +245,25 @@ def test_reviewer_decision_is_persisted_and_exported():
     assert "Looks clean." in csv_response.text
 
 
+def test_job_page_quick_accept_shows_saved_decision():
+    client = TestClient(app)
+    response = client.get("/demo/clean", follow_redirects=True)
+    job_id = str(response.url).rstrip("/").split("/")[-1]
+    item_id = load_manifest(job_id)["items"][0]["item_id"]
+
+    save = client.post(
+        f"/jobs/{job_id}/items/{item_id}/review",
+        data={"reviewer_decision": "accept", "return_to": "job"},
+        follow_redirects=True,
+    )
+
+    assert save.status_code == 200
+    assert "Saved reviewer decision:" in save.text
+    assert "Reviewer Accept" in save.text
+    assert "Accepted" in save.text
+    assert "Not reviewed" not in save.text
+
+
 def test_queue_job_can_be_cancelled_from_review_page():
     client = TestClient(app)
     job_id = create_job("queued cancel unit")

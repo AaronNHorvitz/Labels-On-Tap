@@ -70,12 +70,23 @@
   <h2>Application Truth vs Parsed Label Evidence</h2>
   <p>The uploaded directory is stored as this durable demo job. As parsing finishes, each application below shows the COLA/application fields on the left and the OCR-supported label evidence on the right.</p>
   {% for result in results %}
-  <details class="application-comparison-card" {% if loop.first %}open{% endif %}>
+  <details id="item-{{ result.item_id }}" class="application-comparison-card" {% if loop.first %}open{% endif %}>
     <summary>
       <span>{{ result.filename }}</span>
       <span class="badge {{ result.overall_verdict }}">{{ result.overall_verdict|replace("_", " ")|title }}</span>
       <span>{{ result.policy_queue|replace("_", " ")|title }}</span>
+      {% if result.reviewer_decision %}
+      <span class="badge {{ 'pass' if result.reviewer_decision == 'accept' else 'fail' if result.reviewer_decision == 'reject' else 'needs_review' }}">Reviewer {{ result.reviewer_decision|replace("_", " ")|title }}</span>
+      {% endif %}
     </summary>
+    {% if result.reviewer_decision %}
+    <div class="review-saved-notice">
+      <strong>Saved reviewer decision:</strong>
+      {{ result.reviewer_decision|replace("_", " ")|title }}
+      {% if result.reviewed_at %}<span>· {{ result.reviewed_at }}</span>{% endif %}
+      {% if result.reviewer_note %}<p>{{ result.reviewer_note }}</p>{% endif %}
+    </div>
+    {% endif %}
     <div class="application-comparison-grid">
       <div>
         <h3>Actual COLA Application Data</h3>
@@ -123,8 +134,12 @@
     </div>
     <form action="/jobs/{{ job_id }}/items/{{ result.item_id }}/review" method="post" class="quick-review-actions">
       <input name="return_to" type="hidden" value="job">
-      <button class="button secondary" name="reviewer_decision" value="accept" type="submit">Accept</button>
-      <button class="button danger" name="reviewer_decision" value="reject" type="submit">Reject</button>
+      <button class="button {{ 'success' if result.reviewer_decision == 'accept' else 'secondary' }}" name="reviewer_decision" value="accept" type="submit">
+        {{ "Accepted" if result.reviewer_decision == "accept" else "Accept" }}
+      </button>
+      <button class="button {{ 'danger' if result.reviewer_decision != 'reject' else 'success' }}" name="reviewer_decision" value="reject" type="submit">
+        {{ "Rejected" if result.reviewer_decision == "reject" else "Reject" }}
+      </button>
     </form>
     <p><a href="/jobs/{{ job_id }}/items/{{ result.item_id }}">Open full evidence and reviewer actions</a></p>
   </details>

@@ -7,6 +7,7 @@
         <th>Queue</th>
         <th>Top reason</th>
         <th>OCR</th>
+        <th>Reviewer</th>
         <th></th>
       </tr>
     </thead>
@@ -18,10 +19,17 @@
         <td>{{ result.policy_queue|replace("_", " ")|title }}</td>
         <td>{{ result.top_reason }}</td>
         <td>{{ result.ocr.source }} · {{ "%.0f"|format(result.ocr.avg_confidence * 100) }}%</td>
+        <td>
+          {% if result.reviewer_decision %}
+          {{ result.reviewer_decision|replace("_", " ")|title }}
+          {% else %}
+          Not reviewed
+          {% endif %}
+        </td>
         <td><a href="/jobs/{{ job_id }}/items/{{ result.item_id }}">Details</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="5">No results yet.</td></tr>
+      <tr><td colspan="7">No results yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>

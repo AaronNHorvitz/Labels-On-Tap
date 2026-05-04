@@ -2024,7 +2024,7 @@ def save_reviewer_decision(
     result.reviewed_at = datetime.now(timezone.utc).isoformat()
     write_result(result)
     if return_to == "job":
-        return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
+        return RedirectResponse(url=f"/jobs/{job_id}#item-{item_id}", status_code=303)
     return RedirectResponse(url=f"/jobs/{job_id}/items/{item_id}", status_code=303)
 
 

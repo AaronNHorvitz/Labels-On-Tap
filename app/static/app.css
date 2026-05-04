@@ -894,6 +894,19 @@ pre {
   margin-top: 0.85rem;
 }
 
+.review-saved-notice {
+  margin: 0.85rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.review-saved-notice p {
+  margin: 0.35rem 0 0;
+}
+
 @media (max-width: 760px) {
   .site-header,
   .queue-status,
