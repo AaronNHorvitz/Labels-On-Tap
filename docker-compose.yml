@@ -5,8 +5,12 @@ services:
       - APP_ENV=production
       - DATA_DIR=/app/data
       - OCR_CONFIDENCE_THRESHOLD=0.70
+      - FIELD_SUPPORT_MODEL_ENABLED=true
+      - FIELD_SUPPORT_MODEL_DIR=/app/models/field_support/distilroberta
+      - FIELD_SUPPORT_THRESHOLD=0.53
     volumes:
       - ./data/jobs:/app/data/jobs
+      - ./data/work/field-support-models/distilroberta-field-support-v1-runtime/model:/app/models/field_support/distilroberta:ro
     restart: unless-stopped
 
   caddy:

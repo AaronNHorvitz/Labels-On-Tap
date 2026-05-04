@@ -1,5 +1,7 @@
 from app.schemas.application import ColaApplication
 from app.schemas.ocr import OCRResult
+from app.services.field_support import FieldSupportDecision
+from app.services.rules import registry
 from app.services.rules.registry import verify_label
 from app.services.rules.strict_warning import CANONICAL_WARNING
 
@@ -134,6 +136,39 @@ def test_fanciful_name_mismatch_fails_when_ocr_is_clear():
 
     assert result.overall_verdict == "fail"
     assert "FORM_FANCIFUL_NAME_MATCHES_LABEL" in result.triggered_rule_ids
+
+
+def test_bert_field_support_can_clear_low_fuzzy_text_match(monkeypatch):
+    class FakeArbiter:
+        def score(self, *, field_name, expected, ocr, application):
+            return FieldSupportDecision(
+                available=True,
+                field_name=field_name,
+                expected=expected,
+                supported=field_name == "class_type",
+                probability=0.99,
+                threshold=0.53,
+                candidate_text="Straight Bourbon Whiskey",
+                candidate_count=3,
+                latency_ms=7,
+                reason="unit fake",
+            )
+
+    monkeypatch.setattr(registry, "get_field_support_arbiter", lambda: FakeArbiter())
+    result = verify_label(
+        "test-job",
+        "field-match",
+        base_application(class_type="Kentucky Straight Bourbon Whiskey"),
+        make_ocr(
+            "OLD TOM DISTILLERY BARREL RESERVE Straight Bourbon Whiskey "
+            "45% Alc./Vol. 750 mL Produced by Old Tom Distillery Louisville Kentucky"
+        ),
+    )
+
+    check = next(item for item in result.checks if item.rule_id == "FORM_CLASS_TYPE_MATCHES_LABEL")
+    assert check.verdict == "pass"
+    assert check.score == 0.99
+    assert "BERT field-support probability=0.99" in check.observed
 
 
 def test_policy_queue_routes_pass_fail_and_review_defaults():

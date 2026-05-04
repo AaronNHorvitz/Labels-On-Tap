@@ -1991,6 +1991,75 @@ Decision:
   promotion. The current deployed logistic bridge remains the MVP runtime choice
   because it is already simple, JSON-exported, and conservative.
 
+### E024 - DistilRoBERTa Runtime Field-Support Bridge
+
+**Date:** May 3, 2026
+**Status:** Runtime bridge implemented; model artifact remains gitignored
+
+The earlier `E017` DistilRoBERTa run saved metrics and predictions but not a
+loadable model artifact. That was not enough to wire runtime inference. The
+classifier was rerun with `--save-model`:
+
+```bash
+.venv-gpu/bin/python experiments/field_support/train_transformer_pair_classifier.py \
+  --model-id distilroberta-base \
+  --run-name distilroberta-field-support-v1-runtime \
+  --device cuda \
+  --epochs 1 \
+  --batch-size 64 \
+  --eval-batch-size 128 \
+  --false-clear-tolerance 0.005 \
+  --threshold-step 0.01 \
+  --latency-rows 1000 \
+  --cpu-latency-rows 1000 \
+  --save-model
+```
+
+Output:
+
+```text
+data/work/field-support-models/distilroberta-field-support-v1-runtime/
+model size: 327 MB
+threshold: 0.53
+validation F1: 1.000000
+validation false-clear: 0.000000
+holdout F1: 0.999904
+holdout false-clear: 0.000096
+CPU mean per pair: 17.56 ms
+```
+
+Runtime code added:
+
+```text
+app/services/field_support.py
+FIELD_SUPPORT_MODEL_DIR=/app/models/field_support/distilroberta
+FIELD_SUPPORT_THRESHOLD=0.53
+```
+
+Container smoke:
+
+```text
+FieldSupportDecision(
+  available=True,
+  field_name='class_type',
+  expected='Kentucky Straight Bourbon Whiskey',
+  supported=True,
+  probability=0.999637,
+  threshold=0.53,
+  candidate_text='Kentucky Straight Bourbon Whiskey',
+  latency_ms=149
+)
+```
+
+Interpretation:
+
+- This is now a real runtime bridge when the model artifact is mounted.
+- It is not the OCR engine. OCR still reads pixels first.
+- It is not final legal authority. It supplies field-support evidence to the
+  deterministic rule layer.
+- The model artifact is too large for normal GitHub commit, so deployment must
+  mount or copy the gitignored artifact separately.
+
 ## Current Best Result
 
 The current best graph-aware evidence result is `E004`, using:
@@ -2015,8 +2084,8 @@ The current best pure OCR ensemble smoke result is `E013`, using deterministic
 government-safe arbitration across docTR, PaddleOCR, and OpenOCR. The current
 best BERT-assisted OCR-smoke result is `E015`, using OSA market-domain NER plus
 the government-safe ensemble. The current best trained text-pair arbiter result
-is `E017`, where DistilRoBERTa beat RoBERTa-base on the 3,000-application
-locked holdout with lower CPU latency. The current best typography-preflight
+is `E024`, where DistilRoBERTa is rerun with a saved artifact and wired as an
+optional runtime field-support bridge. The current best typography-preflight
 result is `E020`: the real-adapted logistic model can clear strong
 `GOVERNMENT WARNING:` boldness evidence while preserving Needs Review fallback
 for weak crops.
@@ -2024,6 +2093,7 @@ for weak crops.
 ## Known Limitations
 
 - The current graph and BERT text-pair labels are weak labels from accepted application fields and shuffled negatives, not human-labeled OCR spans.
+- The DistilRoBERTa runtime bridge needs its `327 MB` model artifact copied or mounted separately because it is intentionally not committed to Git.
 - The earlier graph scorer test split is drawn from the COLA Cloud-derived 100-application calibration set, not the 3,000-application locked holdout.
 - The graph scorer and deterministic ensemble cannot recover text no OCR engine detected.
 - Class/type remains difficult and probably needs better product taxonomy handling, better OCR, or field-specific candidate generation.

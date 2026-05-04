@@ -1068,24 +1068,28 @@ candidate model can be promoted only if:
 
 ## 12. Final Runtime Recommendation
 
-For the take-home submission, the safest runtime posture is:
+For the take-home submission, the runtime posture is:
 
 ```text
 Deployed app:
   docTR or fixture OCR
   deterministic field matching
+  optional DistilRoBERTa field-support bridge when the model artifact is mounted
   source-backed rules
   conservative Needs Review fallback
 
 Experimental evidence:
-  PaddleOCR/OpenOCR/ensemble/BERT results documented
-  OSA and field-support classifier path ready for calibration
+  PaddleOCR/OpenOCR/tri-engine ensemble results documented
+  OSA/domain-NER results documented but not deployed
 ```
 
-Do not merge a trained RoBERTa or DistilRoBERTa model into the public runtime
-unless it clears the validation and locked-test gates. A measured, conservative
-system is stronger than an impressive model that overfits or false-clears
-problematic labels.
+DistilRoBERTa is now wired as a field-support evidence layer, not as OCR and not
+as unchecked final authority. The live app still extracts OCR text first. The
+bridge then scores likely OCR candidate strings against the application value
+for text fields such as brand, fanciful name, class/type, and bottler/producer.
+If the saved model artifact is missing, the bridge is unavailable and the app
+falls back to deterministic matching. The final disposition still flows through
+source-backed rules and reviewer queues.
 
 ---
 

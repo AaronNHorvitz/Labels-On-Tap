@@ -135,6 +135,18 @@ but false-clear `0.0099`, while the LightGBM reject ensemble is safer with test
 macro F1 `0.9552` and false-clear `0.0033`. These remain offline promotion
 candidates, not MVP runtime replacements.
 
+**Current BERT field-support note:** DistilRoBERTa is now wired into the runtime
+as an optional field-support arbiter, not as the OCR engine. The live OCR still
+reads pixels first. When a saved model artifact is mounted at
+`FIELD_SUPPORT_MODEL_DIR`, the app scores candidate OCR text against the
+application value for brand, fanciful name, class/type, and bottler/producer
+fields. If BERT strongly supports a field that the fuzzy matcher would otherwise
+route to review/fail, the rule can pass with BERT evidence recorded in the
+result. If the model artifact is missing, the app falls back to deterministic
+matching. The saved model artifact is `327 MB` and lives under gitignored
+`data/work/field-support-models/distilroberta-field-support-v1-runtime/model/`,
+so it is deployed as a separate runtime artifact rather than committed to Git.
+
 Latest valid model-selection table:
 
 | Type | Model / Policy | Train/OOF F1 | Train/OOF false-clear | Test accuracy | Test F1 | Test false-clear |

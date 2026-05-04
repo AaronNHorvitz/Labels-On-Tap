@@ -79,6 +79,9 @@ The sprint priority is now:
 - [x] DistilRoBERTa was trained/evaluated on the new field-support pair manifests with a 3,000-application locked holdout.
 - [x] RoBERTa-base was trained/evaluated on the same field-support pair manifests as a capacity/control comparison.
 - [x] Current trained text-pair arbiter winner is DistilRoBERTa: holdout F1 **0.999872**, false-clear rate **0.000128**, CPU mean **15.76 ms/pair** on weak field-pair supervision.
+- [x] DistilRoBERTa was rerun with `--save-model`, producing a loadable **327 MB** runtime artifact under `data/work/field-support-models/distilroberta-field-support-v1-runtime/model/`.
+- [x] Runtime field-support bridge now exists: OCR candidates are scored against application field values when `FIELD_SUPPORT_MODEL_DIR` is mounted.
+- [x] Container smoke confirmed the saved DistilRoBERTa artifact loads and scores a runtime class/type OCR candidate.
 - [x] Armored OCR conveyor layer exists for subprocess-isolated tri-engine OCR runs.
 - [x] Armored OCR conveyor real tri-engine smoke passed at 3 images, 8 images, and 16 requested images.
 - [x] Latest chunk-size 16 smoke processed **13 valid images**, skipped **3 invalid/corrupt images** in preflight, and completed **39 OCR rows** across docTR, PaddleOCR, and OpenOCR with **0 row errors**.
@@ -603,8 +606,11 @@ Planned model candidates:
 Deployment rule:
 
 ```text
-No trained Transformer becomes runtime default unless it beats the measured
-baseline on validation and locked test, fits CPU latency, and has rollback.
+No trained Transformer becomes unchecked runtime authority unless it beats the
+measured baseline on validation and locked test, fits CPU latency, and has
+rollback. The current DistilRoBERTa bridge is runtime evidence only: it can
+clear supported text-field matches when the mounted artifact is present, while
+deterministic rules and reviewer queues still control the final disposition.
 ```
 
 ---

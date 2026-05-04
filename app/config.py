@@ -22,3 +22,14 @@ SOURCE_MAP_DIR = DATA_DIR / "source-maps"
 OCR_CONFIDENCE_THRESHOLD = float(os.getenv("OCR_CONFIDENCE_THRESHOLD", "0.70"))
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
 MAX_MANIFEST_BYTES = int(os.getenv("MAX_MANIFEST_BYTES", str(1 * 1024 * 1024)))
+FIELD_SUPPORT_MODEL_ENABLED = os.getenv("FIELD_SUPPORT_MODEL_ENABLED", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+FIELD_SUPPORT_MODEL_DIR = Path(
+    os.getenv("FIELD_SUPPORT_MODEL_DIR", ROOT / "models/field_support/distilroberta")
+)
+FIELD_SUPPORT_THRESHOLD = float(os.getenv("FIELD_SUPPORT_THRESHOLD", "0.53"))
+FIELD_SUPPORT_MAX_CANDIDATES = int(os.getenv("FIELD_SUPPORT_MAX_CANDIDATES", "18"))

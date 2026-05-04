@@ -16,6 +16,7 @@ from app.config import OCR_CONFIDENCE_THRESHOLD
 from app.schemas.application import ColaApplication
 from app.schemas.ocr import OCRResult
 from app.schemas.results import RuleCheck, VerificationResult
+from app.services.field_support import FieldSupportDecision, get_field_support_arbiter
 from app.services.rules.alcohol_terms import alcohol_values_match, contains_abv_shorthand, extract_alcohol_values
 from app.services.rules.country_origin import country_match_score, find_conflicting_country
 from app.services.rules.field_matching import fuzzy_score
@@ -148,33 +149,36 @@ def verify_label(
         checks.append(check_alcohol_content_match(application, text, ocr.avg_confidence))
         checks.append(check_malt_net_contents(application, text))
         checks.append(check_net_contents_match(application, text, ocr.avg_confidence))
-        checks.append(check_brand(application, text, ocr.avg_confidence))
+        checks.append(check_brand(application, ocr))
         checks.append(check_optional_fuzzy_field(
             "FORM_FANCIFUL_NAME_MATCHES_LABEL",
             "Application fanciful name matches label artwork",
             "fuzzy_match",
             "Fanciful name",
+            "fanciful_name",
             application.fanciful_name,
-            text,
-            ocr.avg_confidence,
+            application,
+            ocr,
         ))
         checks.append(check_optional_fuzzy_field(
             "FORM_CLASS_TYPE_MATCHES_LABEL",
             "Application class/type matches label artwork",
             "fuzzy_match",
             "Class/type designation",
+            "class_type",
             application.class_type,
-            text,
-            ocr.avg_confidence,
+            application,
+            ocr,
         ))
         checks.append(check_optional_fuzzy_field(
             "FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL",
             "Bottler/producer name and address match label artwork",
             "fuzzy_match",
             "Bottler/producer name and address",
+            "bottler_producer_name_address",
             application.bottler_producer_name_address,
-            text,
-            ocr.avg_confidence,
+            application,
+            ocr,
         ))
     checks.append(check_country_origin(application, text, ocr.avg_confidence))
 
@@ -549,7 +553,7 @@ def check_net_contents_match(application: ColaApplication, text: str, confidence
     )
 
 
-def check_brand(application: ColaApplication, text: str, confidence: float) -> RuleCheck:
+def check_brand(application: ColaApplication, ocr: OCRResult) -> RuleCheck:
     """Fuzzy-match application brand name against OCR text.
 
     Notes
@@ -558,19 +562,32 @@ def check_brand(application: ColaApplication, text: str, confidence: float) -> R
     clear mismatches fail when OCR confidence is adequate.
     """
 
+    text = ocr.full_text or ""
+    confidence = ocr.avg_confidence
     score = fuzzy_score(application.brand_name, text)
     if score >= 90:
         verdict = "pass"
         message = "Brand name appears to match the application field."
         action = None
+        support = None
     elif score >= 75 or confidence < OCR_CONFIDENCE_THRESHOLD:
         verdict = "needs_review"
         message = "Brand name match is ambiguous."
         action = "Review the brand field and label artwork manually."
+        support = field_support_decision("brand_name", application.brand_name, application, ocr)
+        if support and support.supported:
+            verdict = "pass"
+            message = "Brand name is supported by the BERT field-support arbiter."
+            action = None
     else:
         verdict = "fail"
         message = "Brand name on label does not clearly match application field."
         action = "Correct the application field or label artwork."
+        support = field_support_decision("brand_name", application.brand_name, application, ocr)
+        if support and support.supported:
+            verdict = "pass"
+            message = "Brand name is supported by the BERT field-support arbiter."
+            action = None
     return check(
         "FORM_BRAND_MATCHES_LABEL",
         "Application brand name matches label artwork",
@@ -578,11 +595,11 @@ def check_brand(application: ColaApplication, text: str, confidence: float) -> R
         verdict,
         message,
         expected=application.brand_name,
-        observed="OCR text window",
-        evidence_text=text,
+        observed=field_support_observed("OCR text window", support),
+        evidence_text=(support.candidate_text if support and support.supported else text),
         source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
         reviewer_action=action,
-        score=score,
+        score=support.probability if support and support.supported else score,
         confidence=confidence,
     )
 
@@ -592,13 +609,16 @@ def check_optional_fuzzy_field(
     name: str,
     category: str,
     field_label: str,
+    field_name: str,
     expected: str,
-    text: str,
-    confidence: float,
+    application: ColaApplication,
+    ocr: OCRResult,
 ) -> RuleCheck:
     """Fuzzy-match an optional application field against OCR text."""
 
     expected = (expected or "").strip()
+    text = ocr.full_text or ""
+    confidence = ocr.avg_confidence
     if not expected:
         return check(
             rule_id,
@@ -617,14 +637,25 @@ def check_optional_fuzzy_field(
         verdict = "pass"
         message = f"{field_label} appears to match the application field."
         action = None
+        support = None
     elif score >= 75 or confidence < OCR_CONFIDENCE_THRESHOLD:
         verdict = "needs_review"
         message = f"{field_label} match is ambiguous."
         action = f"Review the {field_label.lower()} field and label artwork manually."
+        support = field_support_decision(field_name, expected, application, ocr)
+        if support and support.supported:
+            verdict = "pass"
+            message = f"{field_label} is supported by the BERT field-support arbiter."
+            action = None
     else:
         verdict = "fail"
         message = f"{field_label} on label does not clearly match application field."
         action = f"Correct the application {field_label.lower()} or label artwork."
+        support = field_support_decision(field_name, expected, application, ocr)
+        if support and support.supported:
+            verdict = "pass"
+            message = f"{field_label} is supported by the BERT field-support arbiter."
+            action = None
     return check(
         rule_id,
         name,
@@ -632,12 +663,42 @@ def check_optional_fuzzy_field(
         verdict,
         message,
         expected=expected,
-        observed="OCR text window",
-        evidence_text=text,
+        observed=field_support_observed("OCR text window", support),
+        evidence_text=(support.candidate_text if support and support.supported else text),
         source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
         reviewer_action=action,
-        score=score,
+        score=support.probability if support and support.supported else score,
         confidence=confidence,
+    )
+
+
+def field_support_decision(
+    field_name: str,
+    expected: str,
+    application: ColaApplication,
+    ocr: OCRResult,
+) -> FieldSupportDecision | None:
+    """Return optional BERT field-support evidence for one field."""
+
+    arbiter = get_field_support_arbiter()
+    decision = arbiter.score(
+        field_name=field_name,
+        expected=expected,
+        application=application,
+        ocr=ocr,
+    )
+    return decision if decision.available else None
+
+
+def field_support_observed(fallback: str, support: FieldSupportDecision | None) -> str:
+    """Render observed support evidence for UI/CSV fields."""
+
+    if not support:
+        return fallback
+    return (
+        f"BERT field-support probability={support.probability} "
+        f"threshold={support.threshold}; candidates={support.candidate_count}; "
+        f"latency_ms={support.latency_ms}"
     )
 
 

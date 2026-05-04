@@ -44,6 +44,27 @@ policy queues. The queue layer stores whether human approval is required before
 acceptance, rejection, or unknown government-warning routing, then maps raw
 verdicts into reviewer queues before final agency action.
 
+The DistilRoBERTa field-support bridge is optional but wired into the runtime.
+The model artifact is too large for normal Git commit, so copy or mount it
+separately before rebuilding if you want BERT evidence enabled:
+
+```bash
+mkdir -p data/work/field-support-models/distilroberta-field-support-v1-runtime
+# Copy the local model directory into the same path on the host, then:
+docker compose build
+docker compose up -d
+```
+
+`docker-compose.yml` mounts:
+
+```text
+./data/work/field-support-models/distilroberta-field-support-v1-runtime/model
+-> /app/models/field_support/distilroberta
+```
+
+If the directory is absent or empty, the app falls back to deterministic field
+matching.
+
 Optional OCR warmup on the deployment host:
 
 ```bash
