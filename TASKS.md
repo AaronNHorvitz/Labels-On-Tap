@@ -690,6 +690,8 @@ Tasks:
 - [x] Use 5-fold out-of-fold train predictions for SVM, XGBoost, LightGBM, Logistic Regression, MLP, CatBoost, and MobileNetV3 CNN.
 - [x] Train CNN-inclusive soft voting, strict veto, logistic stacker, LightGBM stacker, XGBoost stacker, CatBoost stacker, LightGBM reject, and XGBoost reject ensembles.
 - [x] Record train/test statistics for all CNN-inclusive base learners and ensembles in `MODEL_LOG.md`.
+- [x] Add the base-vs-ensemble model-selection table near the top of `README.md`, `TRADEOFFS.md`, `MODEL_LOG.md`, `MODEL_ARCHITECTURE.md`, `HANDOFF.md`, `HANDOFF_DETAILED_2026-05-03.md`, and `docs/performance.md`.
+- [x] Add the concise model-selection summary to `ARCHITECTURE.md`, `PRD.md`, and `docs/tradeoffs.md`.
 - [x] Preserve the current decision: CNN-inclusive ensembles are offline promotion candidates, while the MVP runtime keeps the real-adapted JSON logistic typography bridge.
 
 Documentation framing:

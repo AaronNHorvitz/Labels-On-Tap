@@ -18,6 +18,25 @@ The product is designed around a specific stakeholder problem: TTB compliance ag
 
 The build intentionally avoids hosted ML APIs, cloud OCR, and large vision-language models. Runtime verification must run locally or self-hosted because stakeholder discovery identified federal firewall constraints and prior vendor failure modes involving blocked outbound ML endpoints. The prototype must also feel usable by non-technical reviewers: obvious upload flow, live batch progress, plain-language results, and source-backed explanations.
 
+### Latest Model-Selection Evidence
+
+The current typography model-selection comparison uses one controlled dataset
+and split: `audit-v6`, `6,000` train / `1,500` validation / `1,500` untouched
+test crops. Base learners use five-fold out-of-fold train predictions, and
+ensembles are trained on probabilities from all base learners, including
+MobileNetV3 CNN.
+
+| Type | Model / Policy | Test F1 | Test false-clear |
+|---|---|---:|---:|
+| Base model | MobileNetV3 CNN | 0.9686 | 0.0055 |
+| Ensemble | Logistic stacker + CNN | 0.9908 | 0.0099 |
+| Ensemble | LightGBM reject + CNN | 0.9552 | 0.0033 |
+| Ensemble | XGBoost reject + CNN | 0.9656 | 0.0044 |
+
+Product decision: deploy the conservative JSON logistic typography preflight
+for the MVP, and keep CNN-inclusive reject ensembles as measured promotion
+candidates because they better respect the false-clear posture.
+
 ---
 
 ## 2. Problem Statement

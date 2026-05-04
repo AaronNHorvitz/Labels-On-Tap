@@ -23,6 +23,37 @@ COLAs Online-style application data
 The deployed prototype is intentionally conservative. It does not use hosted OCR
 or hosted ML APIs, and it does not let a language model decide compliance.
 
+## Latest Model-Selection Evidence
+
+The current typography model-selection evidence uses one controlled comparison:
+`audit-v6`, `6,000` train / `1,500` validation / `1,500` untouched test crops.
+Every base learner uses the same target and split. The ensembles are trained on
+five-fold out-of-fold probabilities from the base learners, including the
+MobileNetV3 CNN. Validation is used only for reject-threshold tuning.
+
+| Type | Model / Policy | Train/OOF F1 | Train/OOF false-clear | Test accuracy | Test F1 | Test false-clear |
+|---|---|---:|---:|---:|---:|---:|
+| Base model | SVM | 0.9453 | 0.0346 | 0.9473 | 0.9467 | 0.0363 |
+| Base model | XGBoost | 0.9705 | 0.0302 | 0.9647 | 0.9633 | 0.0297 |
+| Base model | LightGBM | 0.9737 | 0.0252 | 0.9747 | 0.9753 | 0.0198 |
+| Base model | Logistic Regression | 0.9614 | 0.0274 | 0.9600 | 0.9546 | 0.0242 |
+| Base model | MLP | 0.9656 | 0.0288 | 0.9653 | 0.9656 | 0.0275 |
+| Base model | CatBoost | 0.9505 | 0.0476 | 0.9507 | 0.9472 | 0.0452 |
+| Base model | MobileNetV3 CNN | 0.9523 | 0.0022 | 0.9560 | 0.9686 | 0.0055 |
+| Ensemble | Soft voting + CNN | 0.9784 | 0.0160 | 0.9740 | 0.9742 | 0.0198 |
+| Ensemble | Strict veto + CNN | 0.8400 | 0.0006 | 0.8833 | 0.8530 | 0.0022 |
+| Ensemble | Logistic stacker + CNN | 0.9932 | 0.0064 | 0.9893 | 0.9908 | 0.0099 |
+| Ensemble | LightGBM stacker + CNN | 1.0000 | 0.0000 | 0.9880 | 0.9900 | 0.0143 |
+| Ensemble | XGBoost stacker + CNN | 0.9985 | 0.0025 | 0.9860 | 0.9874 | 0.0165 |
+| Ensemble | CatBoost stacker + CNN | 0.9933 | 0.0072 | 0.9873 | 0.9895 | 0.0154 |
+| Ensemble | LightGBM reject + CNN | 0.9683 | 0.0000 | 0.9673 | 0.9552 | 0.0033 |
+| Ensemble | XGBoost reject + CNN | 0.9784 | 0.0000 | 0.9753 | 0.9656 | 0.0044 |
+
+Architectural decision: the deployed MVP keeps the simpler real-adapted JSON
+logistic typography bridge. The CNN-inclusive reject ensembles are the next
+promotion candidates because they offer the best balance of lower false-clear
+risk and useful F1.
+
 ---
 
 ## 1. Product Objective

@@ -31,6 +31,24 @@ review` depending on agency policy. A clear `Fail` can become either `Ready to
 reject` or `Rejection review`. `Needs Review` always remains a manual evidence
 review queue.
 
+### Latest Model-Selection Checkpoint
+
+The current typography model-selection run is controlled on one dataset:
+`audit-v6`, with `6,000` train / `1,500` validation / `1,500` untouched test
+crops. Ensembles train on five-fold out-of-fold probabilities from SVM,
+XGBoost, LightGBM, Logistic Regression, MLP, CatBoost, and MobileNetV3 CNN.
+
+| Type | Model / Policy | Test F1 | Test false-clear |
+|---|---|---:|---:|
+| Base model | MobileNetV3 CNN | 0.9686 | 0.0055 |
+| Ensemble | Logistic stacker + CNN | 0.9908 | 0.0099 |
+| Ensemble | LightGBM reject + CNN | 0.9552 | 0.0033 |
+| Ensemble | XGBoost reject + CNN | 0.9656 | 0.0044 |
+
+The architecture keeps the MVP runtime on the real-adapted JSON logistic
+typography bridge and treats CNN-inclusive reject ensembles as the next
+promotion candidates.
+
 ---
 
 ## 1. Design Principles

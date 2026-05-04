@@ -26,6 +26,24 @@ COLAs Online-style application data
 
 The app is already deployed and working. The current sprint has shifted from app scaffolding to proving OCR/form matching quality with public COLA data and conservative statistics.
 
+## Latest Model-Selection Checkpoint
+
+The current valid typography model-selection table uses `audit-v6` only:
+`6,000` train / `1,500` validation / `1,500` untouched test crops. Base models
+use five-fold out-of-fold train probabilities. Ensembles are trained on those
+OOF probabilities from every base learner, including MobileNetV3 CNN.
+
+| Type | Model / Policy | Train/OOF F1 | Train/OOF false-clear | Test accuracy | Test F1 | Test false-clear |
+|---|---|---:|---:|---:|---:|---:|
+| Base model | MobileNetV3 CNN | 0.9523 | 0.0022 | 0.9560 | 0.9686 | 0.0055 |
+| Ensemble | Logistic stacker + CNN | 0.9932 | 0.0064 | 0.9893 | 0.9908 | 0.0099 |
+| Ensemble | LightGBM reject + CNN | 0.9683 | 0.0000 | 0.9673 | 0.9552 | 0.0033 |
+| Ensemble | XGBoost reject + CNN | 0.9784 | 0.0000 | 0.9753 | 0.9656 | 0.0044 |
+
+Decision: keep the deployed MVP on the real-adapted JSON logistic typography
+bridge; use the CNN-inclusive reject ensembles as the next offline promotion
+candidates.
+
 ## Non-Negotiables
 
 - Canonical URL is `https://www.labelsontap.ai`, not `.com`.

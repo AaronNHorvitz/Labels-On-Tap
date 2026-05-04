@@ -12,3 +12,22 @@ The MVP chooses a working, explainable reviewer-support slice over broad regulat
 - The public COLA example comparison demo reads gitignored local COLA Cloud-derived records and images when present, but it is not a runtime dependency and may show a missing-data page on hosts without that local corpus.
 - Manual manifest-backed batch upload is implemented synchronously in the web process for the sprint. A production batch workflow should move OCR work to a background queue.
 - ZIP upload is intentionally out of scope for the first MVP because safe archive handling would add risk and testing burden.
+
+## Current Model-Selection Evidence
+
+The latest typography comparison is the valid one to cite for model selection:
+every base learner and ensemble used the same `audit-v6` split, with ensemble
+stackers trained on five-fold out-of-fold probabilities from SVM, XGBoost,
+LightGBM, Logistic Regression, MLP, CatBoost, and MobileNetV3 CNN.
+
+| Type | Model / Policy | Test F1 | Test false-clear |
+|---|---|---:|---:|
+| Base model | MobileNetV3 CNN | 0.9686 | 0.0055 |
+| Ensemble | Logistic stacker + CNN | 0.9908 | 0.0099 |
+| Ensemble | LightGBM reject + CNN | 0.9552 | 0.0033 |
+| Ensemble | XGBoost reject + CNN | 0.9656 | 0.0044 |
+
+Trade-off: raw-F1 stackers look strongest on F1, but reject-threshold ensembles
+better match the government false-clear posture. The MVP runtime therefore
+keeps the simpler real-adapted JSON logistic bridge while documenting the
+CNN-inclusive reject ensembles as promotion candidates.

@@ -38,6 +38,27 @@ clear evidence-backed problem -> Fail
 uncertain OCR/rule evidence   -> Needs Review
 ```
 
+## Latest Valid Model-Selection Checkpoint
+
+The current typography model-selection evidence is the `audit-v6`
+CNN-inclusive comparison. It uses one dataset and one split for all models:
+`6,000` train / `1,500` validation / `1,500` untouched test crops. Base learners
+produce five-fold out-of-fold train probabilities. Ensemble models train on
+those OOF probabilities from all base learners, including the MobileNetV3 CNN.
+Reject thresholds are tuned on validation only.
+
+| Type | Model / Policy | Train/OOF F1 | Train/OOF false-clear | Test accuracy | Test F1 | Test false-clear |
+|---|---|---:|---:|---:|---:|---:|
+| Base model | MobileNetV3 CNN | 0.9523 | 0.0022 | 0.9560 | 0.9686 | 0.0055 |
+| Ensemble | Logistic stacker + CNN | 0.9932 | 0.0064 | 0.9893 | 0.9908 | 0.0099 |
+| Ensemble | LightGBM reject + CNN | 0.9683 | 0.0000 | 0.9673 | 0.9552 | 0.0033 |
+| Ensemble | XGBoost reject + CNN | 0.9784 | 0.0000 | 0.9753 | 0.9656 | 0.0044 |
+
+Decision: the CNN is the safest base learner; raw-F1 stackers are not safe
+enough for automatic government-warning clearance; CNN-inclusive reject
+ensembles are the next offline promotion candidates. The MVP runtime keeps the
+real-adapted JSON logistic typography bridge.
+
 Important workflow distinction:
 
 ```text
