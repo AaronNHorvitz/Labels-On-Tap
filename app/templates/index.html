@@ -49,7 +49,7 @@
         <div class="parse-actions demo-action-row">
           <button class="button primary" name="parse_scope" value="application" type="submit">Parse This Application</button>
           <button class="button primary" name="parse_scope" value="directory" type="submit">Parse This Directory of Applications</button>
-          <button class="button secondary" type="reset">Reset</button>
+          <button class="button secondary" formaction="/app/reset" formmethod="post" formnovalidate type="submit">Reset</button>
         </div>
         <p class="submit-status" id="actual-submit-status" hidden>Uploading files and starting the parse run...</p>
       </div>
@@ -95,6 +95,8 @@
 </section>
 <script>
   (() => {
+    let serverApplications = {{ actual_applications|default([])|tojson }};
+    const actualJobId = {{ actual_job_id|default("")|tojson }};
     const folderInput = document.getElementById("batch-folder-files");
     const form = document.getElementById("application-batch-form");
     const viewport = document.getElementById("batch-preview-viewport");
@@ -125,7 +127,9 @@
     let dragStartPanX = 0;
     let dragStartPanY = 0;
     let manifestRows = [];
-    let comparisonRows = {};
+    let comparisonRows = {{ comparison_rows|default({})|tojson }};
+    let serverApplicationIndex = 0;
+    let serverPhotoIndex = 0;
 
     const applyTransform = () => {
       preview.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
@@ -174,6 +178,8 @@
     };
     const manifestFile = () => Array.from(folderInput.files || [])
       .find((file) => /(^|\/)manifest\.csv$/i.test(file.webkitRelativePath || file.name));
+    const usingServerJob = () => serverApplications.length > 0 && !(folderInput.files || []).length;
+    const selectedServerApplication = () => serverApplications[serverApplicationIndex] || null;
     const parseCsvLine = (line) => {
       const cells = [];
       let cell = "";
@@ -223,6 +229,14 @@
       .filter((file) => /\.(png|jpe?g)$/i.test(file.name))
       .sort((left, right) => displayKey(left).localeCompare(displayKey(right)));
     const selectedManifestRow = () => {
+      const serverApplication = selectedServerApplication();
+      if (usingServerJob() && serverApplication) {
+        return {
+          filename: serverApplication.id,
+          fixture_id: serverApplication.result_id,
+          actual_rows: serverApplication.actual_rows || [],
+        };
+      }
       const { application } = browserState();
       if (!application) return null;
       return manifestRows.find((row) => row.filename === application || row.fixture_id === application) || null;
@@ -263,7 +277,8 @@
       }
       const parsedRows = comparisonRows[selectedResultId(row)] || [];
       const parsedByLabel = new Map(parsedRows.map((parsedRow) => [parsedRow.label, parsedRow]));
-      comparisonBody.innerHTML = actualRows(row)
+      const rows = row.actual_rows ? row.actual_rows.map((actualRow) => [actualRow.label, actualRow.actual]) : actualRows(row);
+      comparisonBody.innerHTML = rows
         .map(([label, actual]) => {
           const parsed = parsedByLabel.get(label);
           const scraped = parsed ? parsed.parsed || parsed.evidence || "" : "";
@@ -296,6 +311,43 @@
     };
 
     const render = () => {
+      if (usingServerJob()) {
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = null;
+        }
+        const application = selectedServerApplication();
+        if (!application) {
+          preview.removeAttribute("src");
+          preview.hidden = true;
+          empty.hidden = false;
+          appCounter.textContent = "No application selected";
+          photoCounter.textContent = "No application photos selected";
+          selectedApplicationInput.value = "";
+          appPrev.hidden = true;
+          appNext.hidden = true;
+          photoPrev.hidden = true;
+          photoNext.hidden = true;
+          resetTransform();
+          renderComparison();
+          return;
+        }
+        serverPhotoIndex = Math.min(Math.max(serverPhotoIndex, 0), application.images.length - 1);
+        const image = application.images[serverPhotoIndex];
+        preview.src = image.url;
+        preview.hidden = false;
+        empty.hidden = true;
+        selectedApplicationInput.value = application.id;
+        appCounter.textContent = `Application ${serverApplicationIndex + 1} of ${serverApplications.length} · ${application.id}`;
+        photoCounter.textContent = `Photo ${serverPhotoIndex + 1} of ${application.images.length}`;
+        appPrev.hidden = serverApplicationIndex <= 0;
+        appNext.hidden = serverApplicationIndex >= serverApplications.length - 1;
+        photoPrev.hidden = serverPhotoIndex <= 0;
+        photoNext.hidden = serverPhotoIndex >= application.images.length - 1;
+        resetTransform();
+        renderComparison();
+        return;
+      }
       const files = collectFiles();
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
@@ -334,6 +386,7 @@
     };
 
     folderInput.addEventListener("change", () => {
+      serverApplications = [];
       selectedIndex = 0;
       comparisonRows = {};
       render();
@@ -418,6 +471,13 @@
       }
     });
     appPrev.addEventListener("click", () => {
+      if (usingServerJob()) {
+        if (serverApplicationIndex <= 0) return;
+        serverApplicationIndex -= 1;
+        serverPhotoIndex = 0;
+        render();
+        return;
+      }
       const { files, applications, applicationIndex } = browserState();
       if (!files.length || applicationIndex <= 0) {
         return;
@@ -427,6 +487,13 @@
       render();
     });
     appNext.addEventListener("click", () => {
+      if (usingServerJob()) {
+        if (serverApplicationIndex >= serverApplications.length - 1) return;
+        serverApplicationIndex += 1;
+        serverPhotoIndex = 0;
+        render();
+        return;
+      }
       const { files, applications, applicationIndex } = browserState();
       if (!files.length || applicationIndex < 0 || applicationIndex >= applications.length - 1) {
         return;
@@ -436,6 +503,12 @@
       render();
     });
     photoPrev.addEventListener("click", () => {
+      if (usingServerJob()) {
+        if (serverPhotoIndex <= 0) return;
+        serverPhotoIndex -= 1;
+        render();
+        return;
+      }
       const { files, applicationFiles, photoIndex } = browserState();
       if (!files.length || photoIndex <= 0) {
         return;
@@ -444,6 +517,13 @@
       render();
     });
     photoNext.addEventListener("click", () => {
+      if (usingServerJob()) {
+        const application = selectedServerApplication();
+        if (!application || serverPhotoIndex >= application.images.length - 1) return;
+        serverPhotoIndex += 1;
+        render();
+        return;
+      }
       const { files, applicationFiles, photoIndex } = browserState();
       if (!files.length || photoIndex < 0 || photoIndex >= applicationFiles.length - 1) {
         return;

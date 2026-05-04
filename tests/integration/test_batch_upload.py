@@ -263,6 +263,38 @@ def test_application_directory_single_parse_can_return_inline_json():
     assert payload["comparison_rows"]["app_001"][0]["parsed"]
 
 
+def test_actual_workspace_restores_last_uploaded_directory_from_cookie():
+    client = TestClient(app)
+    manifest = (
+        "filename,panel_filenames,fixture_id,product_type,brand_name,class_type,alcohol_content,net_contents\n"
+        "APP-001,images/APP-001/clean_malt_pass.png,app_001,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint\n"
+    ).encode()
+    response = client.post(
+        "/jobs/application-directory",
+        data={"parse_scope": "application", "selected_application": "APP-001", "review_policy": "auto"},
+        files=[
+            ("application_directory", ("labels-on-tap-example-data/manifest.csv", manifest, "text/csv")),
+            (
+                "application_directory",
+                (
+                    "labels-on-tap-example-data/images/APP-001/clean_malt_pass.png",
+                    (DEMO_DIR / "clean_malt_pass.png").read_bytes(),
+                    "image/png",
+                ),
+            ),
+        ],
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    page = client.get("/app")
+    assert page.status_code == 200
+    assert "OLD RIVER BREWING" in page.text
+    assert "serverApplications" in page.text
+    assert "/jobs/" in page.text
+    assert "/uploads/" in page.text
+
+
 def test_public_cola_demo_uses_server_side_pack_and_selected_application(monkeypatch, tmp_path):
     demo_root = tmp_path / "public-cola-300"
     image_dir = demo_root / "images" / "APP-002"

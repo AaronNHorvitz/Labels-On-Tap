@@ -89,6 +89,7 @@ from app.services.typography.warning_heading import detect_warning_heading_crop
 router = APIRouter()
 templates = Jinja2Templates(directory=str(ROOT / "app/templates"))
 ocr_engine = FixtureOCREngine()
+LAST_ACTUAL_JOB_COOKIE = "labels_on_tap_last_actual_job"
 
 
 @dataclass
@@ -1852,7 +1853,7 @@ def create_application_directory_job(
     wants_json = "application/json" in request.headers.get("accept", "").lower()
     wants_json = wants_json or request.headers.get("x-requested-with", "").lower() == "fetch"
     if wants_json:
-        return JSONResponse(
+        response = JSONResponse(
             {
                 "job_id": job_id,
                 "job_url": f"/jobs/{job_id}",
@@ -1860,7 +1861,11 @@ def create_application_directory_job(
                 "comparison_rows": _job_comparison_payload(list_results(job_id)),
             }
         )
-    return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
+        response.set_cookie(LAST_ACTUAL_JOB_COOKIE, job_id, max_age=60 * 60 * 24, httponly=True, samesite="lax")
+        return response
+    response = RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
+    response.set_cookie(LAST_ACTUAL_JOB_COOKIE, job_id, max_age=60 * 60 * 24, httponly=True, samesite="lax")
+    return response
 
 
 def _process_batch_items(
