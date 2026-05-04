@@ -5,13 +5,13 @@ The prototype target is roughly five seconds per single label after OCR warmup, 
 The current demo routes use fixture OCR ground truth so evaluator demos are immediate and deterministic. Real uploads use local docTR when installed; first-run model loading may be slower than steady-state processing.
 
 Performance metrics should be interpreted as triage metrics, not final agency
-action metrics. A planned reviewer-policy layer can route raw `Pass`, `Needs
+action metrics. The reviewer-policy layer can route raw `Pass`, `Needs
 Review`, and `Fail` verdicts into queues such as `Ready to accept`,
 `Acceptance review`, `Manual evidence review`, `Rejection review`, and `Ready to
 reject`. That queue layer does not change OCR latency, but it changes operational
 throughput and reviewer staffing assumptions for large batches.
 
-The planned control board also treats unknown government-warning evidence as a
+The control board also treats unknown government-warning evidence as a
 special case. If warning human review is off, unknown/unverifiable warning
 evidence defaults to failure; if it is on, the item routes to manual evidence
 review. This changes queue counts, not OCR engine latency.
@@ -43,6 +43,45 @@ from every base learner, including MobileNetV3 CNN.
 
 The reported ensemble latency in the experiment output is aggregator-only. The
 separate CNN crop-inference reference remains about `5.21 ms/crop` p95 on CPU.
+
+## Real COLA CNN-Inclusive Ensemble Smoke
+
+The final smoke run scored saved audit-v6 base learners and all CNN-inclusive
+ensembles against real approved COLA warning-heading crops from the cached
+train/validation OCR conveyor. This is a positive-domain smoke test, not a
+false-clear test.
+
+| Item | Value |
+|---|---:|
+| Heading crops | 4,362 |
+| Applications represented | 2,356 |
+| Source images represented | 2,358 |
+| Feature extraction mean | 0.4885 ms/crop |
+| Feature extraction p95 | 0.5513 ms/crop |
+| MobileNetV3 CNN CPU mean | 4.0340 ms/crop |
+
+| Type | Model / Policy | Crop clear | App clear | Crop review | App review | Mean ms/crop |
+|---|---|---:|---:|---:|---:|---:|
+| Base model | SVM | 0.3744 | 0.5310 | 0.0410 | 0.0492 | 0.0067 |
+| Base model | XGBoost | 0.6465 | 0.7852 | 0.0165 | 0.0136 | 0.0106 |
+| Base model | LightGBM | 0.5942 | 0.7593 | 0.0202 | 0.0161 | 0.0122 |
+| Base model | Logistic Regression | 0.5282 | 0.6596 | 0.1894 | 0.1447 | 0.0095 |
+| Base model | MLP | 0.7265 | 0.8196 | 0.0724 | 0.0514 | 0.0072 |
+| Base model | CatBoost | 0.5452 | 0.6732 | 0.0358 | 0.0301 | 0.0165 |
+| Base model | MobileNetV3 CNN | 0.6346 | 0.7330 | 0.0477 | 0.0488 | 4.0340 |
+| Ensemble | Soft voting + CNN | 0.6678 | 0.7784 | 0.0355 | 0.0357 | 0.0001 |
+| Ensemble | Strict veto + CNN | 0.1648 | 0.2610 | 0.7765 | 0.6715 | 0.0001 |
+| Ensemble | Logistic stacker + CNN | 0.6978 | 0.7691 | 0.0275 | 0.0280 | 0.0001 |
+| Ensemble | LightGBM stacker + CNN | 0.8044 | 0.8425 | 0.0195 | 0.0166 | 0.0032 |
+| Ensemble | XGBoost stacker + CNN | 0.8228 | 0.8527 | 0.0163 | 0.0123 | 0.0006 |
+| Ensemble | CatBoost stacker + CNN | 0.8469 | 0.8638 | 0.0138 | 0.0110 | 0.0004 |
+| Ensemble | LightGBM reject + CNN | 0.4519 | 0.5976 | 0.3721 | 0.2615 | 0.0030 |
+| Ensemble | XGBoost reject + CNN | 0.5066 | 0.6384 | 0.3324 | 0.2267 | 0.0006 |
+
+The ensemble latency column is aggregator-only after base probability
+generation. The cached-crop path for a CNN-inclusive ensemble includes feature
+extraction, six classical base probabilities, CNN inference, and the ensemble
+aggregator. OCR and heading-crop discovery are excluded from this smoke.
 
 ## Local Non-Docker Smoke Measurements
 

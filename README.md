@@ -29,9 +29,9 @@ In plain terms: the tool should quickly clear obvious matches, flag obvious prob
 
 ### Human Review Policy Layer
 
-The reviewer workflow should be configurable because TTB may not want the same
-automation posture for every pilot, product line, or batch. The planned policy
-layer should be exposed as a simple control board with three independent
+The reviewer workflow is configurable because TTB may not want the same
+automation posture for every pilot, product line, or batch. The single-upload
+and batch-upload forms expose a simple control board with three independent
 settings:
 
 ```text
@@ -82,7 +82,7 @@ Rejection review: 9
 Manual evidence review: 23
 ```
 
-Reviewer actions should remain simple:
+Future reviewer actions should remain simple:
 
 ```text
 Accept
@@ -154,6 +154,19 @@ Latest valid model-selection table:
 | Ensemble | CatBoost stacker + CNN | 0.9933 | 0.0072 | 0.9873 | 0.9895 | 0.0154 |
 | Ensemble | LightGBM reject + CNN | 0.9683 | 0.0000 | 0.9673 | 0.9552 | 0.0033 |
 | Ensemble | XGBoost reject + CNN | 0.9784 | 0.0000 | 0.9753 | 0.9656 | 0.0044 |
+
+Final real-COLA smoke: all saved base learners and all CNN-inclusive ensembles
+were then run against `4,362` real approved COLA warning-heading crops from
+`2,356` applications. This confirms the artifacts run cleanly on real public
+label crops. Because approved COLAs are positive-domain examples, this smoke
+reports clear/review behavior and latency, not false-clear safety.
+
+| Model / Policy | Crop clear | App clear | Crop review | App review | Mean ms/crop |
+|---|---:|---:|---:|---:|---:|
+| MobileNetV3 CNN base | 0.6346 | 0.7330 | 0.0477 | 0.0488 | 4.0340 |
+| Logistic stacker + CNN | 0.6978 | 0.7691 | 0.0275 | 0.0280 | 0.0001 |
+| LightGBM reject + CNN | 0.4519 | 0.5976 | 0.3721 | 0.2615 | 0.0030 |
+| XGBoost reject + CNN | 0.5066 | 0.6384 | 0.3324 | 0.2267 | 0.0006 |
 
 A production-grade evaluation would use a larger random or stratified holdout set across product types, statuses, dates, form versions, and known regulatory/form-change boundaries. For this take-home, the practical goal is narrower: prove that public COLA application data and label images can be parsed, OCR'd, compared, and evaluated with conservative human-review routing.
 
@@ -582,12 +595,15 @@ This is not part of the current measured runtime claim. It is recorded as a futu
 - FastAPI app with server-rendered Jinja2 templates and local HTMX.
 - Local CSS with high-contrast Pass / Needs Review / Fail states.
 - Single-label upload form with product/application fields.
+- Multi-panel application upload that aggregates OCR across all submitted
+  label panels for one application.
 - Demonstration-only photo OCR intake for real bottle/can/shelf photos.
 - Local COLA Cloud-derived public example demo with side-by-side application-field/OCR evidence comparison.
 - Manifest-backed batch upload for multiple label images.
 - Fixture-backed one-click demos for evaluator review.
 - Filesystem job/result store under `data/jobs/`.
-- CSV export for job results.
+- Reviewer-ready CSV export with expected values, observed values, evidence,
+  OCR confidence, reviewer actions, and processing time.
 - Deterministic synthetic fixtures and source maps.
 - Local docTR OCR adapter with fixture OCR fallback.
 - Docker Compose and Caddy deployment stack.
@@ -607,6 +623,11 @@ Implemented rule IDs:
 
 ```text
 FORM_BRAND_MATCHES_LABEL
+FORM_FANCIFUL_NAME_MATCHES_LABEL
+FORM_CLASS_TYPE_MATCHES_LABEL
+FORM_ALCOHOL_CONTENT_MATCHES_LABEL
+FORM_NET_CONTENTS_MATCHES_LABEL
+FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL
 COUNTRY_OF_ORIGIN_MATCH
 GOV_WARNING_EXACT_TEXT
 GOV_WARNING_HEADER_CAPS
@@ -657,7 +678,8 @@ Labels On Tap uses different standards for different kinds of checks.
 | Check Type | Examples | Verdict Policy |
 |---|---|---|
 | Strict deterministic checks | Government warning exact text, warning heading capitalization, prohibited `ABV` shorthand, malt `16 fl. oz.` net contents issue | Fail when the source-backed mismatch is clear and OCR confidence is adequate. |
-| Fuzzy application-field checks | Brand name, country of origin for imports | Pass on strong match, Needs Review on ambiguity, Fail only on clear mismatch or conflicting evidence. |
+| Fuzzy application-field checks | Brand name, fanciful name, class/type, bottler/producer name/address, country of origin for imports | Pass on strong match, Needs Review on ambiguity, Fail only on clear mismatch or conflicting evidence. |
+| Numeric application-field checks | Alcohol content, proof equivalence, net contents | Pass on normalized value match, Needs Review when evidence is missing/low-confidence, Fail on clear conflicting label value. |
 | Manual-review checks | Low OCR confidence, uncertain raster typography/boldness, missing warning isolation | Needs Review instead of pretending the image evidence is stronger than it is. |
 
 Every rule check returns:
@@ -682,6 +704,11 @@ Implemented rule behavior in brief:
 | Rule ID | Behavior |
 |---|---|
 | `FORM_BRAND_MATCHES_LABEL` | Fuzzy matches the application brand against OCR text; casing differences should pass. |
+| `FORM_FANCIFUL_NAME_MATCHES_LABEL` | Fuzzy matches optional fanciful name when supplied; blank application values are skipped. |
+| `FORM_CLASS_TYPE_MATCHES_LABEL` | Fuzzy matches the application class/type designation against OCR text. |
+| `FORM_ALCOHOL_CONTENT_MATCHES_LABEL` | Extracts ABV/proof values from application and OCR text and compares normalized alcohol percentages. |
+| `FORM_NET_CONTENTS_MATCHES_LABEL` | Extracts net-content quantities and compares normalized volumes across metric and U.S. customary units. |
+| `FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL` | Fuzzy matches optional bottler/producer/importer name and address text when supplied. |
 | `COUNTRY_OF_ORIGIN_MATCH` | Applies to imported products; passes on clear expected-country match, needs review when missing/low confidence, fails on conflicting country evidence. |
 | `GOV_WARNING_EXACT_TEXT` | Compares warning text to canonical wording with whitespace normalization only. |
 | `GOV_WARNING_HEADER_CAPS` | Requires the heading to be exactly `GOVERNMENT WARNING:`. |
@@ -1378,7 +1405,9 @@ Runtime privacy:
 
 ## Known Limitations
 
-- Batch upload runs synchronously in the web process for the sprint prototype; a production version should use a worker queue.
+- Batch upload uses local FastAPI background tasks with filesystem progress
+  polling for the sprint prototype; a production version should use a durable
+  worker queue.
 - Government warning boldness routes to Needs Review instead of hard-failing from raster font-weight guesses.
 - docTR local OCR may require model download/warmup.
 - The active rule set is intentionally narrow.

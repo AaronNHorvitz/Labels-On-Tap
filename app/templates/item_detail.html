@@ -5,7 +5,7 @@
   <div class="page-title">
     <div>
       <h1>{{ result.filename }}</h1>
-      <p><span class="badge {{ result.overall_verdict }}">{{ result.overall_verdict|replace("_", " ")|title }}</span> · OCR source: {{ result.ocr.source }}</p>
+      <p><span class="badge {{ result.overall_verdict }}">{{ result.overall_verdict|replace("_", " ")|title }}</span> · Queue: {{ result.policy_queue|replace("_", " ")|title }} · OCR source: {{ result.ocr.source }}</p>
     </div>
     <a class="button secondary" href="/jobs/{{ job_id }}">Back to job</a>
   </div>
@@ -14,10 +14,12 @@
     <h2>Application Fields</h2>
     <dl class="detail-grid">
       <div><dt>Brand</dt><dd>{{ result.application.brand_name }}</dd></div>
+      <div><dt>Fanciful name</dt><dd>{{ result.application.fanciful_name or "Not provided" }}</dd></div>
       <div><dt>Product type</dt><dd>{{ result.application.product_type|replace("_", " ")|title }}</dd></div>
       <div><dt>Class/type</dt><dd>{{ result.application.class_type or "Not provided" }}</dd></div>
       <div><dt>Alcohol content</dt><dd>{{ result.application.alcohol_content or "Not provided" }}</dd></div>
       <div><dt>Net contents</dt><dd>{{ result.application.net_contents or "Not provided" }}</dd></div>
+      <div><dt>Bottler / producer</dt><dd>{{ result.application.bottler_producer_name_address or "Not provided" }}</dd></div>
       <div><dt>Imported</dt><dd>{{ "Yes" if result.application.imported else "No" }}</dd></div>
       <div><dt>Country of origin</dt><dd>{{ result.application.country_of_origin or "Not provided" }}</dd></div>
     </dl>
@@ -27,9 +29,14 @@
     <h2>Label Image And Detected Warning Evidence</h2>
     <div class="evidence-grid">
       <div class="label-panel">
-        <h3>Submitted Label</h3>
-        {% if evidence.image_url %}
-        <img src="{{ evidence.image_url }}" alt="Submitted label image for {{ result.filename }}">
+        <h3>Submitted Label{% if evidence.panel_image_urls|length > 1 %} Panels{% endif %}</h3>
+        {% if evidence.panel_image_urls %}
+          {% for panel in evidence.panel_image_urls %}
+          <figure>
+            <img src="{{ panel.url }}" alt="Submitted label panel {{ loop.index }} for {{ result.filename }}">
+            <figcaption>{{ panel.filename }}</figcaption>
+          </figure>
+          {% endfor %}
         {% else %}
         <p>No stored label image is available for this result.</p>
         {% endif %}
@@ -91,6 +98,31 @@
       </article>
       {% endfor %}
     </div>
+  </section>
+
+  <section class="panel">
+    <h2>Reviewer Decision</h2>
+    {% if result.reviewer_decision %}
+    <p><b>Saved decision:</b> {{ result.reviewer_decision|replace("_", " ")|title }} · {{ result.reviewed_at }}</p>
+    {% if result.reviewer_note %}<p><b>Note:</b> {{ result.reviewer_note }}</p>{% endif %}
+    {% endif %}
+    <form action="/jobs/{{ job_id }}/items/{{ result.item_id }}/review" method="post" class="review-form">
+      <label>
+        Decision
+        <select name="reviewer_decision" required>
+          <option value="accept">Accept</option>
+          <option value="reject">Reject</option>
+          <option value="request_correction">Request correction / better image</option>
+          <option value="override">Override with note</option>
+          <option value="escalate">Escalate</option>
+        </select>
+      </label>
+      <label>
+        Note
+        <textarea name="reviewer_note" rows="4" placeholder="Required for override or escalation"></textarea>
+      </label>
+      <button class="button primary" type="submit">Save Review</button>
+    </form>
   </section>
 
   <section class="panel">

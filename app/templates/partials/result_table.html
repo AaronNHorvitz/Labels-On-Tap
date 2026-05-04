@@ -4,6 +4,7 @@
       <tr>
         <th>File</th>
         <th>Status</th>
+        <th>Queue</th>
         <th>Top reason</th>
         <th>OCR</th>
         <th></th>
@@ -14,6 +15,7 @@
       <tr>
         <td>{{ result.filename }}</td>
         <td><span class="badge {{ result.overall_verdict }}">{{ result.overall_verdict|replace("_", " ")|title }}</span></td>
+        <td>{{ result.policy_queue|replace("_", " ")|title }}</td>
         <td>{{ result.top_reason }}</td>
         <td>{{ result.ocr.source }} · {{ "%.0f"|format(result.ocr.avg_confidence * 100) }}%</td>
         <td><a href="/jobs/{{ job_id }}/items/{{ result.item_id }}">Details</a></td>

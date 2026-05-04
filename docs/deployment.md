@@ -39,9 +39,9 @@ is present on the host; otherwise it renders a friendly missing-data page. Do
 not deploy API keys or bulk purchased/public-data caches unless you explicitly
 intend the host to serve that local comparison demo.
 
-The deployed sprint app reports raw triage verdicts. The planned reviewer-policy
-queue layer is a workflow feature above deployment: it should store whether
-human approval is required before acceptance, rejection, or both, then map raw
+The deployed sprint app reports raw triage verdicts and maps them into reviewer
+policy queues. The queue layer stores whether human approval is required before
+acceptance, rejection, or unknown government-warning routing, then maps raw
 verdicts into reviewer queues before final agency action.
 
 Optional OCR warmup on the deployment host:

@@ -16,10 +16,10 @@ from app.config import OCR_CONFIDENCE_THRESHOLD
 from app.schemas.application import ColaApplication
 from app.schemas.ocr import OCRResult
 from app.schemas.results import RuleCheck, VerificationResult
-from app.services.rules.alcohol_terms import contains_abv_shorthand
+from app.services.rules.alcohol_terms import alcohol_values_match, contains_abv_shorthand, extract_alcohol_values
 from app.services.rules.country_origin import country_match_score, find_conflicting_country
 from app.services.rules.field_matching import fuzzy_score
-from app.services.rules.net_contents import has_bad_malt_16oz_statement
+from app.services.rules.net_contents import extract_net_content_values, has_bad_malt_16oz_statement, net_contents_match
 from app.services.rules.strict_warning import (
     CANONICAL_WARNING,
     extract_warning_block,
@@ -81,6 +81,9 @@ def verify_label(
     application: ColaApplication,
     ocr: OCRResult,
     typography: dict[str, Any] | None = None,
+    review_unknown_government_warning: bool = False,
+    require_review_before_rejection: bool = False,
+    require_review_before_acceptance: bool = False,
 ) -> VerificationResult:
     """Run all implemented checks for one label.
 
@@ -142,11 +145,47 @@ def verify_label(
         if typography is not None:
             checks.append(check_warning_boldness(typography, text, ocr.avg_confidence))
         checks.append(check_abv(text))
+        checks.append(check_alcohol_content_match(application, text, ocr.avg_confidence))
         checks.append(check_malt_net_contents(application, text))
+        checks.append(check_net_contents_match(application, text, ocr.avg_confidence))
         checks.append(check_brand(application, text, ocr.avg_confidence))
+        checks.append(check_optional_fuzzy_field(
+            "FORM_FANCIFUL_NAME_MATCHES_LABEL",
+            "Application fanciful name matches label artwork",
+            "fuzzy_match",
+            "Fanciful name",
+            application.fanciful_name,
+            text,
+            ocr.avg_confidence,
+        ))
+        checks.append(check_optional_fuzzy_field(
+            "FORM_CLASS_TYPE_MATCHES_LABEL",
+            "Application class/type matches label artwork",
+            "fuzzy_match",
+            "Class/type designation",
+            application.class_type,
+            text,
+            ocr.avg_confidence,
+        ))
+        checks.append(check_optional_fuzzy_field(
+            "FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL",
+            "Bottler/producer name and address match label artwork",
+            "fuzzy_match",
+            "Bottler/producer name and address",
+            application.bottler_producer_name_address,
+            text,
+            ocr.avg_confidence,
+        ))
     checks.append(check_country_origin(application, text, ocr.avg_confidence))
 
     overall = overall_verdict(checks)
+    policy_queue = policy_queue_for_checks(
+        checks,
+        overall,
+        review_unknown_government_warning=review_unknown_government_warning,
+        require_review_before_rejection=require_review_before_rejection,
+        require_review_before_acceptance=require_review_before_acceptance,
+    )
     triggered = [item.rule_id for item in checks if item.verdict in {"fail", "needs_review"}]
     checked = [item.rule_id for item in checks]
     top_reason = next(
@@ -163,6 +202,8 @@ def verify_label(
         filename=application.filename,
         application=app_payload,
         overall_verdict=overall,
+        raw_verdict=overall,
+        policy_queue=policy_queue,
         top_reason=top_reason,
         checked_rule_ids=checked,
         triggered_rule_ids=triggered,
@@ -331,6 +372,183 @@ def check_malt_net_contents(application: ColaApplication, text: str) -> RuleChec
     )
 
 
+def check_alcohol_content_match(application: ColaApplication, text: str, confidence: float) -> RuleCheck:
+    """Compare application alcohol content against OCR label evidence."""
+
+    expected_text = (application.alcohol_content or "").strip()
+    if not expected_text:
+        return check(
+            "FORM_ALCOHOL_CONTENT_MATCHES_LABEL",
+            "Application alcohol content matches label artwork",
+            "numeric_match",
+            "pass",
+            "Alcohol-content comparison skipped because no application value was provided.",
+            expected="Application alcohol content when provided",
+            observed="No application alcohol content",
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            confidence=confidence,
+        )
+
+    expected_values = extract_alcohol_values(expected_text)
+    observed_values = extract_alcohol_values(text)
+    if not expected_values:
+        return check(
+            "FORM_ALCOHOL_CONTENT_MATCHES_LABEL",
+            "Application alcohol content matches label artwork",
+            "numeric_match",
+            "needs_review",
+            "Application alcohol content could not be parsed for automated comparison.",
+            expected=expected_text,
+            observed="No parseable application alcohol value",
+            evidence_text=text[:500],
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            reviewer_action="Review the alcohol-content application field and label manually.",
+            confidence=confidence,
+        )
+    if confidence < OCR_CONFIDENCE_THRESHOLD:
+        return check(
+            "FORM_ALCOHOL_CONTENT_MATCHES_LABEL",
+            "Application alcohol content matches label artwork",
+            "numeric_match",
+            "needs_review",
+            "OCR confidence is too low to verify the alcohol-content statement.",
+            expected=expected_text,
+            observed=f"OCR confidence {confidence:.2f}",
+            evidence_text=text[:500],
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            reviewer_action="Review the alcohol-content statement manually.",
+            confidence=confidence,
+        )
+    if alcohol_values_match(expected_values, observed_values):
+        return check(
+            "FORM_ALCOHOL_CONTENT_MATCHES_LABEL",
+            "Application alcohol content matches label artwork",
+            "numeric_match",
+            "pass",
+            "Alcohol-content value appears to match the application field.",
+            expected=expected_text,
+            observed=", ".join(f"{value:g}% ABV" for value in sorted(observed_values)),
+            evidence_text=text,
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            confidence=confidence,
+        )
+    if observed_values:
+        return check(
+            "FORM_ALCOHOL_CONTENT_MATCHES_LABEL",
+            "Application alcohol content matches label artwork",
+            "numeric_match",
+            "fail",
+            "Alcohol-content value on the label does not match the application field.",
+            expected=expected_text,
+            observed=", ".join(f"{value:g}% ABV" for value in sorted(observed_values)),
+            evidence_text=text,
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            reviewer_action="Correct the application alcohol content or the label artwork.",
+            confidence=confidence,
+        )
+    return check(
+        "FORM_ALCOHOL_CONTENT_MATCHES_LABEL",
+        "Application alcohol content matches label artwork",
+        "numeric_match",
+        "needs_review",
+        "No clear alcohol-content value was found in OCR text.",
+        expected=expected_text,
+        observed="No label alcohol-content value found",
+        evidence_text=text,
+        source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+        reviewer_action="Review the label alcohol-content statement manually.",
+        confidence=confidence,
+    )
+
+
+def check_net_contents_match(application: ColaApplication, text: str, confidence: float) -> RuleCheck:
+    """Compare application net contents against OCR label evidence."""
+
+    expected_text = (application.net_contents or "").strip()
+    if not expected_text:
+        return check(
+            "FORM_NET_CONTENTS_MATCHES_LABEL",
+            "Application net contents match label artwork",
+            "numeric_match",
+            "pass",
+            "Net-contents comparison skipped because no application value was provided.",
+            expected="Application net contents when provided",
+            observed="No application net contents",
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            confidence=confidence,
+        )
+    expected_values = extract_net_content_values(expected_text)
+    observed_values = extract_net_content_values(text)
+    if not expected_values:
+        return check(
+            "FORM_NET_CONTENTS_MATCHES_LABEL",
+            "Application net contents match label artwork",
+            "numeric_match",
+            "needs_review",
+            "Application net contents could not be parsed for automated comparison.",
+            expected=expected_text,
+            observed="No parseable application net contents",
+            evidence_text=text[:500],
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            reviewer_action="Review the net-contents application field and label manually.",
+            confidence=confidence,
+        )
+    if confidence < OCR_CONFIDENCE_THRESHOLD:
+        return check(
+            "FORM_NET_CONTENTS_MATCHES_LABEL",
+            "Application net contents match label artwork",
+            "numeric_match",
+            "needs_review",
+            "OCR confidence is too low to verify the net-contents statement.",
+            expected=expected_text,
+            observed=f"OCR confidence {confidence:.2f}",
+            evidence_text=text[:500],
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            reviewer_action="Review the net-contents statement manually.",
+            confidence=confidence,
+        )
+    if net_contents_match(expected_values, observed_values):
+        return check(
+            "FORM_NET_CONTENTS_MATCHES_LABEL",
+            "Application net contents match label artwork",
+            "numeric_match",
+            "pass",
+            "Net-contents value appears to match the application field.",
+            expected=expected_text,
+            observed=", ".join(evidence for _, evidence in observed_values),
+            evidence_text=text,
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            confidence=confidence,
+        )
+    if observed_values:
+        return check(
+            "FORM_NET_CONTENTS_MATCHES_LABEL",
+            "Application net contents match label artwork",
+            "numeric_match",
+            "fail",
+            "Net-contents value on the label does not match the application field.",
+            expected=expected_text,
+            observed=", ".join(evidence for _, evidence in observed_values),
+            evidence_text=text,
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            reviewer_action="Correct the application net contents or the label artwork.",
+            confidence=confidence,
+        )
+    return check(
+        "FORM_NET_CONTENTS_MATCHES_LABEL",
+        "Application net contents match label artwork",
+        "numeric_match",
+        "needs_review",
+        "No clear net-contents value was found in OCR text.",
+        expected=expected_text,
+        observed="No label net-contents value found",
+        evidence_text=text,
+        source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+        reviewer_action="Review the label net-contents statement manually.",
+        confidence=confidence,
+    )
+
+
 def check_brand(application: ColaApplication, text: str, confidence: float) -> RuleCheck:
     """Fuzzy-match application brand name against OCR text.
 
@@ -360,6 +578,60 @@ def check_brand(application: ColaApplication, text: str, confidence: float) -> R
         verdict,
         message,
         expected=application.brand_name,
+        observed="OCR text window",
+        evidence_text=text,
+        source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+        reviewer_action=action,
+        score=score,
+        confidence=confidence,
+    )
+
+
+def check_optional_fuzzy_field(
+    rule_id: str,
+    name: str,
+    category: str,
+    field_label: str,
+    expected: str,
+    text: str,
+    confidence: float,
+) -> RuleCheck:
+    """Fuzzy-match an optional application field against OCR text."""
+
+    expected = (expected or "").strip()
+    if not expected:
+        return check(
+            rule_id,
+            name,
+            category,
+            "pass",
+            f"{field_label} comparison skipped because no application value was provided.",
+            expected=f"{field_label} when provided",
+            observed=f"No application {field_label.lower()}",
+            source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
+            confidence=confidence,
+        )
+
+    score = fuzzy_score(expected, text)
+    if score >= 90:
+        verdict = "pass"
+        message = f"{field_label} appears to match the application field."
+        action = None
+    elif score >= 75 or confidence < OCR_CONFIDENCE_THRESHOLD:
+        verdict = "needs_review"
+        message = f"{field_label} match is ambiguous."
+        action = f"Review the {field_label.lower()} field and label artwork manually."
+    else:
+        verdict = "fail"
+        message = f"{field_label} on label does not clearly match application field."
+        action = f"Correct the application {field_label.lower()} or label artwork."
+    return check(
+        rule_id,
+        name,
+        category,
+        verdict,
+        message,
+        expected=expected,
         observed="OCR text window",
         evidence_text=text,
         source_refs=["SRC_TTB_FORM_5100_31", "SRC_STAKEHOLDER_DISCOVERY"],
@@ -483,3 +755,43 @@ def overall_verdict(checks: list[RuleCheck]) -> str:
     if any(item.verdict == "needs_review" for item in checks):
         return "needs_review"
     return "pass"
+
+
+def policy_queue_for_checks(
+    checks: list[RuleCheck],
+    raw_verdict: str,
+    *,
+    review_unknown_government_warning: bool = False,
+    require_review_before_rejection: bool = False,
+    require_review_before_acceptance: bool = False,
+) -> str:
+    """Map a raw verdict into the default reviewer workflow queue.
+
+    Notes
+    -----
+    The defaults preserve Sarah's high-volume batch value: clear passes and
+    clear fails are ready for action, while ordinary uncertainty goes to manual
+    evidence review. Unknown mandatory warning evidence is special. If the
+    warning-review gate is off, it routes to the rejection path because the
+    applicant must provide readable evidence of the mandatory warning.
+    """
+
+    warning_unknown = any(
+        check.verdict == "needs_review"
+        and check.rule_id in {
+            "GOV_WARNING_EXACT_TEXT",
+            "GOV_WARNING_HEADER_CAPS",
+            "GOV_WARNING_HEADER_BOLD_REVIEW",
+        }
+        for check in checks
+    )
+    if warning_unknown:
+        if review_unknown_government_warning:
+            return "manual_evidence_review"
+        return "rejection_review" if require_review_before_rejection else "ready_to_reject"
+
+    if raw_verdict == "pass":
+        return "acceptance_review" if require_review_before_acceptance else "ready_to_accept"
+    if raw_verdict == "fail":
+        return "rejection_review" if require_review_before_rejection else "ready_to_reject"
+    return "manual_evidence_review"

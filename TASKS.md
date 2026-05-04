@@ -40,6 +40,7 @@ The sprint priority is now:
 - [x] The app has demo routes, job pages, detail pages, single-label upload, manifest-backed batch upload, and CSV export.
 - [x] Item detail pages show the submitted label image, warning-related OCR blocks, OCR text, rule evidence, and a warning-heading crop when OCR geometry is available.
 - [x] Demonstration-only photo OCR intake route exists for real bottle/can/shelf photos without application fields.
+- [x] Manual multi-panel application upload exists and aggregates OCR across all submitted panels for one application.
 - [x] Local COLA Cloud-derived public example demo exists for side-by-side application field vs OCR evidence review.
 - [x] `country_of_origin` and `imported` are first-class application fields.
 - [x] Demo fixtures/data scaffold exists.
@@ -114,8 +115,8 @@ The sprint priority is now:
 - [x] Deterministic OCR ensemble arbitration exists for docTR + PaddleOCR + OpenOCR field-support scores.
 - [x] Government-safe OCR ensemble smoke produced F1 **0.7416** with false-clear rate **0.0000** on the 20-application / 30-image smoke.
 - [x] Raw `Pass` / `Needs Review` / `Fail` triage vocabulary is documented.
-- [ ] Runtime reviewer-policy queues are not yet implemented; planned queues are `Ready to accept`, `Acceptance review`, `Manual evidence review`, `Rejection review`, and `Ready to reject`.
-- [ ] Planned reviewer-policy defaults are unknown government-warning review **off**, rejection review **off**, and acceptance review **off**.
+- [x] Runtime reviewer-policy queues are implemented for `Ready to accept`, `Acceptance review`, `Manual evidence review`, `Rejection review`, and `Ready to reject`.
+- [x] Reviewer-policy defaults are unknown government-warning review **off**, rejection review **off**, and acceptance review **off**.
 - [x] WineBERT/o domain-NER smoke benchmark exists and was run against combined docTR + PaddleOCR + OpenOCR text.
 - [x] WineBERT/o was evaluated for deployment and not promoted because it did not improve the government-safe ensemble, lacks ABV/net-contents coverage, is wine-specific, and has unknown public model licensing.
 - [x] OSA market-domain NER smoke benchmark exists and was run against combined docTR + PaddleOCR + OpenOCR text.
@@ -555,7 +556,7 @@ Before running that over thousands of images, the conveyor protects the run from
 - [x] Run a small real smoke conveyor with all three engines.
 - [x] Run chunk-size 16 real smoke with all three engines: **13 valid images**, **3 invalid skipped**, **39 OCR rows**, **0 row errors**.
 - [x] Run chunk-size 16 full train/validation dry run: **5,353 image rows**, **5,179 valid**, **174 invalid skipped**, **975 planned jobs**.
-- [ ] Run full train/validation conveyor after smoke passes.
+- [x] Run full train/validation conveyor after smoke passes.
 - [ ] Attach conveyor OCR JSON to field-support pair manifests.
 - [ ] Run holdout conveyor only after preprocessing, model, and threshold choices are frozen.
 
@@ -725,12 +726,12 @@ Use synthetic negative cases because confidential rejected/Needs Correction reco
 - [ ] For each synthetic negative fixture, include application data, label image, expected result JSON, OCR text/ground truth where useful, and provenance.
 - [ ] Add or confirm deterministic rules:
   - [x] `FORM_BRAND_MATCHES_LABEL`
-  - [ ] `FORM_ALCOHOL_CONTENT_MATCHES_LABEL`
-  - [ ] `FORM_CLASS_TYPE_MATCHES_LABEL`
-  - [ ] `FORM_NET_CONTENTS_MATCHES_LABEL`
-  - [ ] `FORM_COUNTRY_OF_ORIGIN_MATCHES_LABEL`
-  - [ ] `FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL`
-  - [ ] `FORM_FANCIFUL_NAME_MATCHES_LABEL`
+  - [x] `FORM_ALCOHOL_CONTENT_MATCHES_LABEL`
+  - [x] `FORM_CLASS_TYPE_MATCHES_LABEL`
+  - [x] `FORM_NET_CONTENTS_MATCHES_LABEL`
+  - [x] `COUNTRY_OF_ORIGIN_MATCH` (runtime equivalent of `FORM_COUNTRY_OF_ORIGIN_MATCHES_LABEL`)
+  - [x] `FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL`
+  - [x] `FORM_FANCIFUL_NAME_MATCHES_LABEL`
   - [x] `GOV_WARNING_EXACT_TEXT`
   - [x] `GOV_WARNING_HEADER_CAPS`
   - [x] `GOV_WARNING_HEADER_BOLD_REVIEW`
@@ -738,7 +739,7 @@ Use synthetic negative cases because confidential rejected/Needs Correction reco
 - [ ] Fail only on clear evidence-backed mismatches.
 - [ ] Route uncertainty, poor OCR, missing field evidence, curved text failures, and ambiguous matches to Needs Review.
 - [ ] Report false-clear rate on synthetic known-bad cases.
-- [ ] Make the CSV export usable as a reviewer mismatch report, not only a compact summary.
+- [x] Make the CSV export usable as a reviewer mismatch report, not only a compact summary.
 
 ---
 
@@ -753,30 +754,30 @@ posture.
 
 Policy settings:
 
-- [ ] Add `review_unknown_government_warning: bool`, default `false`.
-- [ ] Add `require_review_before_rejection: bool`, default `false`.
-- [ ] Add `require_review_before_acceptance: bool`, default `false`.
-- [ ] Document that these are workflow settings, not model thresholds.
-- [ ] Add a control-board note that an unknown/unverifiable mandatory government warning defaults to `Fail` unless warning human review is enabled.
+- [x] Add `review_unknown_government_warning: bool`, default `false`.
+- [x] Add `require_review_before_rejection: bool`, default `false`.
+- [x] Add `require_review_before_acceptance: bool`, default `false`.
+- [x] Document that these are workflow settings, not model thresholds.
+- [x] Add a control-board note that an unknown/unverifiable mandatory government warning defaults to rejection routing unless warning human review is enabled.
 
 Routing contract:
 
-- [ ] `Pass` + acceptance review off -> `Ready to accept`.
-- [ ] `Pass` + acceptance review on -> `Acceptance review`.
-- [ ] `Fail` + rejection review on -> `Rejection review`.
-- [ ] `Fail` + rejection review off -> `Ready to reject`.
-- [ ] `Government warning unknown` + warning review off -> `Fail`, then normal fail routing.
-- [ ] `Government warning unknown` + warning review on -> `Manual evidence review`.
-- [ ] `Needs Review` -> `Manual evidence review` regardless of the toggles.
+- [x] `Pass` + acceptance review off -> `Ready to accept`.
+- [x] `Pass` + acceptance review on -> `Acceptance review`.
+- [x] `Fail` + rejection review on -> `Rejection review`.
+- [x] `Fail` + rejection review off -> `Ready to reject`.
+- [x] `Government warning unknown` + warning review off -> rejection routing.
+- [x] `Government warning unknown` + warning review on -> `Manual evidence review`.
+- [x] `Needs Review` -> `Manual evidence review` regardless of the toggles.
 
 Reviewer action contract:
 
-- [ ] Add reviewer actions: `Accept`, `Reject`, `Request correction / better image`, `Override with note`, and `Escalate`.
-- [ ] Require a note for overrides and escalations.
-- [ ] Preserve raw evidence and source-backed reasons even after reviewer action.
-- [ ] Add CSV/export columns for `raw_verdict`, `policy_queue`, `reviewer_action`, `reviewer_note`, and `reviewed_at`.
-- [ ] Add batch summary counts by policy queue so 200-300 application batches can be worked in priority order.
-- [ ] Add tests for every routing combination.
+- [x] Add reviewer actions: `Accept`, `Reject`, `Request correction / better image`, `Override with note`, and `Escalate`.
+- [x] Require a note for overrides and escalations.
+- [x] Preserve raw evidence and source-backed reasons even after reviewer action.
+- [x] Add persisted reviewer action columns for `reviewer_note` and `reviewed_at`.
+- [x] Add batch summary counts by policy queue so 200-300 application batches can be worked in priority order.
+- [x] Add tests for every routing combination.
 
 Documentation contract:
 
@@ -932,9 +933,10 @@ Deployed app: https://www.labelsontap.ai
 - [ ] Field-level matching metrics are generated from official public COLA records.
 - [ ] README explains the business case and statistical methodology.
 - [ ] `docs/performance.md` reports measured OCR/matching results and latency.
-- [ ] Deterministic mismatch demo still works.
-- [ ] CSV export shows reviewer-ready expected/observed/evidence/verdict/action fields.
-- [ ] Tests pass.
+- [x] Deterministic mismatch demo still works.
+- [x] CSV export shows reviewer-ready expected/observed/evidence/verdict/action fields.
+- [x] Tests pass.
+- [x] Local deployable container image rebuild passes after final runtime changes.
 - [ ] Docker build passes on the deployment host after final changes.
 - [ ] `https://www.labelsontap.ai` is redeployed with the final version.
 - [ ] Final submission email sent.

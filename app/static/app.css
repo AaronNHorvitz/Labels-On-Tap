@@ -114,6 +114,11 @@ button {
   gap: 1rem;
 }
 
+.review-form {
+  display: grid;
+  gap: 1rem;
+}
+
 label {
   display: grid;
   gap: 0.35rem;
@@ -124,8 +129,36 @@ label.full {
   grid-column: 1 / -1;
 }
 
+fieldset.full {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+fieldset.full legend {
+  padding: 0 0.35rem;
+  font-weight: 700;
+}
+
+fieldset.full label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 600;
+}
+
+fieldset.full input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+}
+
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-height: 2.7rem;
   padding: 0.55rem 0.7rem;
@@ -139,6 +172,10 @@ select {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.queue-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .metric {
@@ -308,7 +345,9 @@ pre {
   }
 
   .upload-form,
+  .review-form,
   .summary-grid,
+  .queue-grid,
   .detail-grid,
   .evidence-grid,
   .panel-grid {

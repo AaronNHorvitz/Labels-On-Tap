@@ -40,6 +40,10 @@
         <input name="brand_name" value="OLD RIVER BREWING" required>
       </label>
       <label>
+        Fanciful name
+        <input name="fanciful_name" placeholder="If any">
+      </label>
+      <label>
         Product type
         <select name="product_type">
           <option value="malt_beverage">Malt beverage</option>
@@ -59,6 +63,10 @@
         Net contents
         <input name="net_contents" value="1 Pint">
       </label>
+      <label class="full">
+        Bottler / producer name and address
+        <input name="bottler_producer_name_address" placeholder="Name and address shown on label">
+      </label>
       <label>
         Imported product?
         <select name="imported">
@@ -74,6 +82,12 @@
         Label image
         <input name="label_image" type="file" accept=".jpg,.jpeg,.png" required>
       </label>
+      <fieldset class="full">
+        <legend>Review policy</legend>
+        <label><input name="review_unknown_government_warning" type="checkbox" value="true"> Send unknown government-warning cases to human review</label>
+        <label><input name="require_review_before_rejection" type="checkbox" value="true"> Require reviewer approval before rejection</label>
+        <label><input name="require_review_before_acceptance" type="checkbox" value="true"> Require reviewer approval before acceptance</label>
+      </fieldset>
       <button class="button primary" type="submit">Verify Label</button>
     </form>
   </section>
@@ -89,7 +103,73 @@
         Label images
         <input name="label_images" type="file" accept=".jpg,.jpeg,.png" multiple required>
       </label>
+      <fieldset class="full">
+        <legend>Review policy</legend>
+        <label><input name="review_unknown_government_warning" type="checkbox" value="true"> Send unknown government-warning cases to human review</label>
+        <label><input name="require_review_before_rejection" type="checkbox" value="true"> Require reviewer approval before rejection</label>
+        <label><input name="require_review_before_acceptance" type="checkbox" value="true"> Require reviewer approval before acceptance</label>
+      </fieldset>
       <button class="button primary" type="submit">Verify Batch</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Multi-Panel Application Upload</h2>
+    <form action="/jobs/multipanel" method="post" enctype="multipart/form-data" class="upload-form">
+      <label>
+        Brand name
+        <input name="brand_name" value="OLD RIVER BREWING" required>
+      </label>
+      <label>
+        Fanciful name
+        <input name="fanciful_name" placeholder="If any">
+      </label>
+      <label>
+        Product type
+        <select name="product_type">
+          <option value="malt_beverage">Malt beverage</option>
+          <option value="wine">Wine</option>
+          <option value="distilled_spirits">Distilled spirits</option>
+        </select>
+      </label>
+      <label>
+        Class/type
+        <input name="class_type" value="Ale">
+      </label>
+      <label>
+        Alcohol content
+        <input name="alcohol_content" value="5% ALC/VOL">
+      </label>
+      <label>
+        Net contents
+        <input name="net_contents" value="1 Pint">
+      </label>
+      <label class="full">
+        Bottler / producer name and address
+        <input name="bottler_producer_name_address" placeholder="Name and address shown on label">
+      </label>
+      <label>
+        Imported product?
+        <select name="imported">
+          <option value="false">No</option>
+          <option value="true">Yes</option>
+        </select>
+      </label>
+      <label>
+        Country of origin
+        <input name="country_of_origin" placeholder="Required for imports">
+      </label>
+      <label class="full">
+        Label panel images
+        <input name="label_images" type="file" accept=".jpg,.jpeg,.png" multiple required>
+      </label>
+      <fieldset class="full">
+        <legend>Review policy</legend>
+        <label><input name="review_unknown_government_warning" type="checkbox" value="true"> Send unknown government-warning cases to human review</label>
+        <label><input name="require_review_before_rejection" type="checkbox" value="true"> Require reviewer approval before rejection</label>
+        <label><input name="require_review_before_acceptance" type="checkbox" value="true"> Require reviewer approval before acceptance</label>
+      </fieldset>
+      <button class="button primary" type="submit">Verify Panels</button>
     </form>
   </section>
 </section>

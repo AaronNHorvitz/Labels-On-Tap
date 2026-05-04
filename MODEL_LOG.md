@@ -58,6 +58,50 @@ Decision: keep the MVP runtime on the real-adapted JSON logistic typography
 bridge. Treat CNN-inclusive reject ensembles as the next offline promotion
 candidates because they reduce false clears more than raw-F1 stackers.
 
+Real approved COLA smoke after model selection:
+
+```text
+output:
+  data/work/typography-preflight/real-cola-cnn-ensemble-smoke-v1/
+
+heading crops:
+  4,362
+
+applications represented:
+  2,356
+
+CNN inference:
+  CPU, mean 4.0340 ms/crop from cached heading crops
+
+feature extraction:
+  mean 0.4885 ms/crop, p95 0.5513 ms/crop
+```
+
+| Type | Model / Policy | Crop clear | App clear | Crop review | App review | Mean ms/crop |
+|---|---|---:|---:|---:|---:|---:|
+| Base model | SVM | 0.3744 | 0.5310 | 0.0410 | 0.0492 | 0.0067 |
+| Base model | XGBoost | 0.6465 | 0.7852 | 0.0165 | 0.0136 | 0.0106 |
+| Base model | LightGBM | 0.5942 | 0.7593 | 0.0202 | 0.0161 | 0.0122 |
+| Base model | Logistic Regression | 0.5282 | 0.6596 | 0.1894 | 0.1447 | 0.0095 |
+| Base model | MLP | 0.7265 | 0.8196 | 0.0724 | 0.0514 | 0.0072 |
+| Base model | CatBoost | 0.5452 | 0.6732 | 0.0358 | 0.0301 | 0.0165 |
+| Base model | MobileNetV3 CNN | 0.6346 | 0.7330 | 0.0477 | 0.0488 | 4.0340 |
+| Ensemble | Soft voting + CNN | 0.6678 | 0.7784 | 0.0355 | 0.0357 | 0.0001 |
+| Ensemble | Strict veto + CNN | 0.1648 | 0.2610 | 0.7765 | 0.6715 | 0.0001 |
+| Ensemble | Logistic stacker + CNN | 0.6978 | 0.7691 | 0.0275 | 0.0280 | 0.0001 |
+| Ensemble | LightGBM stacker + CNN | 0.8044 | 0.8425 | 0.0195 | 0.0166 | 0.0032 |
+| Ensemble | XGBoost stacker + CNN | 0.8228 | 0.8527 | 0.0163 | 0.0123 | 0.0006 |
+| Ensemble | CatBoost stacker + CNN | 0.8469 | 0.8638 | 0.0138 | 0.0110 | 0.0004 |
+| Ensemble | LightGBM reject + CNN | 0.4519 | 0.5976 | 0.3721 | 0.2615 | 0.0030 |
+| Ensemble | XGBoost reject + CNN | 0.5066 | 0.6384 | 0.3324 | 0.2267 | 0.0006 |
+
+Caveat: approved public COLA crops are positive-domain examples, so this smoke
+does not measure false-clear safety. It verifies that every saved base learner
+and CNN-inclusive ensemble scores real COLA crops successfully and quickly.
+The mean ensemble ms/crop values are aggregator-only after base probabilities
+exist; the cached-crop full path includes feature extraction, classical base
+probabilities, CNN inference, and ensemble aggregation.
+
 ## Current Data Sources
 
 | Source | Purpose | Runtime Dependency | Current State |
@@ -1848,6 +1892,77 @@ Decision:
 - Keep the deployed real-adapted logistic JSON preflight for the MVP. Treat the
   CNN-inclusive ensemble as the next offline promotion candidate, not a
   last-minute runtime swap.
+
+### E025 - Real COLA Smoke For Audit-v6 CNN-Inclusive Ensembles
+
+**Date:** 2026-05-03
+**Status:** Real positive-domain smoke completed; not a false-clear test
+**Code path:**
+
+```text
+experiments/typography_preflight/real_cola_cnn_ensemble_smoke.py
+```
+
+**Local output:**
+
+```text
+data/work/typography-preflight/real-cola-cnn-ensemble-smoke-v1/
+```
+
+Purpose:
+
+Verify that the saved audit-v6 base learners, MobileNetV3 CNN, and
+CNN-inclusive ensembles can score real approved COLA heading crops without
+crashing, and record cached-crop latencies.
+
+Inputs:
+
+| Item | Value |
+|---|---:|
+| Heading crops | 4,362 |
+| Applications represented | 2,356 |
+| Source label images represented | 2,358 |
+| docTR heading crops | 126 |
+| PaddleOCR heading crops | 2,112 |
+| OpenOCR heading crops | 2,124 |
+
+Stage latency:
+
+| Stage | Mean ms/crop | p95 ms/crop |
+|---|---:|---:|
+| OpenCV feature extraction | 0.4885 | 0.5513 |
+| MobileNetV3 CNN inference on CPU | 4.0340 | n/a |
+
+Smoke results:
+
+| Type | Model / Policy | Crop clear | App clear | Crop review | App review | Mean ms/crop |
+|---|---|---:|---:|---:|---:|---:|
+| Base model | SVM | 0.3744 | 0.5310 | 0.0410 | 0.0492 | 0.0067 |
+| Base model | XGBoost | 0.6465 | 0.7852 | 0.0165 | 0.0136 | 0.0106 |
+| Base model | LightGBM | 0.5942 | 0.7593 | 0.0202 | 0.0161 | 0.0122 |
+| Base model | Logistic Regression | 0.5282 | 0.6596 | 0.1894 | 0.1447 | 0.0095 |
+| Base model | MLP | 0.7265 | 0.8196 | 0.0724 | 0.0514 | 0.0072 |
+| Base model | CatBoost | 0.5452 | 0.6732 | 0.0358 | 0.0301 | 0.0165 |
+| Base model | MobileNetV3 CNN | 0.6346 | 0.7330 | 0.0477 | 0.0488 | 4.0340 |
+| Ensemble | Soft voting + CNN | 0.6678 | 0.7784 | 0.0355 | 0.0357 | 0.0001 |
+| Ensemble | Strict veto + CNN | 0.1648 | 0.2610 | 0.7765 | 0.6715 | 0.0001 |
+| Ensemble | Logistic stacker + CNN | 0.6978 | 0.7691 | 0.0275 | 0.0280 | 0.0001 |
+| Ensemble | LightGBM stacker + CNN | 0.8044 | 0.8425 | 0.0195 | 0.0166 | 0.0032 |
+| Ensemble | XGBoost stacker + CNN | 0.8228 | 0.8527 | 0.0163 | 0.0123 | 0.0006 |
+| Ensemble | CatBoost stacker + CNN | 0.8469 | 0.8638 | 0.0138 | 0.0110 | 0.0004 |
+| Ensemble | LightGBM reject + CNN | 0.4519 | 0.5976 | 0.3721 | 0.2615 | 0.0030 |
+| Ensemble | XGBoost reject + CNN | 0.5066 | 0.6384 | 0.3324 | 0.2267 | 0.0006 |
+
+Interpretation:
+
+- The saved model artifacts all run successfully on real COLA crops.
+- CPU CNN inference averaged about `4.03 ms/crop` from cached heading crops,
+  so the typography model layer itself is not the latency blocker.
+- Raw-F1 style stackers clear the most approved COLA positive examples.
+- Reject-threshold ensembles remain more conservative and route more real
+  positive crops to review.
+- This is not a false-clear estimate. Approved COLA positives cannot prove how
+  often a bad/non-bold label would be incorrectly cleared.
 
 Comparison against E022 CNN:
 

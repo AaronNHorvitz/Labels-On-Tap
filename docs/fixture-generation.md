@@ -44,6 +44,14 @@ data/fixtures/demo/
   batch_manifest.json
 ```
 
+Batch manifests now support the full runtime comparison surface:
+
+```text
+filename,fixture_id,product_type,brand_name,fanciful_name,class_type,
+alcohol_content,net_contents,bottler_producer_name_address,
+country_of_origin,imported
+```
+
 For each label, it also writes:
 
 ```text

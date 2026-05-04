@@ -2,20 +2,21 @@
 
 Notes
 -----
-The sprint prototype uses synchronous processing and a filesystem job store.
-That keeps the implementation inspectable for the take-home while preserving a
-clear future path to background workers if batch sizes grow.
+The sprint prototype uses a filesystem job store. Single uploads process
+immediately; manifest-backed batch uploads schedule local background tasks so
+the browser can redirect to a polling progress page while results are written.
 """
 
 from __future__ import annotations
 
-from io import BytesIO
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from PIL import Image
@@ -23,6 +24,7 @@ from PIL import Image
 from app.config import JOBS_DIR, MAX_MANIFEST_BYTES, MAX_UPLOAD_BYTES, ROOT
 from app.schemas.application import ColaApplication
 from app.schemas.manifest import ManifestItem
+from app.schemas.ocr import OCRResult
 from app.services.csv_export import results_to_csv
 from app.services.cola_cloud_demo import (
     build_comparison_payload,
@@ -182,6 +184,47 @@ def _manifest_item_to_application(item: ManifestItem) -> ColaApplication:
     return ColaApplication(**payload)
 
 
+def _truthy(value: str | bool) -> bool:
+    """Parse form-friendly boolean values."""
+
+    if isinstance(value, bool):
+        return value
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+def _combined_panel_ocr(filename: str, panel_ocrs: list[OCRResult]) -> OCRResult:
+    """Aggregate OCR output across every submitted panel for one application."""
+
+    if not panel_ocrs:
+        return OCRResult(filename=filename, full_text="", avg_confidence=0.0, blocks=[], source="no panel OCR")
+    blocks = []
+    full_text_parts = []
+    total_ms = 0
+    ocr_ms = 0
+    confidences = []
+    sources = []
+    for panel_index, ocr in enumerate(panel_ocrs, start=1):
+        full_text_parts.append(f"[Panel {panel_index}: {ocr.filename}]\n{ocr.full_text}")
+        total_ms += ocr.total_ms
+        ocr_ms += ocr.ocr_ms
+        confidences.append(ocr.avg_confidence)
+        sources.append(ocr.source)
+        for block in ocr.blocks:
+            payload = block.model_dump() if hasattr(block, "model_dump") else dict(block)
+            payload["panel_index"] = panel_index
+            payload["panel_filename"] = ocr.filename
+            blocks.append(payload)
+    return OCRResult(
+        filename=filename,
+        full_text="\n\n".join(full_text_parts).strip(),
+        avg_confidence=sum(confidences) / len(confidences),
+        blocks=blocks,
+        source=" + ".join(sorted(set(sources))),
+        ocr_ms=ocr_ms,
+        total_ms=total_ms,
+    )
+
+
 def _find_manifest_item(job_id: str, item_id: str) -> dict:
     """Return the manifest row for an item, if present."""
 
@@ -208,7 +251,19 @@ def _upload_filename_for_item(job_id: str, item_id: str, result_filename: str) -
     """Find the stored upload filename for an item detail page."""
 
     item = _find_manifest_item(job_id, item_id)
+    if isinstance(item.get("stored_filenames"), list) and item["stored_filenames"]:
+        return item["stored_filenames"][0]
     return item.get("stored_filename") or item.get("filename") or result_filename
+
+
+def _upload_filenames_for_item(job_id: str, item_id: str, result_filename: str) -> list[str]:
+    """Return every stored upload filename for an item."""
+
+    item = _find_manifest_item(job_id, item_id)
+    if isinstance(item.get("stored_filenames"), list):
+        return [Path(filename).name for filename in item["stored_filenames"]]
+    filename = _upload_filename_for_item(job_id, item_id, result_filename)
+    return [filename] if filename else []
 
 
 def _normalize_letters(text: str) -> str:
@@ -323,6 +378,7 @@ def _warning_evidence_context(job_id: str, item_id: str, result: Any) -> dict[st
     """Build image, OCR, and crop metadata for the item detail evidence panel."""
 
     upload_filename = _upload_filename_for_item(job_id, item_id, result.filename)
+    upload_filenames = _upload_filenames_for_item(job_id, item_id, result.filename)
     image_path = _safe_upload_path(job_id, upload_filename) if upload_filename else None
     blocks = _warning_blocks(result)
     try:
@@ -332,6 +388,10 @@ def _warning_evidence_context(job_id: str, item_id: str, result: Any) -> dict[st
     return {
         "upload_filename": upload_filename,
         "image_url": f"/jobs/{job_id}/uploads/{upload_filename}" if upload_filename else None,
+        "panel_image_urls": [
+            {"filename": filename, "url": f"/jobs/{job_id}/uploads/{filename}"}
+            for filename in upload_filenames
+        ],
         "warning_crop_url": f"/jobs/{job_id}/items/{item_id}/warning-crop.png" if crop_available else None,
         "warning_blocks": blocks,
         "warning_text_detected": bool(blocks),
@@ -344,10 +404,15 @@ def create_single_job(
     brand_name: str = Form(...),
     product_type: str = Form("malt_beverage"),
     class_type: str = Form(""),
+    fanciful_name: str = Form(""),
     alcohol_content: str = Form(""),
     net_contents: str = Form(""),
+    bottler_producer_name_address: str = Form(""),
     imported: str = Form("false"),
     country_of_origin: str = Form(""),
+    review_unknown_government_warning: bool = Form(False),
+    require_review_before_rejection: bool = Form(False),
+    require_review_before_acceptance: bool = Form(False),
     label_image: UploadFile = File(...),
 ) -> RedirectResponse:
     """Create and process a single-label upload job.
@@ -364,7 +429,7 @@ def create_single_job(
     Returns
     -------
     RedirectResponse
-        Redirects to the job result page after synchronous processing.
+        Redirects to the job result page after processing.
     """
 
     JOBS_DIR.mkdir(parents=True, exist_ok=True)
@@ -377,17 +442,28 @@ def create_single_job(
         filename=upload.original_filename,
         product_type=product_type,
         brand_name=brand_name,
+        fanciful_name=fanciful_name,
         class_type=class_type,
         alcohol_content=alcohol_content,
         net_contents=net_contents,
-        imported=imported.lower() in {"1", "true", "yes", "on"},
+        bottler_producer_name_address=bottler_producer_name_address,
+        imported=_truthy(imported),
         country_of_origin=country_of_origin,
     )
     item_id = dest.stem
     fixture_id = Path(upload.original_filename).stem
     ocr = ocr_engine.run(dest, fixture_id=fixture_id)
     typography = _assess_warning_typography(dest, ocr)
-    result = verify_label(job_id, item_id, application, ocr, typography=typography)
+    result = verify_label(
+        job_id,
+        item_id,
+        application,
+        ocr,
+        typography=typography,
+        review_unknown_government_warning=review_unknown_government_warning,
+        require_review_before_rejection=require_review_before_rejection,
+        require_review_before_acceptance=require_review_before_acceptance,
+    )
     write_result(result)
     add_manifest_item(
         job_id,
@@ -397,6 +473,80 @@ def create_single_job(
             "original_filename": upload.original_filename,
             "stored_filename": upload.stored_filename,
             "upload_size": upload.upload_size,
+        },
+    )
+    return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
+
+
+@router.post("/jobs/multipanel")
+def create_multipanel_job(
+    brand_name: str = Form(...),
+    product_type: str = Form("malt_beverage"),
+    class_type: str = Form(""),
+    fanciful_name: str = Form(""),
+    alcohol_content: str = Form(""),
+    net_contents: str = Form(""),
+    bottler_producer_name_address: str = Form(""),
+    imported: str = Form("false"),
+    country_of_origin: str = Form(""),
+    review_unknown_government_warning: bool = Form(False),
+    require_review_before_rejection: bool = Form(False),
+    require_review_before_acceptance: bool = Form(False),
+    label_images: list[UploadFile] = File(...),
+) -> RedirectResponse:
+    """Verify one application against multiple submitted label panels."""
+
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="_upload-", dir=JOBS_DIR) as temp_dir:
+        uploads = [_validate_image_upload(upload, Path(temp_dir)) for upload in label_images]
+        job_id = create_job(label=f"multi-panel upload ({len(uploads)} panels)")
+        destinations = [_move_validated_upload(job_id, upload) for upload in uploads]
+
+    application = ColaApplication(
+        filename="multi-panel application",
+        product_type=product_type,
+        brand_name=brand_name,
+        fanciful_name=fanciful_name,
+        class_type=class_type,
+        alcohol_content=alcohol_content,
+        net_contents=net_contents,
+        bottler_producer_name_address=bottler_producer_name_address,
+        imported=_truthy(imported),
+        country_of_origin=country_of_origin,
+    )
+    item_id = "multi_panel_application"
+    panel_ocrs = [
+        ocr_engine.run(dest, fixture_id=Path(upload.original_filename).stem)
+        for upload, dest in zip(uploads, destinations, strict=True)
+    ]
+    combined_ocr = _combined_panel_ocr(application.filename, panel_ocrs)
+    typography = None
+    for dest, panel_ocr in zip(destinations, panel_ocrs, strict=True):
+        panel_typography = _assess_warning_typography(dest, panel_ocr)
+        if panel_typography.get("verdict") == "pass":
+            typography = panel_typography
+            break
+        typography = typography or panel_typography
+    result = verify_label(
+        job_id,
+        item_id,
+        application,
+        combined_ocr,
+        typography=typography,
+        review_unknown_government_warning=review_unknown_government_warning,
+        require_review_before_rejection=require_review_before_rejection,
+        require_review_before_acceptance=require_review_before_acceptance,
+    )
+    write_result(result)
+    add_manifest_item(
+        job_id,
+        {
+            "item_id": item_id,
+            "filename": application.filename,
+            "original_filenames": [upload.original_filename for upload in uploads],
+            "stored_filenames": [upload.stored_filename for upload in uploads],
+            "upload_sizes": [upload.upload_size for upload in uploads],
+            "workflow": "multi_panel_application",
         },
     )
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
@@ -561,8 +711,12 @@ def cola_cloud_demo_image(job_id: str, filename: str) -> FileResponse:
 
 @router.post("/jobs/batch")
 def create_batch_job(
+    background_tasks: BackgroundTasks,
     manifest_file: UploadFile = File(...),
     label_images: list[UploadFile] = File(...),
+    review_unknown_government_warning: bool = Form(False),
+    require_review_before_rejection: bool = Form(False),
+    require_review_before_acceptance: bool = Form(False),
 ) -> RedirectResponse:
     """Create and process a manifest-backed batch upload job.
 
@@ -576,7 +730,8 @@ def create_batch_job(
     Returns
     -------
     RedirectResponse
-        Redirects to the batch job result page after synchronous processing.
+        Redirects to the batch job result page after scheduling background
+        processing.
 
     Raises
     ------
@@ -586,8 +741,9 @@ def create_batch_job(
 
     Notes
     -----
-    Batch work is synchronous for the take-home. A production implementation
-    should enqueue OCR/rule work and stream progress from a worker-backed store.
+    The sprint implementation uses FastAPI background tasks and filesystem
+    results. A production implementation should move this to a durable worker
+    queue.
     """
 
     if not manifest_file.filename:
@@ -617,16 +773,11 @@ def create_batch_job(
             raise HTTPException(status_code=400, detail=f"Uploaded images not referenced by manifest: {', '.join(extra)}")
 
         job_id = create_job(label=f"batch upload ({len(manifest_items)} labels)")
+        queued_items = []
         for item in manifest_items:
             upload = by_filename[item.filename]
             dest = _move_validated_upload(job_id, upload)
             item_id = item.fixture_id or dest.stem
-            application = _manifest_item_to_application(item)
-            fixture_id = item.fixture_id or Path(item.filename).stem
-            ocr = ocr_engine.run(dest, fixture_id=fixture_id)
-            typography = _assess_warning_typography(dest, ocr)
-            result = verify_label(job_id, item_id, application, ocr, typography=typography)
-            write_result(result)
             add_manifest_item(
                 job_id,
                 {
@@ -638,8 +789,54 @@ def create_batch_job(
                     "upload_size": upload.upload_size,
                 },
             )
+            item_payload = item.model_dump() if hasattr(item, "model_dump") else item.dict()
+            queued_items.append(
+                {
+                    "item": item_payload,
+                    "item_id": item_id,
+                    "stored_filename": upload.stored_filename,
+                }
+            )
 
+    background_tasks.add_task(
+        _process_batch_items,
+        job_id,
+        queued_items,
+        review_unknown_government_warning,
+        require_review_before_rejection,
+        require_review_before_acceptance,
+    )
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
+
+
+def _process_batch_items(
+    job_id: str,
+    queued_items: list[dict[str, Any]],
+    review_unknown_government_warning: bool,
+    require_review_before_rejection: bool,
+    require_review_before_acceptance: bool,
+) -> None:
+    """Process batch items after the response redirects to the progress page."""
+
+    for queued in queued_items:
+        item = ManifestItem(**queued["item"])
+        item_id = queued["item_id"]
+        dest = job_dir(job_id) / "uploads" / queued["stored_filename"]
+        application = _manifest_item_to_application(item)
+        fixture_id = item.fixture_id or Path(item.filename).stem
+        ocr = ocr_engine.run(dest, fixture_id=fixture_id)
+        typography = _assess_warning_typography(dest, ocr)
+        result = verify_label(
+            job_id,
+            item_id,
+            application,
+            ocr,
+            typography=typography,
+            review_unknown_government_warning=review_unknown_government_warning,
+            require_review_before_rejection=require_review_before_rejection,
+            require_review_before_acceptance=require_review_before_acceptance,
+        )
+        write_result(result)
 
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
@@ -679,6 +876,28 @@ def item_detail(request: Request, job_id: str, item_id: str):
         "item_detail.html",
         {"job_id": job_id, "result": result, "evidence": _warning_evidence_context(job_id, item_id, result)},
     )
+
+
+@router.post("/jobs/{job_id}/items/{item_id}/review")
+def save_reviewer_decision(
+    job_id: str,
+    item_id: str,
+    reviewer_decision: str = Form(...),
+    reviewer_note: str = Form(""),
+) -> RedirectResponse:
+    """Persist a lightweight reviewer decision and note for one result."""
+
+    allowed = {"accept", "reject", "request_correction", "override", "escalate"}
+    if reviewer_decision not in allowed:
+        raise HTTPException(status_code=400, detail="Invalid reviewer decision")
+    if reviewer_decision in {"override", "escalate"} and not reviewer_note.strip():
+        raise HTTPException(status_code=400, detail="Override and escalation decisions require a note.")
+    result = load_result(job_id, item_id)
+    result.reviewer_decision = reviewer_decision
+    result.reviewer_note = reviewer_note.strip()
+    result.reviewed_at = datetime.now(timezone.utc).isoformat()
+    write_result(result)
+    return RedirectResponse(url=f"/jobs/{job_id}/items/{item_id}", status_code=303)
 
 
 @router.get("/jobs/{job_id}/uploads/{filename}")

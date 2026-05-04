@@ -73,6 +73,24 @@ government-warning clearance. The LightGBM/XGBoost reject ensembles are the
 best next promotion candidates, while the deployed MVP keeps the simpler
 real-adapted JSON logistic preflight.
 
+**Real-COLA ensemble smoke:** After model selection, every saved base learner
+and every CNN-inclusive ensemble was run against `4,362` real approved COLA
+warning-heading crops representing `2,356` applications. This smoke verifies
+that the artifacts execute on real public label crops. It does not estimate
+false-clear safety because approved COLA records are positive-domain examples.
+
+| Model / Policy | Crop clear | App clear | Crop review | App review | Mean ms/crop |
+|---|---:|---:|---:|---:|---:|
+| MobileNetV3 CNN base | 0.6346 | 0.7330 | 0.0477 | 0.0488 | 4.0340 |
+| Logistic stacker + CNN | 0.6978 | 0.7691 | 0.0275 | 0.0280 | 0.0001 |
+| LightGBM reject + CNN | 0.4519 | 0.5976 | 0.3721 | 0.2615 | 0.0030 |
+| XGBoost reject + CNN | 0.5066 | 0.6384 | 0.3324 | 0.2267 | 0.0006 |
+
+The ensemble latency column is aggregator-only after base probabilities exist.
+The cached-crop path includes feature extraction, classical base predictions,
+CNN inference, and ensemble aggregation; OCR and heading-crop discovery are not
+included in this smoke.
+
 **Model architecture synthesis:** The next trainable-model path should be a
 field-support classifier, not token-level NER. Public COLA data provides
 application fields and accepted label images, but not human token-span labels.
@@ -97,8 +115,8 @@ See [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) for the end-to-end diagrams.
 
 ### 2.2 Reviewer Policy Gates Before Acceptance Or Rejection
 
-**Decision:** Raw machine verdicts should remain separate from final workflow
-actions. The planned policy layer has three independent control-board settings:
+**Decision:** Raw machine verdicts remain separate from final workflow
+actions. The implemented policy layer has three independent control-board settings:
 
 ```text
 Send unknown government-warning cases to human review: Yes / No
@@ -1393,7 +1411,7 @@ The prototype demonstrates:
 - simple reviewer UX,
 - responsible upload handling,
 - clear Pass / Needs Review / Fail outcomes,
-- planned reviewer-policy queues before final acceptance/rejection,
+- reviewer-policy queues before final acceptance/rejection,
 - honest limitations.
 ```
 

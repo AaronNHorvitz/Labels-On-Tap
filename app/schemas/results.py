@@ -44,9 +44,14 @@ class VerificationResult(BaseModel):
     filename: str
     application: dict
     overall_verdict: str
+    raw_verdict: str | None = None
+    policy_queue: str = "manual_evidence_review"
     top_reason: str
     checked_rule_ids: list[str]
     triggered_rule_ids: list[str]
     checks: list[RuleCheck]
     ocr: dict
     processing_ms: int = 0
+    reviewer_decision: str = ""
+    reviewer_note: str = ""
+    reviewed_at: str = ""

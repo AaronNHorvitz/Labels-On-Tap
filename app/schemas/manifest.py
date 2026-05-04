@@ -22,5 +22,7 @@ class ManifestItem(BaseModel):
     class_type: str = ""
     alcohol_content: str = ""
     net_contents: str = ""
+    fanciful_name: str = ""
+    bottler_producer_name_address: str = ""
     country_of_origin: str | None = None
     imported: bool = False

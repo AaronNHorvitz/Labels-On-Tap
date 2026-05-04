@@ -22,6 +22,9 @@ class ColaApplication(BaseModel):
         Broad commodity type used to route product-specific rules.
     brand_name:
         Application brand value used by fuzzy label matching.
+    bottler_producer_name_address:
+        Optional name/address text for the responsible producer, bottler,
+        importer, or applicant when available.
     country_of_origin:
         Required for imported-product checks when ``imported`` is true.
     imported:
@@ -36,6 +39,7 @@ class ColaApplication(BaseModel):
     class_type: str = ""
     alcohol_content: str = ""
     net_contents: str = ""
+    bottler_producer_name_address: str = ""
     country_of_origin: str | None = None
     imported: bool = False
     formula_id: str = ""

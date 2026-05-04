@@ -17,7 +17,8 @@ Public prototype upload controls:
 Reviewer-policy note:
 
 - raw machine verdicts should remain separate from final reviewer actions,
-- reviewer approval before rejection should default to enabled,
+- reviewer approval before rejection is configurable and defaults off for the
+  high-volume sprint demo,
 - reviewer decisions, overrides, and escalation notes require authenticated
   identity and audit logging before production use.
 

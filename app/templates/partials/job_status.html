@@ -3,12 +3,25 @@
 {% set pass_count = results|selectattr("overall_verdict", "equalto", "pass")|list|length %}
 {% set review_count = results|selectattr("overall_verdict", "equalto", "needs_review")|list|length %}
 {% set fail_count = results|selectattr("overall_verdict", "equalto", "fail")|list|length %}
+{% set ready_accept_count = results|selectattr("policy_queue", "equalto", "ready_to_accept")|list|length %}
+{% set acceptance_review_count = results|selectattr("policy_queue", "equalto", "acceptance_review")|list|length %}
+{% set manual_review_count = results|selectattr("policy_queue", "equalto", "manual_evidence_review")|list|length %}
+{% set rejection_review_count = results|selectattr("policy_queue", "equalto", "rejection_review")|list|length %}
+{% set ready_reject_count = results|selectattr("policy_queue", "equalto", "ready_to_reject")|list|length %}
 
 <section class="summary-grid">
   <div class="metric"><span>{{ results|length }} / {{ total }}</span><small>Processed</small></div>
   <div class="metric pass"><span>{{ pass_count }}</span><small>Pass</small></div>
   <div class="metric review"><span>{{ review_count }}</span><small>Needs Review</small></div>
   <div class="metric fail"><span>{{ fail_count }}</span><small>Fail</small></div>
+</section>
+
+<section class="summary-grid queue-grid">
+  <div class="metric"><span>{{ ready_accept_count }}</span><small>Ready to accept</small></div>
+  <div class="metric"><span>{{ acceptance_review_count }}</span><small>Acceptance review</small></div>
+  <div class="metric review"><span>{{ manual_review_count }}</span><small>Manual evidence review</small></div>
+  <div class="metric"><span>{{ rejection_review_count }}</span><small>Rejection review</small></div>
+  <div class="metric fail"><span>{{ ready_reject_count }}</span><small>Ready to reject</small></div>
 </section>
 
 {% include "partials/result_table.html" %}

@@ -50,7 +50,8 @@ def test_batch_demo_route_renders_counts_and_csv():
     job_id = str(response.url).rstrip("/").split("/")[-1]
     csv_response = client.get(f"/jobs/{job_id}/results.csv")
     assert csv_response.status_code == 200
-    assert "filename,overall_verdict" in csv_response.text
+    assert "filename,raw_verdict,overall_verdict,policy_queue" in csv_response.text
+    assert "expected_values,observed_values,evidence_text,reviewer_actions" in csv_response.text
     assert "clean_malt_pass.png,pass" in csv_response.text
     assert "low_confidence_blur_review.png,needs_review" in csv_response.text
     assert "brand_mismatch_fail.png,fail" in csv_response.text
@@ -144,6 +145,56 @@ def test_single_upload_randomizes_storage_and_preserves_original_filename():
     assert not (JOBS_DIR / job_id / "uploads" / "clean_malt_pass.png").exists()
     assert result.filename == "clean_malt_pass.png"
     assert result.ocr["source"] == "fixture ground truth"
+
+
+def test_multipanel_upload_combines_label_panel_evidence():
+    client = TestClient(app)
+    response = client.post(
+        "/jobs/multipanel",
+        data=single_upload_form(),
+        files=[
+            ("label_images", ("clean_malt_pass.png", DEMO_FIXTURE.read_bytes(), "image/png")),
+            ("label_images", ("clean_malt_pass.png", DEMO_FIXTURE.read_bytes(), "image/png")),
+        ],
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "1 / 1" in response.text
+    assert "Ready to accept" in response.text
+
+    job_id = str(response.url).rstrip("/").split("/")[-1]
+    item_id = load_manifest(job_id)["items"][0]["item_id"]
+    detail = client.get(f"/jobs/{job_id}/items/{item_id}")
+    assert detail.status_code == 200
+    assert "Submitted Label Panels" in detail.text
+    assert "[Panel 1:" in detail.text
+    assert "[Panel 2:" in detail.text
+
+
+def test_reviewer_decision_is_persisted_and_exported():
+    client = TestClient(app)
+    response = client.get("/demo/clean", follow_redirects=True)
+    job_id = str(response.url).rstrip("/").split("/")[-1]
+    item_id = load_manifest(job_id)["items"][0]["item_id"]
+
+    save = client.post(
+        f"/jobs/{job_id}/items/{item_id}/review",
+        data={"reviewer_decision": "accept", "reviewer_note": "Looks clean."},
+        follow_redirects=True,
+    )
+    assert save.status_code == 200
+    assert "Saved decision:" in save.text
+    assert "Looks clean." in save.text
+
+    result = load_result(job_id, item_id)
+    assert result.reviewer_decision == "accept"
+    assert result.reviewer_note == "Looks clean."
+    assert result.reviewed_at
+
+    csv_response = client.get(f"/jobs/{job_id}/results.csv")
+    assert "reviewer_decision,reviewer_note,reviewed_at" in csv_response.text
+    assert "Looks clean." in csv_response.text
 
 
 def test_photo_intake_upload_extracts_candidate_fields():

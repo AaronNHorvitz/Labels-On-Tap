@@ -14,7 +14,7 @@
         evidence review, Rejection review, or Ready to reject. This keeps rule
         evidence separate from final agency action.
 
-        The planned policy control board includes one warning-specific gate:
+        The implemented policy control board includes one warning-specific gate:
         send unknown government-warning evidence to human review, yes or no.
         The default is no extra review. If the required government warning is
         unknown or unverifiable and that gate is off, the raw item should fail
@@ -26,3 +26,11 @@
         ```text
         research/legal-corpus/matrices/source-backed-criteria.json
         ```
+
+        Current runtime application-field checks cover the assignment's common
+        label elements: brand name, optional fanciful name, class/type,
+        alcohol content, net contents, bottler/producer name and address,
+        country of origin for imported products, and the government warning.
+        Numeric fields normalize ABV/proof or volume units before comparison.
+        Text fields use fuzzy matching so harmless case, spacing, apostrophe,
+        and punctuation differences do not automatically fail a label.
