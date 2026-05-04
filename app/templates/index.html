@@ -31,14 +31,19 @@
         <button class="button secondary" type="reset">Reset</button>
       </div>
       <div class="application-preview-card" aria-live="polite">
+        <div class="application-nav" aria-label="Application browser controls">
+          <button class="button secondary compact" id="batch-app-prev" type="button">Previous Application</button>
+          <span id="batch-app-counter" class="photo-counter">No application selected</span>
+          <button class="button secondary compact" id="batch-app-next" type="button">Next Application</button>
+        </div>
         <div class="application-preview-viewport" id="batch-preview-viewport">
           <img id="batch-preview" alt="Selected application panel preview">
           <p id="batch-preview-empty">Choose the application directory to browse uploaded panels before parsing.</p>
         </div>
-        <div class="photo-controls" aria-label="Application folder browser controls">
-          <button class="button secondary" id="batch-prev" type="button">Previous</button>
-          <span id="batch-counter" class="photo-counter">No application photos selected</span>
-          <button class="button secondary" id="batch-next" type="button">Next</button>
+        <div class="photo-controls split-controls" aria-label="Application photo browser controls">
+          <button class="button secondary" id="batch-photo-prev" type="button">Previous Photo</button>
+          <span id="batch-photo-counter" class="photo-counter">No application photos selected</span>
+          <button class="button secondary" id="batch-photo-next" type="button">Next Photo</button>
         </div>
       </div>
     </form>
@@ -50,10 +55,13 @@
     const viewport = document.getElementById("batch-preview-viewport");
     const preview = document.getElementById("batch-preview");
     const empty = document.getElementById("batch-preview-empty");
-    const counter = document.getElementById("batch-counter");
-    const prev = document.getElementById("batch-prev");
-    const next = document.getElementById("batch-next");
-    if (!folderInput || !viewport || !preview || !empty || !counter || !prev || !next) {
+    const appCounter = document.getElementById("batch-app-counter");
+    const photoCounter = document.getElementById("batch-photo-counter");
+    const appPrev = document.getElementById("batch-app-prev");
+    const appNext = document.getElementById("batch-app-next");
+    const photoPrev = document.getElementById("batch-photo-prev");
+    const photoNext = document.getElementById("batch-photo-next");
+    if (!folderInput || !viewport || !preview || !empty || !appCounter || !photoCounter || !appPrev || !appNext || !photoPrev || !photoNext) {
       return;
     }
 
@@ -102,6 +110,16 @@
     const collectFiles = () => Array.from(folderInput.files || [])
       .filter((file) => /\.(png|jpe?g)$/i.test(file.name))
       .sort((left, right) => displayKey(left).localeCompare(displayKey(right)));
+    const browserState = () => {
+      const files = collectFiles();
+      const applications = [...new Set(files.map(applicationName))];
+      const file = files[selectedIndex];
+      const application = file ? applicationName(file) : "";
+      const applicationIndex = application ? applications.indexOf(application) : -1;
+      const applicationFiles = application ? files.filter((candidate) => applicationName(candidate) === application) : [];
+      const photoIndex = file ? applicationFiles.indexOf(file) : -1;
+      return { files, applications, file, application, applicationIndex, applicationFiles, photoIndex };
+    };
 
     const render = () => {
       const files = collectFiles();
@@ -113,23 +131,28 @@
         preview.removeAttribute("src");
         preview.hidden = true;
         empty.hidden = false;
-        counter.textContent = "No application photos selected";
+        appCounter.textContent = "No application selected";
+        photoCounter.textContent = "No application photos selected";
+        appPrev.hidden = true;
+        appNext.hidden = true;
+        photoPrev.hidden = true;
+        photoNext.hidden = true;
         resetTransform();
         return;
       }
       selectedIndex = Math.min(Math.max(selectedIndex, 0), files.length - 1);
-      const file = files[selectedIndex];
-      const app = applicationName(file);
-      const apps = [...new Set(files.map(applicationName))];
-      const appFiles = files.filter((candidate) => applicationName(candidate) === app);
-      const appIndex = apps.indexOf(app);
-      const panelIndex = appFiles.indexOf(file);
+      const { applications, file, application, applicationIndex, applicationFiles, photoIndex } = browserState();
       objectUrl = URL.createObjectURL(file);
       preview.src = objectUrl;
       preview.hidden = false;
       empty.hidden = true;
       resetTransform();
-      counter.textContent = `Application ${appIndex + 1} of ${apps.length} (${app}) · Photo ${panelIndex + 1} of ${appFiles.length}: ${displayKey(file)}`;
+      appCounter.textContent = `Application ${applicationIndex + 1} of ${applications.length} · ${application}`;
+      photoCounter.textContent = `Photo ${photoIndex + 1} of ${applicationFiles.length}: ${displayKey(file)}`;
+      appPrev.hidden = applicationIndex <= 0;
+      appNext.hidden = applicationIndex < 0 || applicationIndex >= applications.length - 1;
+      photoPrev.hidden = photoIndex <= 0;
+      photoNext.hidden = photoIndex < 0 || photoIndex >= applicationFiles.length - 1;
     };
 
     folderInput.addEventListener("change", () => {
@@ -142,20 +165,38 @@
         render();
       }, 0);
     });
-    prev.addEventListener("click", () => {
-      const files = collectFiles();
-      if (!files.length) {
+    appPrev.addEventListener("click", () => {
+      const { files, applications, applicationIndex } = browserState();
+      if (!files.length || applicationIndex <= 0) {
         return;
       }
-      selectedIndex = (selectedIndex - 1 + files.length) % files.length;
+      const targetApplication = applications[applicationIndex - 1];
+      selectedIndex = files.findIndex((file) => applicationName(file) === targetApplication);
       render();
     });
-    next.addEventListener("click", () => {
-      const files = collectFiles();
-      if (!files.length) {
+    appNext.addEventListener("click", () => {
+      const { files, applications, applicationIndex } = browserState();
+      if (!files.length || applicationIndex < 0 || applicationIndex >= applications.length - 1) {
         return;
       }
-      selectedIndex = (selectedIndex + 1) % files.length;
+      const targetApplication = applications[applicationIndex + 1];
+      selectedIndex = files.findIndex((file) => applicationName(file) === targetApplication);
+      render();
+    });
+    photoPrev.addEventListener("click", () => {
+      const { files, applicationFiles, photoIndex } = browserState();
+      if (!files.length || photoIndex <= 0) {
+        return;
+      }
+      selectedIndex = files.indexOf(applicationFiles[photoIndex - 1]);
+      render();
+    });
+    photoNext.addEventListener("click", () => {
+      const { files, applicationFiles, photoIndex } = browserState();
+      if (!files.length || photoIndex < 0 || photoIndex >= applicationFiles.length - 1) {
+        return;
+      }
+      selectedIndex = files.indexOf(applicationFiles[photoIndex + 1]);
       render();
     });
     viewport.addEventListener("wheel", (event) => {
