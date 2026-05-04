@@ -58,7 +58,7 @@ def test_actual_app_workspace_keeps_upload_controls():
     assert "Current Application Field Comparison" in response.text
     assert "Government warning boldness" in response.text
     assert "Uploading this application and starting the parse run" in response.text
-    assert "Parse opened in a new tab" in response.text
+    assert "Parse complete." in response.text
     assert 'name="application_directory"' in response.text
 
 

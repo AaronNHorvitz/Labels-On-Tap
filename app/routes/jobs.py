@@ -21,7 +21,7 @@ from typing import Any
 from zipfile import BadZipFile, ZipFile
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from PIL import Image
 
@@ -371,6 +371,64 @@ def _combined_panel_ocr(filename: str, panel_ocrs: list[OCRResult]) -> OCRResult
     )
 
 
+def _process_batch_immediately(
+    *,
+    job_id: str,
+    queued_items: list[dict[str, Any]],
+    payload: dict[str, Any],
+    review_unknown_government_warning: bool,
+    require_review_before_rejection: bool,
+    require_review_before_acceptance: bool,
+) -> None:
+    """Process a tiny batch synchronously and write a completed queue record."""
+
+    now = utc_now()
+    write_queue_status(
+        job_id,
+        {
+            "job_id": job_id,
+            "kind": "batch",
+            "status": "running",
+            "created_at": now,
+            "started_at": now,
+            "finished_at": "",
+            "total": len(queued_items),
+            "processed": 0,
+            "failures": [],
+            "payload": payload,
+        },
+    )
+    try:
+        _process_batch_items(
+            job_id,
+            queued_items,
+            review_unknown_government_warning,
+            require_review_before_rejection,
+            require_review_before_acceptance,
+            progress_callback=lambda processed, total: mark_progress(job_id, processed, total),
+        )
+    except QueueCancelled as exc:
+        status = load_queue_status(job_id) or {}
+        status["status"] = "cancelled"
+        status["finished_at"] = utc_now()
+        status.setdefault("failures", []).append({"error": str(exc), "at": utc_now()})
+        write_queue_status(job_id, status)
+    except Exception as exc:
+        status = load_queue_status(job_id) or {}
+        status["status"] = "failed"
+        status["finished_at"] = utc_now()
+        status.setdefault("failures", []).append({"error": str(exc), "at": utc_now()})
+        write_queue_status(job_id, status)
+        raise
+    else:
+        status = load_queue_status(job_id) or {}
+        status["status"] = "completed"
+        status["processed"] = len(queued_items)
+        status["total"] = len(queued_items)
+        status["finished_at"] = utc_now()
+        write_queue_status(job_id, status)
+
+
 def _find_manifest_item(job_id: str, item_id: str) -> dict:
     """Return the manifest row for an item, if present."""
 
@@ -496,6 +554,11 @@ def _queue_manifest_batch(
                 "stored_filename": item_uploads[0].stored_filename,
                 "stored_filenames": [dest.name for dest in destinations],
                 "original_filenames": [upload.original_filename for upload in item_uploads],
+                "demo_ocr_filenames": [
+                    _demo_ocr_cache_name(item_id, filename)
+                    for filename in _manifest_item_filenames(item)
+                ],
+                "demo_typography_filename": _demo_typography_cache_name(item_id),
             }
         )
 
@@ -506,51 +569,14 @@ def _queue_manifest_batch(
         "require_review_before_acceptance": require_review_before_acceptance,
     }
     if process_immediately:
-        now = utc_now()
-        write_queue_status(
-            job_id,
-            {
-                "job_id": job_id,
-                "kind": "batch",
-                "status": "running",
-                "created_at": now,
-                "started_at": now,
-                "finished_at": "",
-                "total": len(queued_items),
-                "processed": 0,
-                "failures": [],
-                "payload": payload,
-            },
+        _process_batch_immediately(
+            job_id=job_id,
+            queued_items=queued_items,
+            payload=payload,
+            review_unknown_government_warning=review_unknown_government_warning,
+            require_review_before_rejection=require_review_before_rejection,
+            require_review_before_acceptance=require_review_before_acceptance,
         )
-        try:
-            _process_batch_items(
-                job_id,
-                queued_items,
-                review_unknown_government_warning,
-                require_review_before_rejection,
-                require_review_before_acceptance,
-                progress_callback=lambda processed, total: mark_progress(job_id, processed, total),
-            )
-        except QueueCancelled as exc:
-            status = load_queue_status(job_id) or {}
-            status["status"] = "cancelled"
-            status["finished_at"] = utc_now()
-            status.setdefault("failures", []).append({"error": str(exc), "at": utc_now()})
-            write_queue_status(job_id, status)
-        except Exception as exc:
-            status = load_queue_status(job_id) or {}
-            status["status"] = "failed"
-            status["finished_at"] = utc_now()
-            status.setdefault("failures", []).append({"error": str(exc), "at": utc_now()})
-            write_queue_status(job_id, status)
-            raise
-        else:
-            status = load_queue_status(job_id) or {}
-            status["status"] = "completed"
-            status["processed"] = len(queued_items)
-            status["total"] = len(queued_items)
-            status["finished_at"] = utc_now()
-            write_queue_status(job_id, status)
     else:
         enqueue_batch(job_id, payload)
     return job_id
@@ -564,6 +590,7 @@ def _queue_manifest_batch_from_paths(
     review_unknown_government_warning: bool,
     require_review_before_rejection: bool,
     require_review_before_acceptance: bool,
+    process_immediately: bool = False,
 ) -> str:
     """Persist a server-side demo pack as a normal queued batch job.
 
@@ -623,15 +650,23 @@ def _queue_manifest_batch_from_paths(
             }
         )
 
-    enqueue_batch(
-        job_id,
-        {
-            "items": queued_items,
-            "review_unknown_government_warning": review_unknown_government_warning,
-            "require_review_before_rejection": require_review_before_rejection,
-            "require_review_before_acceptance": require_review_before_acceptance,
-        },
-    )
+    payload = {
+        "items": queued_items,
+        "review_unknown_government_warning": review_unknown_government_warning,
+        "require_review_before_rejection": require_review_before_rejection,
+        "require_review_before_acceptance": require_review_before_acceptance,
+    }
+    if process_immediately:
+        _process_batch_immediately(
+            job_id=job_id,
+            queued_items=queued_items,
+            payload=payload,
+            review_unknown_government_warning=review_unknown_government_warning,
+            require_review_before_rejection=require_review_before_rejection,
+            require_review_before_acceptance=require_review_before_acceptance,
+        )
+    else:
+        enqueue_batch(job_id, payload)
     return job_id
 
 
@@ -1571,6 +1606,7 @@ def parse_public_cola_demo(
         review_unknown_government_warning=review_unknown_government_warning,
         require_review_before_rejection=require_review_before_rejection,
         require_review_before_acceptance=require_review_before_acceptance,
+        process_immediately=parse_scope == "application",
     )
     return RedirectResponse(url=f"/public-cola-demo?job_id={job_id}", status_code=303)
 
@@ -1587,6 +1623,18 @@ def reset_public_cola_demo(job_id: str = Form("")) -> RedirectResponse:
 @router.get("/public-cola-demo/comparison-data/{job_id}")
 def public_cola_demo_comparison_data(job_id: str) -> dict[str, Any]:
     """Return current demo parse rows for the application browser table."""
+
+    queue_status = load_queue_status(job_id)
+    results = list_results(job_id)
+    return {
+        "queue_status": queue_status,
+        "comparison_rows": _job_comparison_payload(results),
+    }
+
+
+@router.get("/app/comparison-data/{job_id}")
+def actual_application_comparison_data(job_id: str) -> dict[str, Any]:
+    """Return current parse rows for the LOT Actual browser table."""
 
     queue_status = load_queue_status(job_id)
     results = list_results(job_id)
@@ -1687,6 +1735,7 @@ def create_batch_job(
 
 @router.post("/jobs/application-directory")
 def create_application_directory_job(
+    request: Request,
     application_directory: list[UploadFile] = File(...),
     parse_scope: str = Form("directory"),
     selected_application: str = Form(""),
@@ -1694,7 +1743,7 @@ def create_application_directory_job(
     review_unknown_government_warning: bool = Form(False),
     require_review_before_rejection: bool = Form(False),
     require_review_before_acceptance: bool = Form(False),
-) -> RedirectResponse:
+) -> Response:
     """Create a durable demo job from one uploaded application directory.
 
     The selected directory must contain ``manifest.csv`` or ``manifest.json``
@@ -1779,6 +1828,17 @@ def create_application_directory_job(
             require_review_before_rejection=require_review_before_rejection,
             require_review_before_acceptance=require_review_before_acceptance,
             process_immediately=parse_scope == "application",
+        )
+    wants_json = "application/json" in request.headers.get("accept", "").lower()
+    wants_json = wants_json or request.headers.get("x-requested-with", "").lower() == "fetch"
+    if wants_json:
+        return JSONResponse(
+            {
+                "job_id": job_id,
+                "job_url": f"/jobs/{job_id}",
+                "queue_status": load_queue_status(job_id),
+                "comparison_rows": _job_comparison_payload(list_results(job_id)),
+            }
         )
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
 

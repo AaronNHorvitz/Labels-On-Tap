@@ -75,7 +75,7 @@
   <section class="panel live-comparison-panel">
     <div class="live-comparison-heading">
       <h2>Current Application Field Comparison</h2>
-      <p id="live-comparison-status">Actual values come from your uploaded manifest. Scraped values appear after parsing on the result page.</p>
+      <p id="live-comparison-status">Actual values come from your uploaded manifest. Scraped values populate after parsing.</p>
     </div>
     <table class="compact-table live-comparison-table">
       <thead>
@@ -125,6 +125,7 @@
     let dragStartPanX = 0;
     let dragStartPanY = 0;
     let manifestRows = [];
+    let comparisonRows = {};
 
     const applyTransform = () => {
       preview.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
@@ -226,6 +227,7 @@
       if (!application) return null;
       return manifestRows.find((row) => row.filename === application || row.fixture_id === application) || null;
     };
+    const selectedResultId = (row) => row?.fixture_id || row?.filename || browserState().application || "";
     const formattedValue = (field, value) => {
       if (field === "product_type" && value) {
         return String(value).replaceAll("_", " ").replace(/\b\w/g, (match) => match.toUpperCase());
@@ -259,17 +261,27 @@
         }
         return;
       }
+      const parsedRows = comparisonRows[selectedResultId(row)] || [];
+      const parsedByLabel = new Map(parsedRows.map((parsedRow) => [parsedRow.label, parsedRow]));
       comparisonBody.innerHTML = actualRows(row)
-        .map(([label, actual]) => `
+        .map(([label, actual]) => {
+          const parsed = parsedByLabel.get(label);
+          const scraped = parsed ? parsed.parsed || parsed.evidence || "" : "";
+          const verdict = parsed ? `<span class="badge ${escapeHtml(parsed.verdict)}">${escapeHtml(String(parsed.verdict || "").replaceAll("_", " "))}</span>` : "";
+          const evidence = parsed && parsed.evidence ? `<small>${escapeHtml(parsed.evidence)}</small>` : "";
+          return `
           <tr>
             <td>${escapeHtml(label)}</td>
             <td>${escapeHtml(actual)}</td>
-            <td><span class="muted-cell">Waiting for parse</span></td>
+            <td>${scraped ? `<p>${escapeHtml(scraped)}</p>${evidence}${verdict}` : '<span class="muted-cell">Waiting for parse</span>'}</td>
           </tr>
-        `)
+        `;
+        })
         .join("");
       if (comparisonStatus) {
-        comparisonStatus.textContent = "Actual values are loaded from your manifest. Scraped values appear after parsing on the result page.";
+        comparisonStatus.textContent = parsedRows.length
+          ? "Scraped values are populated from the latest parse result for this application."
+          : "Actual values are loaded from your manifest. Scraped values populate after parsing.";
       }
     };
     const browserState = () => {
@@ -323,6 +335,7 @@
 
     folderInput.addEventListener("change", () => {
       selectedIndex = 0;
+      comparisonRows = {};
       render();
       loadManifestPreview();
     });
@@ -330,6 +343,7 @@
       window.setTimeout(() => {
         selectedIndex = 0;
         manifestRows = [];
+        comparisonRows = {};
         if (submitStatus) {
           submitStatus.hidden = true;
           submitStatus.textContent = "Uploading files and starting the parse run...";
@@ -345,7 +359,6 @@
       const parseScope = submitter.value;
       const selectedApplication = selectedApplicationInput.value;
       const manifest = manifestFile();
-      let resultWindow = null;
       if (submitStatus) {
         submitStatus.hidden = false;
         submitStatus.textContent = parseScope === "application"
@@ -360,10 +373,6 @@
         if (submitStatus) submitStatus.textContent = "Choose an application directory before parsing.";
         return;
       }
-      resultWindow = window.open("about:blank", "_blank");
-      if (resultWindow) {
-        resultWindow.document.write("<p>Starting Labels On Tap parse...</p>");
-      }
       const { applicationFiles } = browserState();
       const payload = new FormData();
       payload.append("parse_scope", "application");
@@ -375,30 +384,34 @@
         payload.append("application_directory", file, `labels-on-tap-upload/${uploadRelativeKey(file)}`);
       });
       try {
-        const response = await fetch(form.action, { method: "POST", body: payload });
+        const response = await fetch(form.action, {
+          method: "POST",
+          body: payload,
+          headers: {
+            "Accept": "application/json",
+            "X-Requested-With": "fetch",
+          },
+        });
         if (response.redirected) {
-          if (resultWindow) {
-            resultWindow.location.href = response.url;
-            if (submitStatus) submitStatus.textContent = "Parse opened in a new tab. This upload page is still ready for the next application.";
-          } else {
-            window.location.href = response.url;
-          }
+          window.location.href = response.url;
           return;
         }
         if (response.ok) {
-          if (resultWindow) {
-            resultWindow.location.href = response.url || "/app";
-          } else {
-            window.location.href = response.url || "/app";
+          const payload = await response.json();
+          comparisonRows = payload.comparison_rows || {};
+          renderComparison();
+          if (submitStatus) {
+            const status = payload.queue_status || {};
+            const processed = status.processed || 0;
+            const total = status.total || 0;
+            submitStatus.textContent = `Parse complete. ${processed} of ${total} applications processed.`;
           }
           return;
         }
-        if (resultWindow) resultWindow.close();
         if (submitStatus) {
           submitStatus.textContent = `Upload problem: ${response.status}`;
         }
       } catch (_error) {
-        if (resultWindow) resultWindow.close();
         if (submitStatus) {
           submitStatus.textContent = "Upload problem. Please try again.";
         }
