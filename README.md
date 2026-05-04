@@ -224,7 +224,7 @@ pytest -q
 Last verified full container test run:
 
 ```text
-91 passed
+105 passed
 ```
 
 ## Environment
@@ -253,15 +253,21 @@ does not call COLA Cloud at runtime.
 
 From the home page:
 
-1. Select one application directory containing a `manifest.csv` or
-   `manifest.json` plus nested application image folders.
-2. Browse the selected panels in the right-side preview before submitting.
-3. Click `Upload Directory And Run Demo`.
-4. Watch the durable queue finish on the job page.
-5. Open a result detail page to compare `Actual COLA Application Data` against
-   `Real Label Images And OCR Evidence`.
-6. Export CSV from the job page.
-7. Open `/review` to show queue-level triage and save reviewer decisions.
+1. Click `LOT Demo` to open the server-hosted 300-application public COLA
+   walkthrough. No upload is required.
+2. Browse applications and their label panels with the previous/next controls.
+3. Click `Parse This Application` to populate the `Scraped` column beside the
+   `Actual` application data for one application.
+4. Click `Parse This Directory of Applications` to run the full demo pack and
+   show progress, timing, queue counts, and review routing.
+5. Use `Accept` or `Reject` on the result cards to demonstrate reviewer action
+   capture.
+6. Export CSV from the job page to show the reviewer-ready output.
+7. Click `LOT Actual` to upload your own application folder or a folder of
+   applications. Uploaded data stays available in that browser until `Reset`.
+8. Use `Download Examples` and `Data Format Instructions` from `LOT Actual` if
+   you want a ready-made upload pack and the expected folder layout.
+9. Open `/review` to show queue-level triage across jobs.
 
 Application directory upload requires:
 
@@ -368,6 +374,10 @@ data/work/
 - Authentication, roles, admin portal, audit-grade logs, and retention policy
   are future production work.
 - Real uploads use local OCR and may require model warmup.
+- Arbitrary phone/shelf photos can exceed the 5-second target when OCR has to
+  process a difficult image cold. The public demo and downloaded example data
+  use curated cached evidence for a stable walkthrough; live upload performance
+  remains the next optimization gate.
 - The field-support model's strongest statistics are from clean text-pair
   supervision. A full noisy OCR holdout evaluation is the next measurement gate.
 - ZIP upload is guarded for the prototype but would need malware scanning and

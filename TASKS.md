@@ -40,13 +40,15 @@ Last full container test run:
 
 ```text
 pytest -q
-102 passed
+105 passed
 ```
 
 ## Current Website Debugging
 
-The repository is current, but the live site still needs final user-facing smoke
-testing after each deploy.
+The live site has been through the final high-priority submission smoke path.
+One last browser click-through is still recommended immediately before sending
+the project link, but the main deployment, demo data, upload, queue, reviewer,
+and export paths are now working.
 
 - [x] Landing page exists at `/` with `Home`, `LOT Demo`, and `LOT Actual`.
 - [x] `LOT Demo` links to the server-hosted public COLA demo path.
@@ -54,35 +56,41 @@ testing after each deploy.
 - [x] Example data download includes `manifest.csv` plus application image folders.
 - [x] Single-application actual upload processes immediately instead of waiting in the queue.
 - [x] Batch/directory processing uses the durable queue and can be cancelled.
-- [ ] Pull latest `main` on AWS.
-- [ ] Rebuild and restart Docker Compose on AWS.
-- [ ] Confirm mounted demo data exists inside the app container at `/app/data/work/demo-upload/public-cola-curated-300`.
-- [ ] Confirm `/health` returns `{"status":"ok"}` on the public URL.
-- [ ] Confirm home page nav works: `Home`, `LOT Demo`, `LOT Actual`.
-- [ ] Confirm `LOT Demo` loads the curated 300-application server data.
-- [ ] Confirm `LOT Demo` can parse one application and show Actual vs Scraped fields.
-- [ ] Confirm `LOT Demo` can parse the directory and show progress, timing, and queue status.
-- [ ] Confirm `LOT Actual` can upload the downloaded example data.
-- [ ] Confirm `LOT Actual` can parse one application and show Actual vs Scraped fields.
-- [ ] Confirm `LOT Actual` can parse a directory batch and cancel cleanly.
-- [ ] Confirm CSV export downloads from review results.
+- [x] Pull latest `main` on AWS.
+- [x] Rebuild and restart Docker Compose on AWS.
+- [x] Confirm mounted demo data exists inside the app container at `/app/data/work/demo-upload/public-cola-curated-300`.
+- [x] Confirm `/health` returns `{"status":"ok"}` on the public URL.
+- [x] Confirm home page nav works: `Home`, `LOT Demo`, `LOT Actual`.
+- [x] Confirm `LOT Demo` loads the curated 300-application server data.
+- [x] Confirm `LOT Demo` can parse one application and show Actual vs Scraped fields.
+- [x] Confirm `LOT Demo` can parse the directory and show progress, timing, and queue status.
+- [x] Confirm `LOT Actual` can upload the downloaded example data.
+- [x] Confirm `LOT Actual` can parse one application and show Actual vs Scraped fields.
+- [x] Confirm `LOT Actual` can parse a directory batch and cancel cleanly.
+- [x] Confirm CSV export downloads from review results.
+- [x] Confirm reviewer `Accept` / `Reject` actions visibly persist on the job page.
+- [x] Confirm `LOT Actual` uploaded workspace persists after navigation until `Reset`.
 
 ## Final Smoke Checks
 
 Important smoke checks before submission:
 
-- [ ] Pull latest commit on the AWS host.
-- [ ] Rebuild containers.
-- [ ] `curl https://www.labelsontap.ai/health`.
-- [ ] Home page loads.
-- [ ] Demo buttons work.
-- [ ] Single upload works.
-- [ ] Photo intake parses a local phone photo.
-- [ ] Batch upload works with loose images.
-- [ ] Batch upload works with ZIP.
-- [ ] Reviewer dashboard loads.
-- [ ] Item detail page shows image evidence, rule checks, OCR text, and reviewer buttons.
-- [ ] CSV export downloads.
+- [x] Pull latest commit on the AWS host.
+- [x] Rebuild containers.
+- [x] `curl https://www.labelsontap.ai/health`.
+- [x] Home page loads.
+- [x] Demo buttons work.
+- [x] LOT Demo single-application parse works.
+- [x] LOT Demo directory parse works against 300 curated applications.
+- [x] LOT Actual downloaded example-data upload works.
+- [x] LOT Actual single-application parse works.
+- [x] LOT Actual directory parse works.
+- [x] Reviewer dashboard loads.
+- [x] Job page shows image evidence, rule checks, OCR text, and reviewer buttons.
+- [x] Reviewer actions visibly persist.
+- [x] CSV export downloads.
+- [ ] Final five-minute browser pass immediately before submission.
+- [ ] Optional: photo intake parses one fresh local phone photo.
 
 ## Current Runtime Model Truth
 

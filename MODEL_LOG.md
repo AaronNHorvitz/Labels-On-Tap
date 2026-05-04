@@ -991,6 +991,19 @@ The final app work focused on making the modeling work visible and usable:
 - CSV export,
 - reviewer dashboard and reviewer action buttons.
 
+Final submission hardening added:
+
+- `LOT Demo` and downloaded example data can use curated OCR/typography sidecars
+  for stable, fast walkthroughs.
+- `LOT Actual` parses one uploaded application inline so the `Scraped` column
+  appears beside `Actual` on the same page.
+- Directory parses use the job page with progress, timing, cancellation, counts,
+  result cards, and CSV export.
+- Uploaded `LOT Actual` jobs persist in that browser until the user clicks
+  `Reset`.
+- Reviewer `Accept` / `Reject` decisions visibly persist on the job page and in
+  CSV output.
+
 The curated public COLA demo pack is explicitly not an accuracy metric. It is a
 walkthrough artifact so an evaluator can see the intended workflow without
 waiting for live OCR on difficult public images.

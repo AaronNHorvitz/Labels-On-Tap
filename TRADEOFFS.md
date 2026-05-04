@@ -35,6 +35,30 @@ sidecars first, then falls back to local OCR if a sidecar is missing.
 Model-performance claims must come from the evaluation corpus and holdout
 statistics, not this curated demo cache.
 
+## 1.2 Final Demo UX Versus Measurement UX
+
+**Decision:** Separate the live evaluator walkthrough from the statistical
+measurement path.
+
+**Why:** The project prompt asks for a working prototype that can be accessed
+and tested. Public COLA data is real and useful, but it also contains hard image
+layouts that are not all solved in this deadline window. The final app therefore
+has two clear paths:
+
+- `LOT Demo`: a server-hosted, curated public-COLA walkthrough that shows the
+  end-to-end flow with 300 applications, multiple panels per application,
+  actual application values, scraped label values, review routing, reviewer
+  decisions, progress, timing, and CSV export.
+- `LOT Actual`: a user-upload path where an evaluator can upload one application
+  folder or a folder of applications using the documented manifest format.
+
+**Cost:** The curated demo pack uses cached OCR/typography sidecars when
+available. That makes the live walkthrough stable, but it must not be confused
+with a model benchmark.
+
+**Benefit:** This keeps the interview demo reliable while preserving the honest
+measurement story in `MODEL_LOG.md`, `docs/performance.md`, and this file.
+
 ## 2. Deterministic Rules Decide Compliance
 
 **Decision:** Compliance outcomes come from source-backed deterministic rules,

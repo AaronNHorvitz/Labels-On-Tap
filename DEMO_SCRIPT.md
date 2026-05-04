@@ -27,28 +27,44 @@ Expected:
 {"status":"ok"}
 ```
 
-## 3. Fast Fixture Demos
+## 3. LOT Demo: Public COLA Walkthrough
 
 From the home page:
 
-1. Run Clean Label Demo.
-2. Run Warning Failure Demo.
-3. Run ABV Failure Demo.
-4. Run Malt Net Contents Failure Demo.
-5. Run Import Origin Demo.
-6. Run Batch Demo.
+1. Click `LOT Demo`.
+2. Show that the page has 300 public COLA applications loaded.
+3. Use `Next Application` and `Next Photo` to show multiple application panels.
+4. Point out the `Actual` column under the image. These are the application
+   truth fields.
+5. Click `Parse This Application`.
+6. Show the `Scraped` column filling in beside the actual fields.
+7. Click `Parse This Directory of Applications` if you want to show the full
+   300-application progress and timing path.
 
 Point out:
 
 - result counts,
 - policy queues,
-- top reason,
-- item detail links,
+- Actual vs Scraped field comparison,
+- reviewer action buttons,
 - CSV export.
 
-## 4. Evidence Detail
+## 4. LOT Actual: Upload Path
 
-Open one failed or review item.
+From the home page:
+
+1. Click `LOT Actual`.
+2. Click `Download Examples` if you want a ready-made upload pack.
+3. Click `Data Format Instructions` to show the expected folder and manifest
+   layout.
+4. Upload one application folder or a folder of applications.
+5. Browse the uploaded panels.
+6. Parse one application or parse the directory.
+7. Explain that the upload remains available in that browser until `Reset`.
+
+## 5. Evidence Detail
+
+Open one result card from a job page.
 
 Show:
 
@@ -65,10 +81,13 @@ Show:
 Save a reviewer decision:
 
 ```text
-Request correction / better image
+Accept or Reject
 ```
 
-## 5. Reviewer Dashboard
+Point out that the saved decision appears immediately on the job page and is
+included in CSV export.
+
+## 6. Reviewer Dashboard
 
 Open:
 
@@ -86,22 +105,6 @@ Show:
 
 Explain that auth/admin/roles are future production work; this prototype focuses
 on the queue mechanics and evidence flow.
-
-## 6. Batch Upload
-
-Use the home page batch form.
-
-Inputs:
-
-- `manifest.csv` or `manifest.json`,
-- loose JPG/PNG images or a ZIP archive of images.
-
-Show:
-
-- immediate redirect to job page,
-- queue status,
-- incremental results,
-- CSV export.
 
 ## 7. Photo OCR Intake
 
