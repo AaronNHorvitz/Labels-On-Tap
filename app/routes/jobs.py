@@ -630,14 +630,23 @@ def create_multipanel_job(
 
 @router.post("/photo-intake")
 def create_photo_intake_job(
-    label_image: UploadFile = File(...),
+    label_images: list[UploadFile] = File(...),
+    selected_index: int = Form(0),
+    parse_mode: str = Form("current"),
 ) -> RedirectResponse:
-    """Run demonstration OCR extraction on a free-form label photo.
+    """Run demonstration OCR extraction on one or more free-form photos.
 
     Parameters
     ----------
-    label_image:
-        JPG/PNG bottle, can, or label photo uploaded for OCR exploration.
+    label_images:
+        JPG/PNG bottle, can, shelf, or flat label photos uploaded for OCR
+        exploration.
+    selected_index:
+        Zero-based browser-selected image index used when ``parse_mode`` is
+        ``current``.
+    parse_mode:
+        ``current`` parses only the displayed photo. ``all`` parses every
+        uploaded photo sequentially.
 
     Returns
     -------
@@ -650,34 +659,72 @@ def create_photo_intake_job(
     extract when no application fields have been provided.
     """
 
+    if not label_images:
+        raise HTTPException(status_code=400, detail="Upload at least one label photo.")
+    if parse_mode not in {"current", "all"}:
+        raise HTTPException(status_code=400, detail="Invalid photo parse mode.")
+
     JOBS_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="_upload-", dir=JOBS_DIR) as temp_dir:
-        upload = _validate_image_upload(label_image, Path(temp_dir))
+        staged_uploads = [_validate_image_upload(upload, Path(temp_dir)) for upload in label_images if upload.filename]
+        if not staged_uploads:
+            raise HTTPException(status_code=400, detail="Upload at least one label photo.")
+        if parse_mode == "current":
+            if selected_index < 0 or selected_index >= len(staged_uploads):
+                raise HTTPException(status_code=400, detail="Selected photo index is out of range.")
+            uploads = [staged_uploads[selected_index]]
+        else:
+            uploads = staged_uploads
         job_id = create_job(label="photo intake demo")
-        dest = _move_validated_upload(job_id, upload)
+        moved = [(_move_validated_upload(job_id, upload), upload) for upload in uploads]
 
-    item_id = dest.stem
-    fixture_id = Path(upload.original_filename).stem
-    ocr = ocr_engine.run(dest, fixture_id=fixture_id)
-    intake = parse_photo_intake(ocr)
-    intake["job_id"] = job_id
-    intake["item_id"] = item_id
-    intake["original_filename"] = upload.original_filename
-    intake["stored_filename"] = upload.stored_filename
-    intake["upload_size"] = upload.upload_size
-    write_json(job_dir(job_id) / "photo_intake" / f"{item_id}.json", intake)
-    add_manifest_item(
-        job_id,
-        {
-            "item_id": item_id,
-            "filename": upload.original_filename,
-            "original_filename": upload.original_filename,
-            "stored_filename": upload.stored_filename,
-            "upload_size": upload.upload_size,
-            "workflow": "photo_intake_demo",
-        },
-    )
-    return RedirectResponse(url=f"/photo-intake/{job_id}/{item_id}", status_code=303)
+    item_ids: list[str] = []
+    for dest, upload in moved:
+        item_id = dest.stem
+        fixture_id = Path(upload.original_filename).stem
+        ocr = ocr_engine.run(dest, fixture_id=fixture_id)
+        intake = parse_photo_intake(ocr)
+        intake["job_id"] = job_id
+        intake["item_id"] = item_id
+        intake["original_filename"] = upload.original_filename
+        intake["stored_filename"] = upload.stored_filename
+        intake["upload_size"] = upload.upload_size
+        write_json(job_dir(job_id) / "photo_intake" / f"{item_id}.json", intake)
+        add_manifest_item(
+            job_id,
+            {
+                "item_id": item_id,
+                "filename": upload.original_filename,
+                "original_filename": upload.original_filename,
+                "stored_filename": upload.stored_filename,
+                "upload_size": upload.upload_size,
+                "workflow": "photo_intake_demo",
+            },
+        )
+        item_ids.append(item_id)
+
+    write_json(job_dir(job_id) / "photo_intake" / "index.json", {"item_ids": item_ids})
+    return RedirectResponse(url=f"/photo-intake/{job_id}/{item_ids[0]}", status_code=303)
+
+
+def _photo_intake_navigation(job_id: str, item_id: str) -> dict[str, Any]:
+    """Return previous/next photo-intake navigation metadata."""
+
+    index_path = job_dir(job_id) / "photo_intake" / "index.json"
+    if index_path.exists():
+        item_ids = [str(value) for value in read_json(index_path).get("item_ids", [])]
+    else:
+        item_ids = sorted(path.stem for path in (job_dir(job_id) / "photo_intake").glob("*.json") if path.name != "index.json")
+    if item_id not in item_ids:
+        item_ids = [item_id]
+    index = item_ids.index(item_id)
+    return {
+        "item_ids": item_ids,
+        "index": index,
+        "count": len(item_ids),
+        "previous_item_id": item_ids[index - 1] if len(item_ids) > 1 else None,
+        "next_item_id": item_ids[(index + 1) % len(item_ids)] if len(item_ids) > 1 else None,
+    }
 
 
 @router.get("/photo-intake/{job_id}/{item_id}", response_class=HTMLResponse)
@@ -695,8 +742,23 @@ def photo_intake_detail(request: Request, job_id: str, item_id: str) -> HTMLResp
             "item_id": item_id,
             "manifest": load_manifest(job_id),
             "intake": read_json(path),
+            "navigation": _photo_intake_navigation(job_id, item_id),
         },
     )
+
+
+@router.get("/photo-intake/{job_id}/{item_id}/image")
+def photo_intake_image(job_id: str, item_id: str) -> FileResponse:
+    """Serve the uploaded photo for the photo-intake result page."""
+
+    intake_path = job_dir(job_id) / "photo_intake" / f"{item_id}.json"
+    if not intake_path.exists():
+        raise HTTPException(status_code=404, detail="Photo intake result not found")
+    intake = read_json(intake_path)
+    image_path = job_dir(job_id) / "uploads" / intake["stored_filename"]
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Photo image not found")
+    return FileResponse(image_path)
 
 
 @router.get("/cola-cloud-demo")

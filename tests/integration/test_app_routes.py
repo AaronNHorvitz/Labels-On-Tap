@@ -9,7 +9,8 @@ from app.services.job_store import add_manifest_item, create_job, load_manifest,
 from app.services.rules.registry import verify_label
 
 
-DEMO_FIXTURE = ROOT / "data/fixtures/demo/clean_malt_pass.png"
+FIXTURE_DIR = ROOT / "data/fixtures/demo"
+DEMO_FIXTURE = FIXTURE_DIR / "clean_malt_pass.png"
 
 
 def single_upload_form() -> dict[str, str]:
@@ -216,16 +217,35 @@ def test_photo_intake_upload_extracts_candidate_fields():
     client = TestClient(app)
     response = client.post(
         "/photo-intake",
-        files={"label_image": ("clean_malt_pass.png", DEMO_FIXTURE.read_bytes(), "image/png")},
+        files={"label_images": ("clean_malt_pass.png", DEMO_FIXTURE.read_bytes(), "image/png")},
+        data={"parse_mode": "current", "selected_index": "0"},
         follow_redirects=True,
     )
 
     assert response.status_code == 200
     assert "Photo OCR Intake" in response.text
+    assert "Uploaded Photo" in response.text
     assert "Demonstration Only" in response.text
     assert "OLD RIVER BREWING" in response.text
     assert "5% ALC/VOL" in response.text
     assert "fixture ground truth" in response.text
+
+
+def test_photo_intake_parse_all_supports_navigation():
+    client = TestClient(app)
+    response = client.post(
+        "/photo-intake",
+        files=[
+            ("label_images", ("clean_malt_pass.png", DEMO_FIXTURE.read_bytes(), "image/png")),
+            ("label_images", ("abv_prohibited_fail.png", (FIXTURE_DIR / "abv_prohibited_fail.png").read_bytes(), "image/png")),
+        ],
+        data={"parse_mode": "all", "selected_index": "0"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "Photo 1 of 2" in response.text
+    assert "Next Photo" in response.text
 
 
 def test_cola_cloud_demo_renders_side_by_side_comparison(monkeypatch):

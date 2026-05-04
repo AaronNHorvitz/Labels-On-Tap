@@ -96,6 +96,15 @@ p {
   gap: 0.75rem;
 }
 
+.page-actions,
+.photo-controls,
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .button,
 button {
   display: inline-flex;
@@ -124,6 +133,43 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+}
+
+.photo-intake-form {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(320px, 1.15fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.photo-picker {
+  display: grid;
+  gap: 1rem;
+}
+
+.photo-counter {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.photo-preview-card {
+  display: grid;
+  min-height: 360px;
+  place-items: center;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f3efe6;
+}
+
+.photo-preview-card img {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
 }
 
 .review-form {
@@ -356,6 +402,24 @@ pre {
   gap: 1rem;
 }
 
+.photo-result-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+
+.photo-result-image img {
+  display: block;
+  width: 100%;
+  max-height: 720px;
+  object-fit: contain;
+  background: #f3efe6;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
 .label-panel {
   min-width: 0;
   padding: 1rem;
@@ -387,12 +451,14 @@ pre {
   }
 
   .upload-form,
+  .photo-intake-form,
   .review-form,
   .summary-grid,
   .queue-grid,
   .detail-grid,
   .evidence-grid,
-  .panel-grid {
+  .panel-grid,
+  .photo-result-grid {
     grid-template-columns: 1fr;
   }
 

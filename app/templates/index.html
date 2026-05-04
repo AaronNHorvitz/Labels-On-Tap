@@ -22,13 +22,28 @@
 
   <section class="panel">
     <h2>Photo OCR Intake Demo</h2>
-    <p>Upload a real bottle, can, or shelf label photo to see raw OCR text and likely field candidates before formal COLA-style verification.</p>
-    <form action="/photo-intake" method="post" enctype="multipart/form-data" class="upload-form">
-      <label class="full">
-        Label photo
-        <input name="label_image" type="file" accept=".jpg,.jpeg,.png" required>
-      </label>
-      <button class="button secondary" type="submit">Parse Photo</button>
+    <p>Upload real bottle, can, shelf, or flat label photos, review them one at a time, then parse the current image or the whole set.</p>
+    <form action="/photo-intake" method="post" enctype="multipart/form-data" class="photo-intake-form" id="photo-intake-form">
+      <div class="photo-picker">
+        <label>
+          Label photos
+          <input id="photo-intake-files" name="label_images" type="file" accept=".jpg,.jpeg,.png" multiple required>
+        </label>
+        <input id="photo-selected-index" name="selected_index" type="hidden" value="0">
+        <div class="photo-controls" aria-label="Photo browser controls">
+          <button class="button secondary" id="photo-prev" type="button">Previous</button>
+          <span id="photo-counter" class="photo-counter">No photos selected</span>
+          <button class="button secondary" id="photo-next" type="button">Next</button>
+        </div>
+        <div class="photo-actions">
+          <button class="button secondary" name="parse_mode" value="current" type="submit">Parse Showing Photo</button>
+          <button class="button primary" name="parse_mode" value="all" type="submit">Parse All Photos</button>
+        </div>
+      </div>
+      <div class="photo-preview-card" aria-live="polite">
+        <img id="photo-preview" alt="Selected label preview">
+        <p id="photo-preview-empty">Choose one or more photos to preview them here before parsing.</p>
+      </div>
     </form>
   </section>
 
@@ -177,4 +192,66 @@
     </form>
   </section>
 </section>
+<script>
+  (() => {
+    const input = document.getElementById("photo-intake-files");
+    const selectedIndexInput = document.getElementById("photo-selected-index");
+    const preview = document.getElementById("photo-preview");
+    const empty = document.getElementById("photo-preview-empty");
+    const counter = document.getElementById("photo-counter");
+    const prev = document.getElementById("photo-prev");
+    const next = document.getElementById("photo-next");
+    if (!input || !selectedIndexInput || !preview || !empty || !counter || !prev || !next) {
+      return;
+    }
+
+    let selectedIndex = 0;
+    let objectUrl = null;
+
+    const render = () => {
+      const files = Array.from(input.files || []);
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+      }
+      if (!files.length) {
+        preview.removeAttribute("src");
+        preview.hidden = true;
+        empty.hidden = false;
+        counter.textContent = "No photos selected";
+        selectedIndexInput.value = "0";
+        return;
+      }
+      selectedIndex = Math.min(Math.max(selectedIndex, 0), files.length - 1);
+      selectedIndexInput.value = String(selectedIndex);
+      objectUrl = URL.createObjectURL(files[selectedIndex]);
+      preview.src = objectUrl;
+      preview.hidden = false;
+      empty.hidden = true;
+      counter.textContent = `${selectedIndex + 1} of ${files.length}: ${files[selectedIndex].name}`;
+    };
+
+    input.addEventListener("change", () => {
+      selectedIndex = 0;
+      render();
+    });
+    prev.addEventListener("click", () => {
+      const files = Array.from(input.files || []);
+      if (!files.length) {
+        return;
+      }
+      selectedIndex = (selectedIndex - 1 + files.length) % files.length;
+      render();
+    });
+    next.addEventListener("click", () => {
+      const files = Array.from(input.files || []);
+      if (!files.length) {
+        return;
+      }
+      selectedIndex = (selectedIndex + 1) % files.length;
+      render();
+    });
+    render();
+  })();
+</script>
 {% endblock %}

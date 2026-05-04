@@ -5,9 +5,20 @@
   <div class="page-title">
     <div>
       <h1>Photo OCR Intake</h1>
-      <p>Job {{ job_id }} · {{ intake.original_filename }}</p>
+      <p>
+        Job {{ job_id }} · {{ intake.original_filename }}
+        {% if navigation.count > 1 %} · Photo {{ navigation.index + 1 }} of {{ navigation.count }}{% endif %}
+      </p>
     </div>
-    <a class="button secondary" href="/">Back</a>
+    <div class="page-actions">
+      {% if navigation.previous_item_id %}
+      <a class="button secondary" href="/photo-intake/{{ job_id }}/{{ navigation.previous_item_id }}">Previous Photo</a>
+      {% endif %}
+      {% if navigation.next_item_id %}
+      <a class="button secondary" href="/photo-intake/{{ job_id }}/{{ navigation.next_item_id }}">Next Photo</a>
+      {% endif %}
+      <a class="button secondary" href="/">Back</a>
+    </div>
   </div>
 
   <section class="panel notice">
@@ -34,34 +45,41 @@
     </div>
   </section>
 
-  <section class="panel">
-    <h2>Candidate Application Fields</h2>
-    {% if intake.candidates %}
-    <table>
-      <thead>
-        <tr>
-          <th>Field</th>
-          <th>Candidate value</th>
-          <th>Confidence</th>
-          <th>Method</th>
-          <th>Evidence</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for candidate in intake.candidates %}
-        <tr>
-          <td>{{ candidate.field|replace("_", " ")|title }}</td>
-          <td><strong>{{ candidate.value }}</strong></td>
-          <td>{{ "%.2f"|format(candidate.confidence) }}</td>
-          <td>{{ candidate.method }}</td>
-          <td>{{ candidate.evidence }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p>No structured field candidates were extracted. Review the raw OCR text below or try a clearer, straighter photo.</p>
-    {% endif %}
+  <section class="photo-result-grid">
+    <div class="panel photo-result-image">
+      <h2>Uploaded Photo</h2>
+      <img src="/photo-intake/{{ job_id }}/{{ item_id }}/image" alt="Uploaded label photo {{ intake.original_filename }}">
+    </div>
+
+    <div class="panel">
+      <h2>Candidate Application Fields</h2>
+      {% if intake.candidates %}
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Candidate value</th>
+            <th>Confidence</th>
+            <th>Method</th>
+            <th>Evidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for candidate in intake.candidates %}
+          <tr>
+            <td>{{ candidate.field|replace("_", " ")|title }}</td>
+            <td><strong>{{ candidate.value }}</strong></td>
+            <td>{{ "%.2f"|format(candidate.confidence) }}</td>
+            <td>{{ candidate.method }}</td>
+            <td>{{ candidate.evidence }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p>No structured field candidates were extracted. Review the raw OCR text below or try a clearer, straighter photo.</p>
+      {% endif %}
+    </div>
   </section>
 
   <section class="panel">
