@@ -32,6 +32,27 @@ def test_health_route():
     assert response.json() == {"status": "ok"}
 
 
+def test_landing_page_links_to_demo_and_actual_app():
+    client = TestClient(app)
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "LOT Demo" in response.text
+    assert "LOT Actual" in response.text
+    assert 'href="/public-cola-demo"' in response.text
+    assert 'href="/app"' in response.text
+    assert "labels_on_tap_hero.png" in response.text or "landing-hero" in response.text
+
+
+def test_actual_app_workspace_keeps_upload_controls():
+    client = TestClient(app)
+    response = client.get("/app")
+
+    assert response.status_code == 200
+    assert "Upload Application Directory" in response.text
+    assert 'name="application_directory"' in response.text
+
+
 def test_clean_demo_route_renders_pass_result():
     client = TestClient(app)
     response = client.get("/demo/clean", follow_redirects=True)

@@ -15,6 +15,13 @@ templates = Jinja2Templates(directory=str(ROOT / "app/templates"))
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    """Render the home page with demo, single-upload, and batch-upload forms."""
+    """Render the public landing page."""
+
+    return templates.TemplateResponse(request, "landing.html")
+
+
+@router.get("/app", response_class=HTMLResponse)
+def app_workspace(request: Request):
+    """Render the application workspace with upload and parse controls."""
 
     return templates.TemplateResponse(request, "index.html", {"max_batch_items": MAX_BATCH_ITEMS})
