@@ -528,6 +528,13 @@ pre {
   color: var(--muted);
 }
 
+.quick-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
 @media (max-width: 760px) {
   .site-header,
   .queue-status,

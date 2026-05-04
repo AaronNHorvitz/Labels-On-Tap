@@ -97,6 +97,11 @@
         </table>
       </div>
     </div>
+    <form action="/jobs/{{ job_id }}/items/{{ result.item_id }}/review" method="post" class="quick-review-actions">
+      <input name="return_to" type="hidden" value="job">
+      <button class="button secondary" name="reviewer_decision" value="accept" type="submit">Accept</button>
+      <button class="button danger" name="reviewer_decision" value="reject" type="submit">Reject</button>
+    </form>
     <p><a href="/jobs/{{ job_id }}/items/{{ result.item_id }}">Open full evidence and reviewer actions</a></p>
   </details>
   {% else %}

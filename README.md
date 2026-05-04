@@ -286,7 +286,9 @@ python scripts/create_public_cola_demo_upload_pack.py --limit 300 --zip --force
 ```
 
 Output is written to `data/work/demo-upload/public-cola-300/` and is intentionally
-gitignored. In the browser, select the `public-cola-300` directory itself.
+gitignored. The exporter filters out registry artifacts that are named like
+images but fail JPG/PNG signature or Pillow decode checks. In the browser,
+select the `public-cola-300` directory itself.
 
 ## Deployment
 

@@ -58,13 +58,28 @@
     let objectUrl = null;
 
     const fileKey = (file) => file.webkitRelativePath || file.name;
-    const applicationName = (file) => {
+    const displayKey = (file) => {
       const key = fileKey(file);
-      return key.includes("/") ? key.split("/")[0] : "Application 1";
+      const parts = key.split("/");
+      if (parts.length > 1) {
+        return parts.slice(1).join("/");
+      }
+      return key;
+    };
+    const applicationName = (file) => {
+      const parts = displayKey(file).split("/");
+      const imagesIndex = parts.indexOf("images");
+      if (imagesIndex >= 0 && parts.length > imagesIndex + 1) {
+        return parts[imagesIndex + 1];
+      }
+      if (parts.length >= 2) {
+        return parts[0];
+      }
+      return "Application 1";
     };
     const collectFiles = () => Array.from(folderInput.files || [])
       .filter((file) => /\.(png|jpe?g)$/i.test(file.name))
-      .sort((left, right) => fileKey(left).localeCompare(fileKey(right)));
+      .sort((left, right) => displayKey(left).localeCompare(displayKey(right)));
 
     const render = () => {
       const files = collectFiles();
@@ -90,7 +105,7 @@
       preview.src = objectUrl;
       preview.hidden = false;
       empty.hidden = true;
-      counter.textContent = `Application ${appIndex + 1} of ${apps.length} · Photo ${panelIndex + 1} of ${appFiles.length}: ${fileKey(file)}`;
+      counter.textContent = `Application ${appIndex + 1} of ${apps.length} (${app}) · Photo ${panelIndex + 1} of ${appFiles.length}: ${displayKey(file)}`;
     };
 
     folderInput.addEventListener("change", () => {

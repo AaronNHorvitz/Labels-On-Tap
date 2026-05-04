@@ -51,6 +51,8 @@ def test_batch_demo_route_renders_counts_and_csv():
     assert "Actual COLA Application Data" in response.text
     assert "Parsed Label Data" in response.text
     assert "OLD RIVER BREWING" in response.text
+    assert 'name="reviewer_decision" value="accept"' in response.text
+    assert 'name="reviewer_decision" value="reject"' in response.text
     assert "Open full evidence and reviewer actions" in response.text
 
     job_id = str(response.url).rstrip("/").split("/")[-1]

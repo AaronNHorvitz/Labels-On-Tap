@@ -1390,6 +1390,7 @@ def save_reviewer_decision(
     item_id: str,
     reviewer_decision: str = Form(...),
     reviewer_note: str = Form(""),
+    return_to: str = Form("item"),
 ) -> RedirectResponse:
     """Persist a lightweight reviewer decision and note for one result."""
 
@@ -1403,6 +1404,8 @@ def save_reviewer_decision(
     result.reviewer_note = reviewer_note.strip()
     result.reviewed_at = datetime.now(timezone.utc).isoformat()
     write_result(result)
+    if return_to == "job":
+        return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
     return RedirectResponse(url=f"/jobs/{job_id}/items/{item_id}", status_code=303)
 
 

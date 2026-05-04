@@ -31,6 +31,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from app.config import ROOT
 from app.services.cola_cloud_demo import expected_fields
+from app.services.preflight.file_signature import has_allowed_image_signature, is_pillow_decodable_image
 
 
 DEFAULT_SOURCE = ROOT / "data/work/cola/official-sample-3000-balanced"
@@ -65,6 +66,8 @@ def main() -> None:
     images_output.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict[str, str]] = []
+    skipped_invalid_images: list[str] = []
+    skipped_empty_applications = 0
     for application_path in sorted((source / "applications").glob("*.json")):
         if len(rows) >= args.limit:
             break
@@ -73,9 +76,10 @@ def main() -> None:
         image_paths = [
             path
             for path in sorted((source / "images" / ttb_id).glob("*"))
-            if path.suffix.lower() in IMAGE_SUFFIXES
+            if is_valid_upload_pack_image(path, skipped_invalid_images)
         ]
         if not image_paths:
+            skipped_empty_applications += 1
             continue
         target_image_dir = images_output / ttb_id
         target_image_dir.mkdir(parents=True, exist_ok=True)
@@ -128,9 +132,12 @@ def main() -> None:
                 "# Public COLA Demo Upload Pack",
                 "",
                 f"Applications: {len(rows)}",
+                f"Skipped invalid image files: {len(skipped_invalid_images)}",
+                f"Skipped applications with no valid images: {skipped_empty_applications}",
                 "",
                 "Use `manifest.csv` as the application manifest.",
                 "Upload `images/` as the application-folder image source, or upload `public-cola-demo-pack.zip` if generated.",
+                "All manifest-referenced images passed JPG/PNG signature and Pillow decode checks at export time.",
                 "",
                 "This directory is generated from gitignored public COLA working data and should not be committed.",
             ]
@@ -147,9 +154,42 @@ def main() -> None:
                     archive.write(path, path.relative_to(output).as_posix())
 
     print(f"Wrote {len(rows)} applications to {output}")
+    print(f"Skipped invalid image files: {len(skipped_invalid_images)}")
+    print(f"Skipped applications with no valid images: {skipped_empty_applications}")
     print(f"Manifest: {output / 'manifest.csv'}")
     if args.zip:
         print(f"ZIP: {output / 'public-cola-demo-pack.zip'}")
+
+
+def is_valid_upload_pack_image(path: Path, skipped_invalid_images: list[str]) -> bool:
+    """Return whether a source image should be copied into the demo pack.
+
+    Parameters
+    ----------
+    path:
+        Candidate source path from the public COLA working corpus.
+    skipped_invalid_images:
+        Mutable audit list populated with invalid paths for summary reporting.
+
+    Returns
+    -------
+    bool
+        ``True`` only for JPG/PNG files that match the runtime upload policy.
+
+    Notes
+    -----
+    Some registry/image pulls can save an HTML error page with a ``.png``
+    suffix. The deployed app correctly rejects those files. Filtering them here
+    keeps the public demo directory upload smooth while preserving the same
+    safety checks used at runtime.
+    """
+
+    if path.suffix.lower() not in IMAGE_SUFFIXES:
+        return False
+    if not has_allowed_image_signature(path) or not is_pillow_decodable_image(path):
+        skipped_invalid_images.append(path.as_posix())
+        return False
+    return True
 
 
 if __name__ == "__main__":
