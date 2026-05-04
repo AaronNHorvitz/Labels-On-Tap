@@ -108,20 +108,26 @@
   </section>
 
   <section class="panel">
-    <h2>Batch Upload</h2>
+    <h2>COLA Application Batch Upload</h2>
+    <p>Upload up to {{ max_batch_items or 400 }} label images for a manifest. Each manifest row can represent one application with a single image, or one application with multiple panels using <code>panel_filenames</code> separated by semicolons.</p>
     <form action="/jobs/batch" method="post" enctype="multipart/form-data" class="upload-form">
       <label class="full">
-        Manifest
+        Application manifest
         <input name="manifest_file" type="file" accept=".csv,.json" required>
       </label>
       <label class="full">
-        Label images
+        Label panel images
         <input name="label_images" type="file" accept=".jpg,.jpeg,.png" multiple>
       </label>
       <label class="full">
-        Or ZIP archive of label images
+        Or ZIP archive of label panel images
         <input name="image_archive" type="file" accept=".zip">
       </label>
+      <details class="full manifest-help">
+        <summary>Manifest columns for multi-panel applications</summary>
+        <pre>filename,panel_filenames,product_type,brand_name,fanciful_name,class_type,alcohol_content,net_contents,bottler_producer_name_address,imported,country_of_origin
+APP-001,app001-front.png;app001-back.png;app001-neck.png,wine,Example Winery,,Sauvignon Blanc,12% BY VOL,750 mL,"Example Winery, Napa CA",true,France</pre>
+      </details>
       <fieldset class="full">
         <legend>Review policy</legend>
         <label><input name="review_unknown_government_warning" type="checkbox" value="true"> Send unknown government-warning cases to human review</label>

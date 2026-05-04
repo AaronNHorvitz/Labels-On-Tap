@@ -34,6 +34,8 @@ engineering trade-offs.
 - Supports single-label uploads.
 - Supports one application with multiple label panels.
 - Supports manifest-backed batch uploads using loose images or a ZIP archive.
+- Supports COLA-style batch rows where one application has multiple label
+  panels through a `panel_filenames` manifest column.
 - Uses a local filesystem-backed queue so batch jobs do not run inside the
   browser request.
 - Provides a reviewer dashboard at `/review`.
@@ -266,7 +268,15 @@ Manual batch upload requires:
 
 - `manifest.csv` or `manifest.json`,
 - loose JPG/PNG files or a ZIP archive,
-- filenames in the manifest matching image basenames.
+- filenames in the manifest matching image basenames,
+- optional multi-panel rows with `panel_filenames` separated by semicolons.
+
+Example multi-panel row:
+
+```csv
+filename,panel_filenames,product_type,brand_name,class_type,alcohol_content,net_contents,imported,country_of_origin
+APP-001,front.png;back.png;neck.png,wine,Example Winery,Sauvignon Blanc,12% BY VOL,750 mL,true,France
+```
 
 ## Deployment
 

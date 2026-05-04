@@ -257,7 +257,14 @@ def _manifest_item_to_application(item: ManifestItem) -> ColaApplication:
     """
 
     payload = item.model_dump() if hasattr(item, "model_dump") else item.dict()
+    payload.pop("panel_filenames", None)
     return ColaApplication(**payload)
+
+
+def _manifest_item_filenames(item: ManifestItem) -> list[str]:
+    """Return the image filenames referenced by one manifest application row."""
+
+    return item.panel_filenames or [item.filename]
 
 
 def _truthy(value: str | bool) -> bool:
@@ -966,7 +973,7 @@ def create_batch_job(
                 raise HTTPException(status_code=400, detail=f"Duplicate uploaded image: {upload.original_filename}")
             by_filename[upload.original_filename] = upload
 
-        expected_filenames = {item.filename for item in manifest_items}
+        expected_filenames = {filename for item in manifest_items for filename in _manifest_item_filenames(item)}
         uploaded_filenames = set(by_filename)
         missing = sorted(expected_filenames - uploaded_filenames)
         extra = sorted(uploaded_filenames - expected_filenames)
@@ -978,18 +985,22 @@ def create_batch_job(
         job_id = create_job(label=f"batch upload ({len(manifest_items)} labels)")
         queued_items = []
         for item in manifest_items:
-            upload = by_filename[item.filename]
-            dest = _move_validated_upload(job_id, upload)
-            item_id = item.fixture_id or dest.stem
+            item_uploads = [by_filename[filename] for filename in _manifest_item_filenames(item)]
+            destinations = [_move_validated_upload(job_id, upload) for upload in item_uploads]
+            item_id = item.fixture_id or Path(item.filename).stem
             add_manifest_item(
                 job_id,
                 {
                     "item_id": item_id,
                     "filename": item.filename,
                     "fixture_id": item.fixture_id,
-                    "original_filename": upload.original_filename,
-                    "stored_filename": upload.stored_filename,
-                    "upload_size": upload.upload_size,
+                    "original_filename": item_uploads[0].original_filename,
+                    "stored_filename": item_uploads[0].stored_filename,
+                    "upload_size": sum(upload.upload_size for upload in item_uploads),
+                    "original_filenames": [upload.original_filename for upload in item_uploads],
+                    "stored_filenames": [upload.stored_filename for upload in item_uploads],
+                    "upload_sizes": [upload.upload_size for upload in item_uploads],
+                    "workflow": "batch_multi_panel_application" if len(item_uploads) > 1 else "batch_single_panel_application",
                 },
             )
             item_payload = item.model_dump() if hasattr(item, "model_dump") else item.dict()
@@ -997,7 +1008,9 @@ def create_batch_job(
                 {
                     "item": item_payload,
                     "item_id": item_id,
-                    "stored_filename": upload.stored_filename,
+                    "stored_filename": item_uploads[0].stored_filename,
+                    "stored_filenames": [dest.name for dest in destinations],
+                    "original_filenames": [upload.original_filename for upload in item_uploads],
                 }
             )
 
@@ -1031,11 +1044,25 @@ def _process_batch_items(
             if progress_callback:
                 progress_callback(index, total)
             continue
-        dest = job_dir(job_id) / "uploads" / queued["stored_filename"]
         application = _manifest_item_to_application(item)
-        fixture_id = item.fixture_id or Path(item.filename).stem
-        ocr = ocr_engine.run(dest, fixture_id=fixture_id)
-        typography = _assess_warning_typography(dest, ocr)
+        stored_filenames = queued.get("stored_filenames") or [queued["stored_filename"]]
+        destinations = [job_dir(job_id) / "uploads" / Path(filename).name for filename in stored_filenames]
+        fixture_ids = [
+            Path(filename).stem
+            for filename in (queued.get("original_filenames") or _manifest_item_filenames(item))
+        ]
+        panel_ocrs = [
+            ocr_engine.run(dest, fixture_id=fixture_id)
+            for dest, fixture_id in zip(destinations, fixture_ids, strict=True)
+        ]
+        ocr = _combined_panel_ocr(application.filename, panel_ocrs) if len(panel_ocrs) > 1 else panel_ocrs[0]
+        typography = None
+        for dest, panel_ocr in zip(destinations, panel_ocrs, strict=True):
+            panel_typography = _assess_warning_typography(dest, panel_ocr)
+            if panel_typography.get("verdict") == "pass":
+                typography = panel_typography
+                break
+            typography = typography or panel_typography
         result = verify_label(
             job_id,
             item_id,

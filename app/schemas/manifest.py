@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ManifestItem(BaseModel):
@@ -16,6 +16,7 @@ class ManifestItem(BaseModel):
     """
 
     filename: str
+    panel_filenames: list[str] = Field(default_factory=list)
     fixture_id: str | None = None
     product_type: str
     brand_name: str

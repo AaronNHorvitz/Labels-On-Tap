@@ -118,6 +118,7 @@ def _manifest_item_from_payload(payload: dict[str, Any], row_number: int) -> Man
             raise ManifestParseError(f"Manifest row {row_number} is missing required field: {field}.")
 
     normalized = dict(payload)
+    normalized["panel_filenames"] = _parse_panel_filenames(normalized.get("panel_filenames", ""))
     normalized["imported"] = _parse_bool(normalized.get("imported", False), row_number)
     if not normalized.get("country_of_origin"):
         normalized["country_of_origin"] = None
@@ -126,6 +127,32 @@ def _manifest_item_from_payload(payload: dict[str, Any], row_number: int) -> Man
         return ManifestItem(**normalized)
     except ValidationError as exc:
         raise ManifestParseError(f"Manifest row {row_number} is invalid: {exc}") from exc
+
+
+def _parse_panel_filenames(value: Any) -> list[str]:
+    """Parse optional multi-panel image filenames from a manifest cell.
+
+    Parameters
+    ----------
+    value:
+        CSV or JSON value. CSV users can separate panel filenames with
+        semicolons or pipes; JSON users may provide either a string or a list.
+
+    Returns
+    -------
+    list[str]
+        Ordered panel filenames for one application row.
+    """
+
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    text = str(value).strip()
+    if not text:
+        return []
+    separator = "|" if "|" in text else ";"
+    return [part.strip() for part in text.split(separator) if part.strip()]
 
 
 def _parse_bool(value: Any, row_number: int) -> bool:
@@ -156,7 +183,16 @@ def _validate_manifest_items(items: list[ManifestItem]) -> list[ManifestItem]:
     if not items:
         raise ManifestParseError("Manifest must contain at least one item.")
 
-    filenames = [item.filename for item in items]
+    application_filenames = [item.filename for item in items]
+    duplicate_application_filenames = sorted(
+        {name for name in application_filenames if application_filenames.count(name) > 1}
+    )
+    if duplicate_application_filenames:
+        raise ManifestParseError(f"Manifest has duplicate filenames: {', '.join(duplicate_application_filenames)}.")
+
+    filenames: list[str] = []
+    for item in items:
+        filenames.extend(item.panel_filenames or [item.filename])
     duplicate_filenames = sorted({name for name in filenames if filenames.count(name) > 1})
     if duplicate_filenames:
         raise ManifestParseError(f"Manifest has duplicate filenames: {', '.join(duplicate_filenames)}.")

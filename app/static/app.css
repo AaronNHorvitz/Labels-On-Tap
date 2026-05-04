@@ -383,6 +383,15 @@ pre {
   border-radius: 6px;
 }
 
+.manifest-help {
+  grid-column: 1 / -1;
+}
+
+.manifest-help summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
 .ocr-lines {
   display: grid;
   gap: 0.35rem;

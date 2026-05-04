@@ -49,6 +49,18 @@ def test_parse_json_manifest_happy_path():
     assert items[0].imported is True
 
 
+def test_parse_manifest_accepts_multi_panel_filenames():
+    content = (
+        "filename,panel_filenames,product_type,brand_name\n"
+        "APP-001,front.png;back.png;neck.png,wine,EXAMPLE WINERY\n"
+    ).encode()
+
+    items = parse_manifest("manifest.csv", content)
+
+    assert items[0].filename == "APP-001"
+    assert items[0].panel_filenames == ["front.png", "back.png", "neck.png"]
+
+
 def test_parse_manifest_rejects_missing_required_column():
     with pytest.raises(ManifestParseError, match="missing required columns"):
         parse_manifest("manifest.csv", b"filename,brand_name\nlabel.png,Brand\n")

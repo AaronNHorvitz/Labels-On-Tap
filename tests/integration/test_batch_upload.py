@@ -101,6 +101,36 @@ def test_batch_upload_accepts_zip_archive():
     assert "Completed" in page.text
 
 
+def test_batch_upload_accepts_multi_panel_application_rows():
+    client = TestClient(app)
+    manifest = (
+        "filename,panel_filenames,fixture_id,product_type,brand_name,class_type,alcohol_content,net_contents\n"
+        "APP-001,clean_malt_pass.png;warning_missing_comma_fail.png,app_001,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint\n"
+    ).encode()
+    response = client.post(
+        "/jobs/batch",
+        files=[
+            ("manifest_file", ("manifest.csv", manifest, "text/csv")),
+            image_part("clean_malt_pass.png"),
+            image_part("warning_missing_comma_fail.png"),
+        ],
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    job_id = response.headers["location"].rstrip("/").split("/")[-1]
+    status = wait_for_completion(job_id, timeout_seconds=5)
+    assert status and status["status"] == "completed"
+
+    manifest_doc = load_manifest(job_id)
+    assert manifest_doc["items"][0]["filename"] == "APP-001"
+    assert len(manifest_doc["items"][0]["stored_filenames"]) == 2
+    page = client.get(f"/jobs/{job_id}/items/app_001")
+    assert page.status_code == 200
+    assert "Submitted Label Panels" in page.text
+    assert "APP-001" in page.text
+
+
 def test_batch_upload_rejects_malformed_csv():
     client = TestClient(app)
     files = [
