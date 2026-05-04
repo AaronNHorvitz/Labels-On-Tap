@@ -197,6 +197,21 @@ def test_reviewer_decision_is_persisted_and_exported():
     assert "Looks clean." in csv_response.text
 
 
+def test_reviewer_dashboard_lists_existing_results():
+    client = TestClient(app)
+    response = client.get("/demo/warning", follow_redirects=True)
+    assert response.status_code == 200
+    job_id = str(response.url).rstrip("/").split("/")[-1]
+    item_id = load_manifest(job_id)["items"][0]["item_id"]
+
+    dashboard = client.get("/review")
+    assert dashboard.status_code == 200
+    assert "Reviewer Dashboard" in dashboard.text
+    assert "warning_missing_comma_fail.png" in dashboard.text
+    assert f"/jobs/{job_id}/items/{item_id}" in dashboard.text
+    assert "Ready to reject" in dashboard.text or "Rejection review" in dashboard.text
+
+
 def test_photo_intake_upload_extracts_candidate_fields():
     client = TestClient(app)
     response = client.post(

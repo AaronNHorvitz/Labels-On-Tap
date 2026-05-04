@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import csv
+from io import BytesIO
 from pathlib import Path
+from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
 
 from app.config import JOBS_DIR, ROOT
 from app.main import app
+from app.services.batch_queue import wait_for_completion
 from app.services.job_store import load_manifest
 
 
@@ -36,6 +39,8 @@ def test_batch_upload_accepts_csv_manifest_and_multiple_images():
     assert response.status_code == 303
 
     job_id = response.headers["location"].rstrip("/").split("/")[-1]
+    status = wait_for_completion(job_id, timeout_seconds=5)
+    assert status and status["status"] == "completed"
     page = client.get(f"/jobs/{job_id}")
     assert page.status_code == 200
     assert "12 / 12" in page.text
@@ -57,9 +62,43 @@ def test_batch_upload_accepts_json_manifest():
     ]
 
     response = client.post("/jobs/batch", files=files, follow_redirects=True)
+    job_id = str(response.url).rstrip("/").split("/")[-1]
+    status = wait_for_completion(job_id, timeout_seconds=5)
+    assert status and status["status"] == "completed"
+    response = client.get(f"/jobs/{job_id}")
     assert response.status_code == 200
     assert "12 / 12" in response.text
     assert "warning_missing_comma_fail.png" in response.text
+
+
+def test_batch_upload_accepts_zip_archive():
+    client = TestClient(app)
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as archive:
+        archive.writestr("nested/clean_malt_pass.png", (DEMO_DIR / "clean_malt_pass.png").read_bytes())
+        archive.writestr("warning_missing_comma_fail.png", (DEMO_DIR / "warning_missing_comma_fail.png").read_bytes())
+    manifest = (
+        "filename,fixture_id,product_type,brand_name,class_type,alcohol_content,net_contents\n"
+        "clean_malt_pass.png,clean_malt_pass,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint\n"
+        "warning_missing_comma_fail.png,warning_missing_comma_fail,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint\n"
+    ).encode()
+    response = client.post(
+        "/jobs/batch",
+        files=[
+            ("manifest_file", ("manifest.csv", manifest, "text/csv")),
+            ("image_archive", ("labels.zip", buffer.getvalue(), "application/zip")),
+        ],
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    job_id = response.headers["location"].rstrip("/").split("/")[-1]
+    status = wait_for_completion(job_id, timeout_seconds=5)
+    assert status and status["status"] == "completed"
+
+    page = client.get(f"/jobs/{job_id}")
+    assert "2 / 2" in page.text
+    assert "Queue status:" in page.text
+    assert "Completed" in page.text
 
 
 def test_batch_upload_rejects_malformed_csv():

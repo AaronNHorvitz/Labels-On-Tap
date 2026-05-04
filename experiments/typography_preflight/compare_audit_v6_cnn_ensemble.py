@@ -152,6 +152,15 @@ class SoftVotingEnsemble:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line options for the audit-v6 comparison run.
+
+    Returns
+    -------
+    argparse.Namespace
+        Paths, model hyperparameters, split settings, and latency-sampling
+        controls used by the experiment.
+    """
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--audit-dir", type=Path, default=DEFAULT_AUDIT_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
@@ -179,6 +188,15 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Train and evaluate base models plus CNN-inclusive ensembles.
+
+    Notes
+    -----
+    This entrypoint is deliberately offline-only. It writes metrics and model
+    artifacts under ``data/work/`` so the submission can document the experiment
+    without promoting heavyweight research artifacts into the runtime image.
+    """
+
     args = parse_args()
     configure_cpu(args.threads)
     limit_cv2_threads()
@@ -420,6 +438,19 @@ def set_cnn_backbone_trainability(model: nn.Module, *, trainable: bool) -> None:
 
 
 def merge_base_probabilities(*sources: dict[str, dict[str, np.ndarray]]) -> dict[str, dict[str, np.ndarray]]:
+    """Merge classical and CNN probability dictionaries by split.
+
+    Parameters
+    ----------
+    *sources:
+        Probability dictionaries keyed by model name and split name.
+
+    Returns
+    -------
+    dict[str, dict[str, numpy.ndarray]]
+        Split-first probability dictionary used by the stacker feature builder.
+    """
+
     merged: dict[str, dict[str, np.ndarray]] = {split: {} for split in ("train", "validation", "test", "train_full")}
     for source in sources:
         for model_name, split_probs in source.items():
@@ -437,6 +468,24 @@ def make_probability_stack(probabilities_by_model: dict[str, np.ndarray]) -> np.
 
 
 def probabilities_from_stack(stack: np.ndarray, base_count: int, class_count: int) -> np.ndarray:
+    """Reshape flat stacker features back into model-by-class probabilities.
+
+    Parameters
+    ----------
+    stack:
+        Two-dimensional array whose columns are concatenated base-model
+        probabilities.
+    base_count:
+        Number of base learners included in the stack.
+    class_count:
+        Number of target classes per base learner.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array with shape ``(rows, base_count, class_count)``.
+    """
+
     return stack.reshape(len(stack), base_count, class_count)
 
 
@@ -589,6 +638,34 @@ def evaluate_probability_predictor(
     latency_rows: int,
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Evaluate a fitted probability predictor on train, validation, and test.
+
+    Parameters
+    ----------
+    predictor:
+        Object exposing ``predict`` and optionally ``predict_proba``.
+    model_name:
+        Stable name used in reports and artifact paths.
+    train_features, validation_features, test_features:
+        Stacker feature matrices for the corresponding split.
+    y:
+        Encoded labels keyed by split.
+    rows_by_split:
+        Original manifest rows used for breakdown reporting.
+    fit_ms:
+        Measured model fitting time in milliseconds.
+    latency_rows:
+        Number of test rows used for latency sampling.
+    extra:
+        Optional metadata to attach to the result.
+
+    Returns
+    -------
+    dict[str, Any]
+        Nested metric summary including confusion matrices, false-clear rate,
+        source breakdowns, and latency.
+    """
+
     train_pred = predict_labels(predictor, train_features)
     validation_pred = predict_labels(predictor, validation_features)
     test_pred = predict_labels(predictor, test_features)
@@ -608,11 +685,40 @@ def evaluate_probability_predictor(
 
 
 def encode_labels(labels: list[str]) -> np.ndarray:
+    """Encode string labels with the experiment's class order.
+
+    Parameters
+    ----------
+    labels:
+        Label names from the audit manifest.
+
+    Returns
+    -------
+    numpy.ndarray
+        Integer class IDs aligned to ``CLASS_NAMES``.
+    """
+
     class_to_idx = {name: idx for idx, name in enumerate(CLASS_NAMES)}
     return np.asarray([class_to_idx[label] for label in labels], dtype=np.int64)
 
 
 def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, Any]:
+    """Compute classification metrics for the typography experiment.
+
+    Parameters
+    ----------
+    y_true:
+        Ground-truth class IDs.
+    y_pred:
+        Predicted class IDs.
+
+    Returns
+    -------
+    dict[str, Any]
+        Accuracy, macro/weighted F1, per-class metrics, confusion matrix, and
+        false-clear rate where ``bold`` is the positive class.
+    """
+
     labels = list(range(len(CLASS_NAMES)))
     precision, recall, f1, support = precision_recall_fscore_support(
         y_true,
@@ -646,6 +752,16 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, Any]:
 
 
 def write_report(path: Path, summary: dict[str, Any]) -> None:
+    """Write the Markdown summary for the CNN-inclusive comparison.
+
+    Parameters
+    ----------
+    path:
+        Destination Markdown file.
+    summary:
+        Experiment summary dictionary written beside the JSON metrics.
+    """
+
     lines = [
         "# Audit-v6 CNN-Inclusive Ensemble Comparison",
         "",
@@ -680,6 +796,22 @@ def write_report(path: Path, summary: dict[str, Any]) -> None:
 
 
 def format_result_row(result: dict[str, Any], *, include_model: bool) -> str:
+    """Format one base-model metric row for the Markdown report.
+
+    Parameters
+    ----------
+    result:
+        Metric dictionary for one model.
+    include_model:
+        Retained for compatibility with earlier report code; the current format
+        always includes the model name.
+
+    Returns
+    -------
+    str
+        Markdown table row.
+    """
+
     name = pretty_name(result["model"])
     return (
         f"| {name} | {result['train']['macro_f1']:.4f} | {result['train']['false_clear_rate']:.4f} | "
@@ -689,6 +821,19 @@ def format_result_row(result: dict[str, Any], *, include_model: bool) -> str:
 
 
 def pretty_name(name: str) -> str:
+    """Return a reviewer-friendly model name.
+
+    Parameters
+    ----------
+    name:
+        Internal model key.
+
+    Returns
+    -------
+    str
+        Display name used in terminal and Markdown reports.
+    """
+
     return {
         "svm": "SVM",
         "xgboost": "XGBoost",
@@ -709,6 +854,14 @@ def pretty_name(name: str) -> str:
 
 
 def print_compact_table(summary: dict[str, Any]) -> None:
+    """Print the high-signal train/test statistics to the terminal.
+
+    Parameters
+    ----------
+    summary:
+        Experiment summary containing base and ensemble result lists.
+    """
+
     print("\nBASE LEARNERS")
     for result in summary["base_results"]:
         print(
@@ -726,6 +879,19 @@ def print_compact_table(summary: dict[str, Any]) -> None:
 
 
 def sha256_file(path: Path) -> str:
+    """Return the SHA-256 digest for a file.
+
+    Parameters
+    ----------
+    path:
+        File to hash.
+
+    Returns
+    -------
+    str
+        Hexadecimal SHA-256 digest.
+    """
+
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):

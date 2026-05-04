@@ -1,1118 +1,190 @@
 # Labels On Tap
 
-**Labels On Tap is designed to triage COLAs Online-style submissions and identify alcohol labels that appear out of compliance.**
+Labels On Tap turns alcohol label review into a fast, evidence-backed triage
+queue: upload the application, read the label artwork, and show the reviewer
+exactly what matched, what failed, and what needs human judgment.
 
-[![Live Demo](https://img.shields.io/badge/Demo-www.labelsontap.ai-blue?style=for-the-badge)](https://www.labelsontap.ai)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Jinja2%20%2B%20HTMX-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Docker](https://img.shields.io/badge/Docker-Caddy-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+Labels On Tap is a local-first FastAPI prototype that triages COLAs Online-style
+alcohol label applications and identifies labels that appear out of compliance.
+It compares application fields against OCR evidence from submitted label artwork,
+then routes each item to `Pass`, `Needs Review`, or `Fail` with source-backed
+reasons and reviewer actions.
 
-> **Deployment target:** `https://www.labelsontap.ai`
-> **Repository:** `https://github.com/AaronNHorvitz/Labels-On-Tap`
-> **Status:** take-home prototype; reviewer-support tool, not an official TTB/Treasury system.
-
----
-
-## Model Posture: Conservative Triage
-
-COLAs Online is an Internet-based system that allows registered industry members to apply online for a certificate of label approval, certificate of exemption from label approval, or distinctive liquor bottle approval. Labels On Tap is a reviewer-support triage assistant for that workflow: it compares application data against submitted label artwork, identifies likely compliance problems, and routes uncertain cases to human review.
-
-The highest-risk failure is a **false clear**: a problematic label incorrectly marked as `Pass`. The prototype therefore favors catching possible problems over automatically clearing ambiguous cases:
+Public demo URL:
 
 ```text
-clear evidence matches       -> Pass
-clear source-backed problem  -> Fail
-uncertain OCR/rule evidence  -> Needs Review
+https://www.labelsontap.ai
 ```
 
-In plain terms: the tool should quickly clear obvious matches, flag obvious problems, and send ambiguous cases to a human reviewer with the evidence attached. Extra human review is acceptable; accidentally passing a bad label is not.
-
-### Human Review Policy Layer
-
-The reviewer workflow is configurable because TTB may not want the same
-automation posture for every pilot, product line, or batch. The single-upload
-and batch-upload forms expose a simple control board with three independent
-settings:
-
-```text
-Send unknown government-warning cases to human review: Yes / No
-Require reviewer approval before rejection: Yes / No
-Require reviewer approval before acceptance: Yes / No
-```
-
-Default posture:
-
-```text
-Unknown government warning human review: No
-Before rejection: No
-Before acceptance: No
-```
-
-The warning-specific note matters: if the system cannot verify the mandatory
-government warning and the user has not enabled human review for unknown
-warning cases, the item should default to `Fail`. The applicant bears the
-burden of providing readable label artwork with the required warning. Turning
-that control on routes warning-unknown cases to `Manual evidence review`
-instead.
-
-Those defaults maximize Sarah's high-volume batch value. Dave's concern about
-judgment is handled by turning on review before rejection, review before
-acceptance, or the warning-unknown review gate for stricter pilots.
-
-Policy-aware routing:
-
-| Raw system result | Warning unknown review enabled | Rejection review required | Acceptance review required | Queue |
-|---|---|---|---|---|
-| Pass | n/a | n/a | No | Ready to accept |
-| Pass | n/a | n/a | Yes | Acceptance review |
-| Fail | n/a | No | n/a | Ready to reject |
-| Fail | n/a | Yes | n/a | Rejection review |
-| Government warning unknown | No | No | n/a | Ready to reject |
-| Government warning unknown | No | Yes | n/a | Rejection review |
-| Government warning unknown | Yes | any | n/a | Manual evidence review |
-| Needs Review | n/a | any | any | Manual evidence review |
-
-For a 300-application importer batch, the goal is a reviewer queue summary like:
-
-```text
-Ready to accept: 198
-Acceptance review: 42
-Ready to reject: 28
-Rejection review: 9
-Manual evidence review: 23
-```
-
-Future reviewer actions should remain simple:
-
-```text
-Accept
-Reject
-Request correction / better image
-Override with note
-Escalate
-```
-
-This is a policy layer on top of the rule engine, not a replacement for the
-source-backed checks. The current deployed prototype reports evidence-backed
-`Pass`, `Needs Review`, and `Fail` outcomes; the policy control board is the
-next step for making batch review operationally realistic.
-
-The evaluation language follows that product posture:
-
-| Metric | Plain-English Meaning |
-|---|---|
-| Bad-label catch rate | Of known bad or intentionally mutated examples, how many were routed to `Fail` or `Needs Review`? |
-| False-clear rate | Of known bad examples, how many were incorrectly marked `Pass`? This is the primary safety metric. |
-| Reviewer-escalation rate | How often does the tool choose `Needs Review` instead of pretending it is certain? |
-| Clean-label pass rate | Of known clean examples, how many were correctly cleared? |
-| Field extraction accuracy | How often OCR found the right brand, class/type, ABV, net contents, country of origin, or warning text? |
-| Per-label latency | Whether useful feedback returns near the stakeholder target of about five seconds per label after warmup. |
-
-Any sprint metrics should be read as prototype validation, not production certification. The current public-data work uses public COLA records as a realistic, safe proxy for COLAs Online application data and uploaded label images.
-
-**Current calibration-source note:** The latest OCR/model metrics are measured on a COLA Cloud-derived public COLA calibration set, not on raw images downloaded directly from `TTBOnline.gov`. The direct TTB Public COLA Registry ETL remains in the repository as the official printable-form path, but the May 2 attachment audit found many direct attachment downloads were HTML/error responses rather than usable raster images. COLA Cloud is being used only as a development bridge to obtain public record metadata and valid public label images while the direct TTB endpoint is unstable.
-
-**Current typography-preflight note:** Jenny's stakeholder note explicitly says
-`GOVERNMENT WARNING:` must be all caps and bold. The app now includes a
-CPU-safe, real-adapted logistic typography preflight for that narrow boldness
-question. It first isolates the warning-heading crop from OCR geometry, then
-classifies whether that crop is confidently bold. At the selected validation
-threshold (`0.9546`), the model preserved a validation false-clear rate below
-`0.001`, measured a synthetic holdout false-clear rate of `0.0018`, and cleared
-`92.19%` of held-out approved public COLA heading crops. Anything below the
-threshold still routes to `Needs Review`; the model is not allowed to reject a
-label by itself from one raster crop.
-
-Offline challengers are tracked separately. On the `audit-v6` image set, the
-corrected comparison now trains every base learner on the same split and
-includes MobileNetV3 CNN probabilities inside the ensemble layer. Base learners
-use five-fold out-of-fold train predictions; stackers train on those OOF
-probabilities; reject thresholds tune on validation only; final statistics are
-reported on the untouched test split. The CNN is the safest single base learner
-so far: test macro F1 `0.9686` with false-clear `0.0055`. Among CNN-inclusive
-ensembles, the logistic stacker has the strongest raw test macro F1 (`0.9908`)
-but false-clear `0.0099`, while the LightGBM reject ensemble is safer with test
-macro F1 `0.9552` and false-clear `0.0033`. These remain offline promotion
-candidates, not MVP runtime replacements.
-
-**Current BERT field-support note:** DistilRoBERTa is now wired into the runtime
-as an optional field-support arbiter, not as the OCR engine. The live OCR still
-reads pixels first. When a saved model artifact is mounted at
-`FIELD_SUPPORT_MODEL_DIR`, the app scores candidate OCR text against the
-application value for brand, fanciful name, class/type, and bottler/producer
-fields. If BERT strongly supports a field that the fuzzy matcher would otherwise
-route to review/fail, the rule can pass with BERT evidence recorded in the
-result. If the model artifact is missing, the app falls back to deterministic
-matching. The saved model artifact is `327 MB` and lives under gitignored
-`data/work/field-support-models/distilroberta-field-support-v1-runtime/model/`,
-so it is deployed as a separate runtime artifact rather than committed to Git.
-
-Latest valid model-selection table:
-
-| Type | Model / Policy | Train/OOF F1 | Train/OOF false-clear | Test accuracy | Test F1 | Test false-clear |
-|---|---|---:|---:|---:|---:|---:|
-| Base model | SVM | 0.9453 | 0.0346 | 0.9473 | 0.9467 | 0.0363 |
-| Base model | XGBoost | 0.9705 | 0.0302 | 0.9647 | 0.9633 | 0.0297 |
-| Base model | LightGBM | 0.9737 | 0.0252 | 0.9747 | 0.9753 | 0.0198 |
-| Base model | Logistic Regression | 0.9614 | 0.0274 | 0.9600 | 0.9546 | 0.0242 |
-| Base model | MLP | 0.9656 | 0.0288 | 0.9653 | 0.9656 | 0.0275 |
-| Base model | CatBoost | 0.9505 | 0.0476 | 0.9507 | 0.9472 | 0.0452 |
-| Base model | MobileNetV3 CNN | 0.9523 | 0.0022 | 0.9560 | 0.9686 | 0.0055 |
-| Ensemble | Soft voting + CNN | 0.9784 | 0.0160 | 0.9740 | 0.9742 | 0.0198 |
-| Ensemble | Strict veto + CNN | 0.8400 | 0.0006 | 0.8833 | 0.8530 | 0.0022 |
-| Ensemble | Logistic stacker + CNN | 0.9932 | 0.0064 | 0.9893 | 0.9908 | 0.0099 |
-| Ensemble | LightGBM stacker + CNN | 1.0000 | 0.0000 | 0.9880 | 0.9900 | 0.0143 |
-| Ensemble | XGBoost stacker + CNN | 0.9985 | 0.0025 | 0.9860 | 0.9874 | 0.0165 |
-| Ensemble | CatBoost stacker + CNN | 0.9933 | 0.0072 | 0.9873 | 0.9895 | 0.0154 |
-| Ensemble | LightGBM reject + CNN | 0.9683 | 0.0000 | 0.9673 | 0.9552 | 0.0033 |
-| Ensemble | XGBoost reject + CNN | 0.9784 | 0.0000 | 0.9753 | 0.9656 | 0.0044 |
-
-Final real-COLA smoke: all saved base learners and all CNN-inclusive ensembles
-were then run against `4,362` real approved COLA warning-heading crops from
-`2,356` applications. This confirms the artifacts run cleanly on real public
-label crops. Because approved COLAs are positive-domain examples, this smoke
-reports clear/review behavior and latency, not false-clear safety.
-
-| Model / Policy | Crop clear | App clear | Crop review | App review | Mean ms/crop |
-|---|---:|---:|---:|---:|---:|
-| MobileNetV3 CNN base | 0.6346 | 0.7330 | 0.0477 | 0.0488 | 4.0340 |
-| Logistic stacker + CNN | 0.6978 | 0.7691 | 0.0275 | 0.0280 | 0.0001 |
-| LightGBM reject + CNN | 0.4519 | 0.5976 | 0.3721 | 0.2615 | 0.0030 |
-| XGBoost reject + CNN | 0.5066 | 0.6384 | 0.3324 | 0.2267 | 0.0006 |
-
-A production-grade evaluation would use a larger random or stratified holdout set across product types, statuses, dates, form versions, and known regulatory/form-change boundaries. For this take-home, the practical goal is narrower: prove that public COLA application data and label images can be parsed, OCR'd, compared, and evaluated with conservative human-review routing.
-
----
-
-## Public COLA Sampling Methodology
-
-The public COLA evaluation corpus is built with a deterministic, two-stage stratified sampling procedure. The goal is not to claim production statistical certification. The goal is to avoid cherry-picking while creating a reproducible official-data corpus large enough to test OCR/form matching.
-
-Sampling frame:
-
-```text
-Public source class: public COLA records and public label images
-Direct source: TTB Public COLA Registry when reachable
-Development bridge: COLA Cloud API when TTBOnline.gov is unavailable
-Date range: 2025-05-01 through 2026-04-30
-Primary strata: month approved/completed
-Secondary strata: product family, imported/domestic bucket, and single/multi-panel image complexity
-Randomness: seeded pseudo-random sampling
-Replacement: without replacement
-```
-
-Stage 1 uses seeded cluster sampling by date: the script chooses business days within each month using a fixed seed, then imports public records for those days. Stage 2 samples applications without replacement from that imported pool, using deterministic balancing across secondary strata such as broad product family, imported/domestic source bucket, and single-panel versus multi-panel label complexity.
-
-The current local data story has two branches:
-
-| Branch | Purpose | Current Result |
-|---|---|---|
-| Direct TTB Public Registry ETL | Preserve the official printable-form path and parser. | `810` parsed public COLA forms and `1,433` discovered attachment records; attachment endpoint returned many HTML/error responses during the May 2 audit, so invalid files were marked pending rather than trusted as images. This branch is not the source of the current model metrics. |
-| COLA Cloud public-data bridge | Obtain validated public label rasters while TTBOnline.gov was unavailable/resetting. | Current source of measured OCR/model calibration work: `6,000` unique public applications across two non-overlapping 3,000-application cohorts, with `10,435` local label images. The early 100-application / 169-image docTR result remains historical calibration, not the final corpus metric. |
-
-COLA Cloud is not a runtime dependency and its hosted OCR enrichment is not used as Labels On Tap's measured model output. It is a development-only source for public records/images. The deployed app still runs local OCR or deterministic fixture OCR. Bulk forms, API responses, image files, SQLite data, and OCR outputs remain under gitignored `data/work/`.
-
-The current 100-record COLA Cloud-derived calibration result is intentionally conservative: all applications route to `Needs Review` unless every attempted field is strongly supported. After fixing the COLA Cloud mapping for `abv`, `volume`, and `volume_unit`, the measured field results are:
-
-| Field | Attempted | Match Rate |
-|---|---:|---:|
-| Brand name | 100 | 71% |
-| Fanciful name | 100 | 65% |
-| Class/type | 100 | 49% |
-| Alcohol content | 94 | 91.49% |
-| Net contents | 86 | 83.72% |
-| Country of origin | 38 | 78.95% |
-
-The current statistical corpus supersedes the earlier 3,000-record target. The
-project now has a `6,000`-application public-data corpus sampled without
-replacement. The active model-selection split is:
-
-```text
-train:      2,000 applications
-validation: 1,000 applications
-locked holdout: 3,000 applications
-```
-
-The split happens before field-pair examples are generated so the same TTB ID
-cannot leak across train, validation, and test. The train/validation OCR
-conveyor completed `975 / 975` tri-engine OCR chunk jobs over `5,353` image
-rows, with `5,179` valid images, `174` invalid/corrupt images skipped during
-preflight, and `0` OCR row errors.
-
-For the current `3,000`-application locked holdout, the conservative 95% margin
-of error is approximately `+/- 1.8 percentage points` for a binary proportion
-near 50%, before finite-population correction. That is a sampling-uncertainty
-statement for the held-out estimate, not a promise of production accuracy.
-
-This design gives the project a cleaner evidence story than hand-picked examples:
-
-```text
-- reproducible because seeds and date ranges are recorded,
-- stratified by month to reduce simple recency bias,
-- post-stratified by product/source buckets to improve coverage,
-- sampled without replacement to avoid duplicated applications,
-- honest about public-registry limits, transient attachment failures, and validated-image counts.
-```
-
-Limitations remain. This is not a simple random sample of all COLA applications; it is a practical stratified cluster sample from public registry exports. It excludes confidential pending, denied, and Needs Correction applications. Synthetic negative fixtures are still required to test rejection cases that are not publicly available as a clean corpus.
-
----
-
-## OCR Experimentation Strategy
-
-The OCR work is being evaluated in layers rather than treated as one all-or-nothing model choice. That matters because the review workflow has two different technical problems:
-
-```text
-Problem 1: read difficult label text from images
-Problem 2: decide whether the read text supports the application fields
-```
-
-Labels On Tap currently uses local docTR OCR as the baseline OCR engine and a fixture OCR fallback for deterministic demos. Alternate engines are being measured in an isolated OCR sweep, not dropped directly into the deployed app.
-
-The current model architecture, promotion gates, split discipline, and future
-DistilRoBERTa/RoBERTa field-support plan are documented in
-[MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md).
-
-| Layer | Role | Current Status | Promotion Gate |
-|---|---|---|---|
-| docTR | Current local OCR baseline with geometry/confidence output. | Implemented and measured on the first 100 COLA Cloud-derived public calibration records. | Remains default unless another local engine clearly beats it. |
-| PaddleOCR / PP-OCR | Candidate local OCR engine with orientation, detection, and recognition support for irregular label imagery. | 30-image smoke shows higher F1/accuracy/recall than docTR, with a higher false-clear rate. | Must keep the F1 lift on a larger calibration set while controlling false clears with field-specific thresholds/rules. |
-| OpenOCR / SVTRv2 | Candidate zero-shot irregular-text OCR path, especially interesting for curved/cylindrical text. | 30-image smoke is fastest and normalized to the same OCR schema, but lower F1 than docTR/PaddleOCR in the first field-support test. | Must prove whether speed and curved-text handling translate into better field evidence on a larger sample or as supplemental evidence. |
-| PARSeq | Scene-text recognizer for irregular crops, tested over OpenOCR-detected boxes. | 30-image crop-recognition smoke is fast, including autoregressive mode, but lower F1 than docTR/PaddleOCR/OpenOCR in this setup. | Must be treated as a recognizer-stage experiment unless paired with a detector and measured end-to-end. |
-| ASTER | Scene-text recognizer with flexible rectification, tested over OpenOCR-detected boxes. | 30-image crop-recognition smoke is very fast and produced zero false clears, but lower recall/F1 than docTR/PaddleOCR in this setup. | Must be treated as a recognizer-stage experiment unless paired with a detector and measured end-to-end. |
-| FCENet + ASTER | Arbitrary-shape detector using Fourier contour polygons, paired with ASTER recognition. | 30-image detector-plus-recognizer smoke ran successfully but was too slow on CPU and had low field-support F1. | Useful research checkpoint, not a runtime candidate unless optimized or GPU-backed. |
-| ABINet | Scene-text recognizer with autonomous bidirectional iterative language modeling, tested over OpenOCR-detected boxes. | 30-image crop-recognition smoke is fast and produced zero false clears, but lower recall/F1 than docTR/PaddleOCR in this setup. | Must be treated as a recognizer-stage experiment unless paired with a stronger crop/detection contract. |
-| Deterministic OCR ensemble | Treats docTR, PaddleOCR, and OpenOCR as noisy sensors and combines field-support evidence with safety-constrained policies. | The first 30-image smoke produced F1 `0.7416` with false-clear rate `0.0000` using a government-safe policy. | Promising enough for larger calibration, but must be validated on the 100-app and 1,500-record splits before runtime promotion. |
-| WineBERT/o domain NER | Wine-label token classifier tested as a post-OCR entity arbiter over combined docTR/PaddleOCR/OpenOCR text. | `panigrah/wineberto-labels` entity-only F1 was `0.4865` with false-clear `0.0000`; hybrid support tied the government-safe ensemble but did not improve it. | Not promoted: unknown public model license, no ABV/net-contents extraction, wine-domain mismatch for beer/spirits, and no measured lift over deterministic ensemble. |
-| OSA market-domain NER | Apache-2.0 DistilBERT token classifier with product and market-characteristic entities. | 30-image smoke improved the hybrid government-safe ensemble from F1 `0.7416` to `0.7486` with false-clear `0.0000`. | Worth testing on the 100-app calibration set, but not deployed from a 20-app smoke alone. |
-| FoodBaseBERT-NER | MIT food-entity token classifier tested as a culinary-domain control. | Entity-only F1 was `0.0522`; hybrid support tied the government-safe ensemble at F1 `0.7416` with false-clear `0.0000`. | Pruned: it is fast and licensed cleanly, but food-only semantics do not transfer to alcohol regulatory field extraction. |
-| Graph-aware evidence scorer | Post-OCR model that scores whether OCR fragments support a target field, especially when curved or multi-panel OCR fragments arrive out of order. | Experimental proof exists under `experiments/graph_ocr/`: F1 improved from `0.7714` to `0.8714`, and false-clear rate fell from `0.0439` to `0.0132` on the first 100-application calibration split. | Deferred to post-submission deployment. It needs a saved runtime artifact, same-split comparison against the DistilRoBERTa bridge, CPU latency proof, tests, and locked-holdout evaluation. |
-| HO-GNN / TPS / SVTR custom vision model | Long-term curved-text research path. | Future state only. | Requires annotation strategy, training/evaluation plan, CPU inference proof, and deployment packaging. |
-
-Early OCR-engine metrics are deliberately labeled as smoke results. Small sample sizes increase variance, so the 20-application / 30-image comparison is directional only and must not be treated as a stable engine ranking. That said, the current PaddleOCR F1 lift is meaningful enough to keep PaddleOCR in contention, not reject it. The first deterministic ensemble result is even more interesting for the government workflow: it improved the single-engine F1 while forcing ambiguous alcohol-content evidence to human review instead of allowing false clears.
-
-This sequencing keeps the product disciplined. Better OCR engines can improve what text is read. DistilRoBERTa now improves whether OCR text supports application fields. The graph-aware scorer is the next post-submission local deployment candidate for curved and fragmented text, but it is not in the Monday runtime. Deterministic validation rules and reviewer queues still decide `Pass`, `Needs Review`, or `Fail`.
-
-The curved-text research brief changed the experimental priority in one practical way: the next serious attempt should start with mature pre-trained OCR systems such as PaddleOCR or OpenOCR rather than training a custom curved-text model from scratch. Modern OCR systems trained on large distorted-text corpora may provide useful zero-shot performance on alcohol labels, avoiding the immediate need for custom polygon-level annotation.
-
-Runtime claims remain measured, not assumed. OpenVINO/ONNX/INT8 optimization on an Intel `m7i`-class EC2 instance is a promising production path, especially because those CPUs can accelerate low-precision matrix operations. The live demo currently runs on AWS Lightsail, so OpenVINO/AMX performance is documented as a future optimization path until it is benchmarked on the actual deployment hardware.
-
-### Government Warning Typography Preflight
-
-Jenny Park's stakeholder note includes a typography requirement that plain OCR does not solve by itself: the government warning heading must be exactly `GOVERNMENT WARNING:` and must be bold. The current deployed rule already checks the all-caps heading deterministically and routes font-weight verification to human review. The next experimental workstream is to add a lightweight typography preflight for that boldness requirement without destabilizing the running OCR evaluation.
-
-The implemented experimental approach is intentionally classical statistical learning rather than deep learning:
-
-```text
-OCR isolates or approximates the GOVERNMENT WARNING: heading crop
-  -> OpenCV normalization and stroke/shape feature extraction
-  -> SVM / XGBoost / CatBoost typography classifier comparison
-  -> conservative bold / not-bold / uncertain decision
-  -> deterministic compliance layer routes uncertainty to Needs Review
-```
-
-This is a narrow visual classification problem, not a full OCR problem. A Support Vector Machine is appropriate because the input can be summarized with engineered features such as ink density, edge density, distance-transform stroke width, skeleton-to-ink ratio, connected-component statistics, projection profiles, and HOG descriptors. XGBoost and CatBoost are useful comparisons because they test whether nonlinear tabular learners can improve the engineered-feature boundary without adding deep-learning OCR complexity. Following the statistical-learning framing in Hastie, Tibshirani, and Friedman, margin-based classifiers remain strong baselines when the feature space captures the decision boundary, labeled data is limited, and low CPU latency matters.
-
-The planned dataset is synthetic and isolated from the current OCR run:
-
-```text
-train:      synthetic warning-heading crops from one set of font families
-validation: held-out font families and distortion recipes
-test:       separate held-out font families and harder distortions
-```
-
-Synthetic generation is legitimate for this subtask because the label being generated is only the controlled typography distinction. During review, the first binary dataset exposed an important labeling flaw: it mixed source font weight with visual quality and "auto-clearance" policy. Some bold crops were labeled negative only because they were generated with degraded artifacts, and some readable medium/semibold crops were routed to review even though the requirement is explicit bold type.
-
-The corrected `audit-v5` dataset now separates provenance from model-facing
-decisions and removes the earlier source `borderline` class. A generated bold
-font is bold. A generated non-bold font is not bold. Medium, semibold,
-demibold, light, thin, book, and regular font faces are non-bold for this
-regulatory target. The third model-facing class is reserved only for visually
-unreadable/degraded crops.
-
-```text
-font_weight_label:
-  bold / not_bold
-
-header_text_label:
-  correct / incorrect
-
-quality_label:
-  clean / mild / degraded
-
-visual_font_decision_label:
-  clearly_bold / clearly_not_bold / needs_review_unclear
-
-header_decision_label:
-  correct / incorrect / needs_review_unclear
-```
-
-The primary metric remains government-safe:
-
-```text
-false clear = non-bold or uncertain heading classified as acceptable bold
-```
-
-Initial synthetic evaluation was completed under `experiments/typography_preflight/` using a `20,000` / `5,000` / `5,000` train/validation/test split with held-out font families and distortion recipes. The classifier was extremely fast, but this first run is now treated as a flawed target-definition baseline rather than a final model result:
-
-| Operating Point | Test F1 | Test Precision | Test Recall | Test False-Clear Rate | Meaning |
-|---|---:|---:|---:|---:|---|
-| Zero validation false-clear tolerance | 0.0321 | 0.9737 | 0.0163 | 0.0004 | Very safe, but passes almost nothing as bold. |
-| 0.25% validation false-clear tolerance | 0.1170 | 0.8987 | 0.0626 | 0.0059 | Still too weak for autonomous promotion. |
-| 5% validation false-clear tolerance | 0.7757 | 0.8867 | 0.6894 | 0.0733 | Useful F1, but too many false clears for government posture. |
-
-Measured CPU prediction latency was about `0.09 ms/crop` after feature extraction. The model therefore has essentially no inference cost compared with OCR, but the corrected next step was to train and compare SVM, XGBoost, and CatBoost against the inspected `audit-v5` decision labels before any runtime promotion.
-
-The current inspection dataset is generated under gitignored
-`data/work/typography-preflight/audit-v5/`. It routes blurry, broken, faded,
-cropped, or visually unreadable crops to `needs_review_unclear`. It treats
-readable medium/semibold/demibold headings as `clearly_not_bold` because the
-regulation calls for bold type.
-
-The first corrected side-by-side comparison was run on a `6,000` / `1,500` /
-`1,500` synthetic train/validation/test split. XGBoost produced the best raw
-accuracy and F1, while the SVM produced the lowest false-clear rate and fastest
-single-row latency. The current hard-argmax results are promising but not safe
-enough to make typography a final automated authority:
-
-| Task | Model | Accuracy | Macro F1 | False-Clear Rate | Batch ms/crop | Single-row ms |
-|---|---|---:|---:|---:|---:|---:|
-| Visual font decision | SVM | 0.9400 | 0.9396 | 0.0360 | 0.0048 | 0.0795 |
-| Visual font decision | XGBoost | 0.9567 | 0.9567 | 0.0551 | 0.0032 | 0.1151 |
-| Visual font decision | CatBoost | 0.9480 | 0.9479 | 0.0711 | 0.0054 | 1.9588 |
-| Header text decision | SVM | 0.8420 | 0.8393 | 0.1101 | 0.0055 | 0.0801 |
-| Header text decision | XGBoost | 0.8560 | 0.8546 | 0.1612 | 0.0033 | 0.1693 |
-| Header text decision | CatBoost | 0.8447 | 0.8430 | 0.1702 | 0.0059 | 1.9376 |
-
-For this experiment, false clear means a non-bold or unreadable heading was
-predicted as `clearly_bold`, or an incorrect/unreadable heading was predicted
-as `correct`. The next step is threshold tuning against validation so weak
-model confidence routes to `needs_review_unclear`. The synthetic-only models
-did not pass the safety gate; the later real-adapted logistic preflight is the
-runtime path described below.
-
-An extended 80/20 comparison then added LightGBM, Logistic Regression, MLP, and
-a strict-veto ensemble:
-
-| Task | Model | Accuracy | Macro F1 | False-Clear Rate | Single-row ms |
-|---|---|---:|---:|---:|---:|
-| Visual font decision | SVM | 0.9390 | 0.9385 | 0.0218 | 0.0780 |
-| Visual font decision | XGBoost | 0.9720 | 0.9720 | 0.0293 | 0.1120 |
-| Visual font decision | LightGBM | 0.9760 | 0.9760 | 0.0263 | 1.9275 |
-| Visual font decision | Logistic Regression | 0.9655 | 0.9656 | 0.0195 | 0.0780 |
-| Visual font decision | MLP | 0.9650 | 0.9650 | 0.0203 | 0.1463 |
-| Visual font decision | Strict-veto ensemble | 0.9115 | 0.9131 | 0.0038 | 2.6810 |
-| Header text decision | SVM | 0.8560 | 0.8539 | 0.0766 | 0.0792 |
-| Header text decision | XGBoost | 0.8845 | 0.8832 | 0.1404 | 0.1144 |
-| Header text decision | LightGBM | 0.8915 | 0.8911 | 0.1149 | 1.8772 |
-| Header text decision | Logistic Regression | 0.8815 | 0.8811 | 0.1231 | 0.0789 |
-| Header text decision | MLP | 0.8840 | 0.8841 | 0.0803 | 0.1466 |
-| Header text decision | Strict-veto ensemble | 0.7505 | 0.7510 | 0.0360 | 2.7161 |
-
-This gives a clean engineering conclusion: LightGBM wins raw F1, but the
-strict-veto ensemble best supports the government safety posture by sharply
-reducing false clears and routing uncertainty to review. The ensemble is still
-fast enough for a single typography crop, but it remains experimental until it
-is thresholded and validated against real warning-heading crops.
-
-A larger geometry-stress run then multiplied the corrected data by five and
-rotated/bent half of the crops. That run used `40,000` training crops,
-`8,000` internal calibration crops, and a `10,000` crop test set. The result
-was more nuanced:
-
-| Task | Best Raw-F1 Policy | Test F1 | Test False-Clear | Safest Policy | Test F1 | Test False-Clear | P95 ms |
-|---|---|---:|---:|---|---:|---:|---:|
-| Visual font decision | CatBoost stacker | 0.9878 | 0.0080 | Strict-veto ensemble | 0.9440 | 0.0024 | 2.4952 |
-| Header text decision | CatBoost stacker | 0.9020 | 0.0857 | XGBoost reject threshold | 0.6131 | 0.0027 | 3.0246 |
-
-The practical conclusion changed after the real-COLA cropper was fixed: the
-synthetic-only typography stackers stay out of runtime, but a narrower
-real-adapted logistic boldness preflight is now safe enough to use as
-reviewer-support evidence.
-
-A real approved-COLA smoke test then checked that transfer assumption directly.
-Using cached docTR, PaddleOCR, and OpenOCR output from `100` approved
-applications and `203` label images, the crop locator found `124`
-warning-heading crops across `68` applications. PaddleOCR found `62` of those
-crops, OpenOCR found `59`, and docTR found `3` with the current block-matching
-method. The classifiers were fast enough, with most stackers around `3-5 ms`
-p95 per crop, but the synthetic-trained typography models cleared only `1-8%`
-of applications for boldness and `0-3%` for warning text, routing nearly
-everything else to review.
-
-That result was useful because it prevented an unsafe promotion. The fix was to
-improve the evidence: trim OCR lines to the `GOVERNMENT WARNING:` prefix, group
-split word boxes, and train a smaller logistic model with real approved COLA
-heading crops as positives.
-
-Runtime typography result:
-
-| Item | Value |
-|---|---|
-| Runtime model | `app/models/typography/boldness_logistic_v1.json` |
-| Selected threshold | `0.9546` |
-| Validation false-clear rate | `0.000624` |
-| Synthetic holdout false-clear rate | `0.001800` |
-| Approved-COLA holdout clear rate | `0.921875` |
-| Runtime behavior | Confident bold crop passes; uncertain/no-crop evidence goes to Needs Review. |
-
-The safe runtime posture is:
-
-| Typography Evidence | Runtime Action |
-|---|---|
-| Strong bold signal | Typography preflight may pass. |
-| Weak or non-bold signal | Needs Review. |
-| Low-quality crop, unusual font, glare, curvature, or unreadable signal | Needs Review. |
-
-The experiments live under `experiments/typography_preflight/` with generated
-artifacts under gitignored `data/work/typography-preflight/`. The deployed
-runtime uses only the exported JSON coefficients and OpenCV/numpy feature
-extractor, not scikit-learn/joblib.
-
-The canonical offline challenger comparison is now
-`data/work/typography-preflight/model-comparison-audit-v6-cnn-ensemble-v1/`.
-It uses the same `audit-v6` train/validation/test split for all base learners
-and includes the CNN as a base model in every ensemble. The current headline is:
-
-| Model / Policy | Test macro F1 | Test false-clear |
-|---|---:|---:|
-| MobileNetV3 CNN base | `0.9686` | `0.0055` |
-| Logistic stacker, all bases + CNN | `0.9908` | `0.0099` |
-| LightGBM reject, all bases + CNN | `0.9552` | `0.0033` |
-| XGBoost reject, all bases + CNN | `0.9656` | `0.0044` |
-
-The CNN-inclusive reject ensembles are promising, but the deployed MVP keeps the
-lower-risk JSON logistic bridge until a promotion decision is frozen and tested
-end to end.
-
-Before any OCR engine becomes the default runtime path, it must pass the same checklist:
-
-```text
-- local/self-hosted inference only,
-- no hosted OCR or hosted ML API dependency,
-- normalized OCRResult output with text, boxes, confidence, source, and timing,
-- 10-image smoke benchmark,
-- 100-application calibration benchmark,
-- field-level match-rate comparison against docTR,
-- p50/p95/worst-case latency measurement,
-- false-clear check on synthetic known-bad fixtures,
-- documented failure modes and rollback plan.
-```
-
----
-
-## Executive Summary
-
-Labels On Tap is a local-first prototype for beverage-alcohol label preflight review. It compares label artwork against Form 5100.31-style application fields, runs local OCR or deterministic fixture OCR, applies source-backed validation rules, and returns:
-
-| Verdict | Meaning |
-|---|---|
-| **Pass** | Implemented checks appear consistent with the provided application fields. |
-| **Needs Review** | OCR confidence, image quality, typography, or legal context needs a human reviewer. |
-| **Fail** | A deterministic source-backed mismatch was found with adequate evidence. |
-
-The next review-policy layer turns those raw verdicts into queues such as
-`Ready to accept`, `Acceptance review`, `Ready to reject`, `Rejection review`,
-or `Manual evidence review` depending on agency policy toggles. Unknown
-government-warning evidence is a special control-board setting: if no human
-review is selected, it defaults to failure because the warning is mandatory.
-
-The core design principle is simple:
-
-> Fail deterministic issues. Pass only when the evidence is strong. Route ambiguity to Needs Review. Always show why.
-
----
-
-## Why Local-First
-
-The take-home stakeholder notes make local-first architecture a product requirement, not just a technical preference. A prior vendor-style approach reportedly ran into federal network constraints and adoption problems because it depended on hosted AI endpoints and slow processing.
-
-Labels On Tap therefore keeps the review loop inside the app environment:
-
-```text
-label image + application fields
-  -> local OCR or deterministic fixture OCR
-  -> source-backed rules
-  -> Pass / Needs Review / Fail
-```
-
-For this prototype, "local-first" means:
-
-- no hosted OCR or hosted ML runtime,
-- no OpenAI, Anthropic, Google Vision, Azure Vision, AWS Textract, or hosted VLM calls,
-- no dependency on private COLAs Online data,
-- no hidden rejected-label corpus,
-- deterministic demos and tests that run from repository fixtures.
-
-The app can still run on a cloud VM. The important distinction is that the VM runs the OCR and validation code itself instead of forwarding label images to a third-party AI service.
-
----
-
-## Future State: Graph-Aware OCR
-
-The current prototype treats OCR as a local engine plus deterministic field matching. A strong future direction is to add a geometry-aware OCR layer for highly curved, circular, spherical, fragmented, or distorted label text.
-
-The core idea is to preserve OCR text boxes from engines such as PaddleOCR or docTR, then reason over those boxes as a graph:
-
-```text
-label panel image
-  -> local OCR text boxes
-  -> geometry-aware graph / hypergraph reassembly
-  -> field-aware text candidates
-  -> deterministic application-field comparison
-```
-
-This is especially relevant for alcohol labels because key regulatory text may appear on curved collars, circular keg labels, wraparound bottle panels, or multi-panel artwork. Standard OCR may detect individual fragments but lose reading order or fail to connect pieces that belong to the same warning statement, ABV statement, brand, or net-contents block.
-
-A practical version of this architecture would start with a deterministic graph layer rather than immediately training a custom model:
-
-- nodes: OCR text boxes, words, or line fragments,
-- edges: geometric proximity, baseline angle, reading-order direction, panel membership, and OCR confidence,
-- hyperedges: shared higher-order relationships such as same warning block, same curved baseline, same label panel, same candidate field, or same government-warning phrase,
-- output: reassembled text candidates with provenance back to the original panel and boxes.
-
-This could later become a Higher-Order Graph Neural Network or Hypergraph Neural Network research path. The near-term engineering value is that the graph layer can improve curved-text and fragmented-text reassembly while preserving the current conservative triage posture: it may improve evidence gathering, but deterministic rules still decide `Pass`, `Needs Review`, or `Fail`.
-
-A first experimental version of this near-term graph layer now exists under
-`experiments/graph_ocr/`. It trains a small PyTorch graph-aware evidence scorer
-over cached local OCR boxes. On the initial COLA Cloud-derived 100-application
-calibration test, the safety-weighted GPU run improved F1 from `0.7714` to
-`0.8714` and reduced false-clear rate from `0.0439` to `0.0132` on shuffled
-negative examples.
-
-That result matters, but it is not wired into the live app. The Monday runtime
-uses docTR OCR, the mounted DistilRoBERTa field-support bridge, deterministic
-rules, typography preflight, and reviewer queues. The graph scorer is
-deliberately deferred to a Tuesday/local continuation branch because it still
-needs a saved deployable artifact, runtime conversion from OCR blocks into graph
-features, side-by-side statistics against DistilRoBERTa, CPU latency proof,
-integration tests, and locked-holdout evaluation.
-
-This is the correct trade-off for submission. The graph scorer is promising for
-curved label text, circular warning statements, and fragmented multi-panel
-evidence, but rushing it into runtime without those gates would make the final
-app less defensible.
-
-Relevant research and implementation links:
-
-| Area | Link | Why It Matters |
-|---|---|---|
-| PaddleOCR local OCR, orientation, and unwarping | [PaddleOCR OCR pipeline docs](https://www.paddleocr.ai/main/en/version3.x/pipeline_usage/OCR.html) | Candidate local OCR engine with document orientation/unwarping options. |
-| OpenOCR / SVTRv2 | [OpenOCR repository](https://github.com/Topdu/OpenOCR) | Candidate zero-shot irregular-text OCR engine to benchmark after PaddleOCR. |
-| PARSeq | [PARSeq repository](https://github.com/baudm/parseq) | Candidate scene-text recognizer for irregular crops; tested as a recognizer-stage experiment over detected label text boxes. |
-| ASTER | [MMOCR ASTER model docs](https://mmocr.readthedocs.io/en/dev-1.x/textrecog_models.html#aster) | Candidate scene-text recognizer with flexible rectification; tested as a recognizer-stage experiment over detected label text boxes. |
-| FCENet | [MMOCR FCENet model docs](https://mmocr.readthedocs.io/en/latest/api/generated/mmocr.models.textdet.FCENet.html) and [FCENet paper](https://arxiv.org/abs/2104.10442) | Arbitrary-shape text detector using Fourier contour embeddings; tested with ASTER recognition. |
-| ABINet | [MMOCR ABINet model docs](https://mmocr.readthedocs.io/en/latest/api/generated/mmocr.models.textrecog.ABINet.html) and [ABINet paper](https://arxiv.org/abs/2103.06495) | Candidate scene-text recognizer with autonomous bidirectional iterative language modeling; tested as a recognizer-stage experiment over detected label text boxes. |
-| OpenVINO optimization | [OpenVINO documentation](https://docs.openvino.ai/) | Future CPU optimization path if an alternate OCR engine wins and needs deployment acceleration. |
-| Irregular text detection with graph convolution | [Irregular Scene Text Detection Based on a Graph Convolutional Network](https://www.mdpi.com/1424-8220/23/3/1070) | Motivates graph reasoning for distant text components and irregular text shapes. |
-| Graph reasoning for scene text recognition | [GRNet: a graph reasoning network for enhanced multi-modal learning in scene text recognition](https://academic.oup.com/comjnl/article/67/12/3239/7760133) | Shows graph reasoning as a modern path for distorted, occluded, and irregular scene text. |
-| Arbitrary-shape recognition with self-attention | [On Recognizing Texts of Arbitrary Shapes with 2D Self-Attention](https://huggingface.co/papers/1910.04396) | Supports moving beyond simple left-to-right sequence recognition for irregular text. |
-| Scene text rectification | [Robust Scene Text Recognition with Automatic Rectification](https://arxiv.org/abs/1603.03915) | Supports rectification before recognition for irregular text. |
-| Hypergraph neural network foundation | [Hypergraph Neural Networks](https://huggingface.co/papers/1809.09401) | General foundation for modeling higher-order relationships beyond pairwise graph edges. |
-
-This is not part of the current measured runtime claim. It is recorded as a future architecture because it directly targets the OCR failure mode most specific to alcohol labels: text that is legal/compliance-critical but physically curved, fragmented, or wrapped around the package.
-
----
-
-## What Is Implemented
-
-- FastAPI app with server-rendered Jinja2 templates and local HTMX.
-- Local CSS with high-contrast Pass / Needs Review / Fail states.
-- Single-label upload form with product/application fields.
-- Multi-panel application upload that aggregates OCR across all submitted
-  label panels for one application.
-- Demonstration-only photo OCR intake for real bottle/can/shelf photos.
-- Local COLA Cloud-derived public example demo with side-by-side application-field/OCR evidence comparison.
-- Manifest-backed batch upload for multiple label images.
-- Batch classification/routing into reviewer policy queues.
-- Fixture-backed one-click demos for evaluator review.
-- Filesystem job/result store under `data/jobs/`.
-- Reviewer-ready CSV export with expected values, observed values, evidence,
-  OCR confidence, reviewer actions, and processing time.
-- Deterministic synthetic fixtures and source maps.
-- Local docTR OCR adapter with fixture OCR fallback.
-- Docker Compose and Caddy deployment stack.
-
-Implemented demo scenarios:
-
-| Button | Expected Outcome |
-|---|---|
-| **Run Clean Label Demo** | Pass |
-| **Run Warning Failure Demo** | Fail |
-| **Run ABV Failure Demo** | Fail |
-| **Run Malt Net Contents Failure Demo** | Fail |
-| **Run Import Origin Demo** | Pass |
-| **Run Batch Demo** | 12-row triage table: 3 Pass, 3 Needs Review, 6 Fail |
-
-Implemented rule IDs:
-
-```text
-FORM_BRAND_MATCHES_LABEL
-FORM_FANCIFUL_NAME_MATCHES_LABEL
-FORM_CLASS_TYPE_MATCHES_LABEL
-FORM_ALCOHOL_CONTENT_MATCHES_LABEL
-FORM_NET_CONTENTS_MATCHES_LABEL
-FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL
-COUNTRY_OF_ORIGIN_MATCH
-GOV_WARNING_EXACT_TEXT
-GOV_WARNING_HEADER_CAPS
-GOV_WARNING_HEADER_BOLD_REVIEW
-ALCOHOL_ABV_PROHIBITED
-MALT_NET_CONTENTS_16OZ_PINT
-OCR_LOW_CONFIDENCE
-```
-
----
-
-## What This Is Not
-
-Labels On Tap does not:
-
-- approve or reject COLAs,
-- replace TTB label specialists,
-- provide legal advice,
-- call hosted OCR or hosted ML APIs at runtime,
-- scrape private COLAs Online data,
-- use confidential rejected or Needs Correction applications,
-- implement every federal beverage-alcohol rule in the sprint MVP.
-
-It is a focused, auditable reviewer-support prototype.
-
----
-
-## Stakeholder-Driven Design
-
-The prototype is built around the four stakeholder voices in the prompt, plus the practical needs of an evaluator reviewing the take-home.
-
-| Stakeholder | What They Needed | Product Response |
-|---|---|---|
-| Sarah Chen, Deputy Director of Label Compliance | Reduce routine matching work and make high-volume review easier. | One-click demos, single-label upload, manifest-backed batch upload, result tables, CSV export, and a fixture-backed batch triage demo. |
-| Marcus Williams, IT / Infrastructure | Avoid blocked hosted ML endpoints and keep deployment straightforward. | FastAPI, Docker Compose, Caddy, local OCR adapter, fixture fallback, filesystem storage, and no hosted ML/OCR runtime. |
-| Dave Morrison, Senior Compliance Agent | Avoid false failures for harmless differences like case, punctuation, and OCR noise. | RapidFuzz-based brand matching, normalization for fuzzy fields, and Needs Review for ambiguous scores. |
-| Jenny Park, Junior Compliance Agent | Catch exact checklist failures, especially government warning wording, capitalization, and bold heading typography. | Strict canonical warning check, strict `GOVERNMENT WARNING:` heading check, and a real-adapted boldness preflight that clears strong evidence or routes uncertainty to review. |
-| Evaluator / hiring panel | See a working app quickly and understand the engineering trade-offs. | Five-minute demo path, generated fixtures, tests, architecture docs, trade-offs, and source-backed rule explanations. |
-
-The result is intentionally narrow: it demonstrates the highest-signal workflow first instead of spreading effort across a large unfinished compliance surface.
-
----
-
-## Validation Philosophy
-
-Labels On Tap uses different standards for different kinds of checks.
-
-| Check Type | Examples | Verdict Policy |
-|---|---|---|
-| Strict deterministic checks | Government warning exact text, warning heading capitalization, prohibited `ABV` shorthand, malt `16 fl. oz.` net contents issue | Fail when the source-backed mismatch is clear and OCR confidence is adequate. |
-| Fuzzy application-field checks | Brand name, fanciful name, class/type, bottler/producer name/address, country of origin for imports | Pass on strong match, Needs Review on ambiguity, Fail only on clear mismatch or conflicting evidence. |
-| Numeric application-field checks | Alcohol content, proof equivalence, net contents | Pass on normalized value match, Needs Review when evidence is missing/low-confidence, Fail on clear conflicting label value. |
-| Manual-review checks | Low OCR confidence, uncertain raster typography/boldness, missing warning isolation | Needs Review instead of pretending the image evidence is stronger than it is. |
-
-Every rule check returns:
-
-```text
-rule_id
-name
-category
-verdict
-expected
-observed
-evidence_text
-source_refs
-message
-reviewer_action
-```
-
-This makes the app auditable: a reviewer can inspect not only the verdict, but also the evidence and the reason the rule fired.
-
-Implemented rule behavior in brief:
-
-| Rule ID | Behavior |
-|---|---|
-| `FORM_BRAND_MATCHES_LABEL` | Fuzzy matches the application brand against OCR text; casing differences should pass. |
-| `FORM_FANCIFUL_NAME_MATCHES_LABEL` | Fuzzy matches optional fanciful name when supplied; blank application values are skipped. |
-| `FORM_CLASS_TYPE_MATCHES_LABEL` | Fuzzy matches the application class/type designation against OCR text. |
-| `FORM_ALCOHOL_CONTENT_MATCHES_LABEL` | Extracts ABV/proof values from application and OCR text and compares normalized alcohol percentages. |
-| `FORM_NET_CONTENTS_MATCHES_LABEL` | Extracts net-content quantities and compares normalized volumes across metric and U.S. customary units. |
-| `FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL` | Fuzzy matches optional bottler/producer/importer name and address text when supplied. |
-| `COUNTRY_OF_ORIGIN_MATCH` | Applies to imported products; passes on clear expected-country match, needs review when missing/low confidence, fails on conflicting country evidence. |
-| `GOV_WARNING_EXACT_TEXT` | Compares warning text to canonical wording with whitespace normalization only. |
-| `GOV_WARNING_HEADER_CAPS` | Requires the heading to be exactly `GOVERNMENT WARNING:`. |
-| `GOV_WARNING_HEADER_BOLD_REVIEW` | Uses the real-adapted heading-crop classifier to clear strong bold evidence; uncertain evidence still routes to manual review. |
-| `ALCOHOL_ABV_PROHIBITED` | Flags `ABV` / `A.B.V.` shorthand near an alcohol percentage. |
-| `MALT_NET_CONTENTS_16OZ_PINT` | For malt beverages, flags `16 fl. oz.` style wording when `1 Pint` is expected. |
-| `OCR_LOW_CONFIDENCE` | Routes low-confidence OCR output to Needs Review. |
-
----
-
-## Phase 1 Screening Criteria
-
-The Phase 1 screen-out list is captured in [PHASE1_REJECTION.md](PHASE1_REJECTION.md). In this prototype, "rejection" means a reviewer-facing **Fail** or **Needs Review** reason that would prevent the application from moving cleanly through automated preflight. It is not a claim that the prototype makes final legal determinations.
-
-The list is interview-derived:
-
-- Sarah Chen grounds the application-to-label matching workflow: agents compare application data to label artwork and need faster routine verification.
-- Jenny Park grounds strict warning checks and image-readability concerns: warning wording must be exact, the heading must be all caps/bold, and poor images can prevent review.
-- Dave Morrison grounds false-rejection guardrails: harmless formatting differences should not be treated as true mismatches.
-- Marcus Williams grounds operational intake constraints: the prototype must remain standalone, safe with uploads, and usable without hosted ML/OCR dependencies.
-
-Phase 1 screen-out / Needs Correction reasons:
-
-### Application-Label Mismatch
-
-- Brand name on the label does not match the application.
-- Alcohol content / ABV on the label does not match the application.
-- Class/type designation on the label does not match the application.
-- Net contents on the label do not match the application.
-- Bottler/producer name is missing or does not match expected application data.
-- Bottler/producer address is missing or does not match expected application data.
-- Country of origin is missing for an imported product.
-- Country of origin on the label conflicts with the application.
-- Fanciful name mismatch, if a fanciful name is present in the application.
-- Label artwork does not represent the product/application record being reviewed.
-
-### Government Warning
-
-- Government Health Warning Statement is missing.
-- Government warning text is not exact word-for-word.
-- Government warning punctuation differs from required wording.
-- `GOVERNMENT WARNING:` heading is not all caps.
-- `GOVERNMENT WARNING:` heading is not bold.
-- Warning text is too small.
-- Warning text is buried or not reasonably visible.
-- Warning statement is present but unreadable.
-
-### Image Quality
-
-- Label image is too blurry to read.
-- Label image is photographed at a bad angle.
-- Label image has poor lighting.
-- Label image has glare.
-- Label image is low contrast or otherwise hard to read.
-- Required label areas are cropped, hidden, or not included.
-- OCR confidence is too low to safely verify the label.
-
-### Product-Type / Required Element
-
-- Required common label element is missing: brand name.
-- Required common label element is missing: class/type designation.
-- Required common label element is missing: alcohol content, where required.
-- Required common label element is missing: net contents.
-- Required common label element is missing: bottler/producer name and address.
-- Required common label element is missing: country of origin for imports.
-- Required common label element is missing: Government Health Warning Statement.
-- Beverage-type-specific requirement is missing or inconsistent for wine, malt beverages, or distilled spirits.
-- Distilled spirits label does not include expected spirits fields like class/type, proof/alcohol content, or net contents where applicable.
-- Wine-specific fields such as varietal, appellation, or vintage are inconsistent if they appear in the application/label.
-- Malt beverage-specific rules are violated, such as net contents expression issues.
-
-### False-Rejection Guardrails
-
-- Cosmetic capitalization differences should not automatically reject the application.
-- Harmless punctuation/formatting differences should not automatically reject fuzzy fields like brand name.
-- Ambiguous OCR or fuzzy matches should go to Needs Review, not hard Fail.
-- The tool must distinguish true mismatch from obvious equivalence, like `STONE'S THROW` vs `Stone's Throw`.
-
-### Operational / Intake
-
-- Uploaded label image format is unsupported.
-- Label image file is too large or unusable.
-- Batch application row cannot be matched to its label image.
-- Application data is incomplete enough that automated comparison cannot be trusted.
-- Multiple applications/images are mixed up in a batch.
-- The system cannot process fast enough for reviewer workflow. This is not a COLA rejection reason, but it is a tool-adoption failure reason.
-
-The next fixture milestone is test data coverage for every Phase 1 reason: each reason should have at least one synthetic or curated COLA-style application record, one or more paired label images, expected results, and provenance explaining whether the case is source-backed, synthetic negative data, or public registry-derived data.
-
----
-
-## Five-Minute Demo
-
-For the exact presentation path, use [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
-
-Quick path:
-
-1. Open `https://www.labelsontap.ai`.
-2. Run **Clean Label Demo** and confirm **Pass**.
-3. Run **Warning Failure Demo** and inspect expected vs. observed warning text.
-4. Run **ABV Failure Demo** and inspect the prohibited shorthand evidence.
-5. Run **Malt Net Contents Failure Demo** and inspect the `16 fl. oz.` issue.
-6. Run **Import Origin Demo** and inspect `COUNTRY_OF_ORIGIN_MATCH`.
-7. Run **Batch Demo**, open the Needs Review item, and export CSV.
-
----
-
-## Using The Application
-
-### Demo Queue
-
-The fastest way to evaluate the app is the demo queue on the home page. Each button creates a new filesystem-backed job from deterministic fixture data and redirects to the result table.
-
-Available demo scenarios:
-
-```text
-/demo/clean
-/demo/warning
-/demo/abv
-/demo/net_contents
-/demo/country_origin
-/demo/batch
-```
-
-The demo route uses fixture OCR ground truth so the interview demo is deterministic even if first-run docTR model setup is slow.
-
-### Single Label Upload
-
-The single-label form accepts:
-
-```text
-brand_name
-product_type
-class_type
-alcohol_content
-net_contents
-imported
-country_of_origin
-label_image
-```
-
-Supported image extensions are:
-
-```text
-.jpg
-.jpeg
-.png
-```
-
-Current upload preflight rejects unsupported extensions, path components, double extensions, oversize files, files whose signature does not match JPG/PNG, and corrupt images that Pillow cannot decode. Accepted uploads are stored under randomized server-side filenames while preserving the original filename as metadata.
-
-### Photo OCR Intake Demo
-
-The home page includes a demonstration-only photo intake form for real bottle,
-can, or store-shelf photos where no COLA application fields are available yet.
-
-Routes:
-
-```text
-POST /photo-intake
-GET  /photo-intake/{job_id}/{item_id}
-```
-
-The intake route runs the same upload preflight and local OCR path, then displays
-likely field candidates:
-
-```text
-brand_name_candidate
-product_type_candidate
-class_type_candidate
-alcohol_content_candidate
-net_contents_candidate
-country_of_origin_candidate
-government warning signals
-raw OCR lines
-```
-
-This is intentionally not a verification result. It is an OCR extraction aid for
-demonstrations and local-photo benchmarking. Formal COLA-style verification
-still requires application fields or a manifest so the app can compare expected
-values against label evidence.
-
-### Public COLA Example Demo
-
-For local demonstrations with the COLA Cloud-derived public evaluation corpus,
-the home page includes:
-
-```text
-Run Public COLA Example Demo
-```
-
-Routes:
-
-```text
-GET /cola-cloud-demo
-GET /cola-cloud-demo/{job_id}
-GET /cola-cloud-demo/{job_id}/images/{filename}
-```
-
-This route reads already-downloaded local files under gitignored
-`data/work/cola/`, copies the selected public label panels into a normal job,
-loads cached local OCR when available, and renders a side-by-side comparison:
-
-```text
-application field
-expected value from public COLA data
-best matching label panel
-OCR evidence text
-match score
-reviewer action
-```
-
-It is designed for demonstration and evaluation storytelling. It does not call
-COLA Cloud or TTB at runtime, and it does not make COLA Cloud a dependency of
-the deployed app. If the local `data/work/cola/` corpus is absent, the route
-shows a friendly missing-data page.
-
-### Result Review
-
-Each job page shows:
-
-- total processed items,
-- Pass / Needs Review / Fail counts,
-- per-label top reason,
-- OCR source,
-- processing time,
-- links to item detail pages,
-- CSV export.
-
-The item detail page shows application fields, the submitted label image, warning-related OCR blocks, a warning-heading crop when OCR geometry is available, OCR source, per-rule verdicts, expected/observed values, source refs, reviewer actions, and the full OCR text used for the decision.
-
-### Batch Review
-
-The home page includes a batch upload form that accepts a `manifest.csv` or `manifest.json` file plus multiple `.jpg/.jpeg/.png` label images. The manifest filenames must match the uploaded image filenames. The server validates the manifest, rejects missing or unreferenced images, stores accepted images under randomized filenames, then runs the same OCR and rule engine used by single-label review.
-
-The **Run Batch Demo** button uses the same generated fixture set to demonstrate mixed verdicts, item details, and CSV export without requiring the evaluator to assemble files manually.
-
----
-
-## Architecture
-
-Operational handoff and experiment tracking:
-
-| File | Purpose |
-|---|---|
-| [HANDOFF.md](HANDOFF.md) | Restart guide for a fresh coding session. |
-| [HANDOFF_DETAILED_2026-05-03.md](HANDOFF_DETAILED_2026-05-03.md) | Detailed restart-grade handoff with data-source distinctions, model results, quota strategy, and next steps. |
-| [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) | End-to-end model architecture, evaluation design, and promotion gates. |
-| [MODEL_LOG.md](MODEL_LOG.md) | OCR and graph-evidence experiment ledger. |
-| [TASKS.md](TASKS.md) | Final sprint command center. |
-| [docs/ocr-conveyor.md](docs/ocr-conveyor.md) | Armored tri-engine OCR conveyor for large offline evidence runs. |
-| [docs/performance.md](docs/performance.md) | Measured timings, OCR calibration results, and model metrics. |
+The app is built for the take-home prompt: a working source repository, a
+deployed URL, clear setup instructions, documented assumptions, and defensible
+engineering trade-offs.
+
+## What It Does
+
+- Verifies common TTB label fields:
+  - brand name,
+  - fanciful name when supplied,
+  - class/type,
+  - alcohol content,
+  - net contents,
+  - bottler/producer name and address when supplied,
+  - country of origin for imports,
+  - government health warning text, capitalization, and warning-heading boldness.
+- Supports single-label uploads.
+- Supports one application with multiple label panels.
+- Supports manifest-backed batch uploads using loose images or a ZIP archive.
+- Uses a local filesystem-backed queue so batch jobs do not run inside the
+  browser request.
+- Provides a reviewer dashboard at `/review`.
+- Persists reviewer decisions: `Accept`, `Reject`, `Request correction / better
+  image`, `Override with note`, and `Escalate`.
+- Exports reviewer-ready CSV files.
+- Includes a photo OCR intake demo for bottle/can/shelf photos without
+  application fields.
+- Includes a local public-COLA side-by-side demo when gitignored COLA Cloud data
+  is present.
+
+## Runtime Architecture
 
 ```text
 Browser
-  -> FastAPI routes
-  -> Jinja2 templates + HTMX partials
+  -> FastAPI + Jinja2/HTMX
   -> upload preflight
-  -> fixture OCR fallback or local docTR OCR
-  -> source-backed rule engine
-  -> filesystem job store
-  -> result table, detail page, CSV export
+  -> local OCR adapter
+  -> optional DistilRoBERTa field-support arbiter
+  -> deterministic source-backed rules
+  -> government-warning boldness preflight
+  -> reviewer policy queue
+  -> filesystem job store + CSV export
 ```
 
-Runtime choices:
+The deployed app does not use hosted OCR or hosted ML APIs at runtime.
 
-| Layer | Choice |
-|---|---|
-| Web | FastAPI |
-| UI | Jinja2 + HTMX + local CSS |
-| OCR | docTR adapter; fixture fallback for deterministic demos/tests |
-| Matching | RapidFuzz |
-| Image handling | Pillow; OpenCV-headless dependency reserved for image preflight work |
-| Storage | Filesystem JSON job store |
-| Deployment | Docker Compose + Caddy |
-| Host target | AWS Lightsail Ubuntu VM; portable to EC2 |
+Current OCR path:
 
-The app does not send label images to OpenAI, Anthropic, Google Vision, Azure Vision, AWS Textract, or hosted VLM/OCR services.
+- fixture OCR for deterministic demos and tests,
+- local docTR for real uploads,
+- optional DistilRoBERTa field-support scoring when the model artifact is
+  mounted,
+- exported logistic warning-heading boldness model in
+  `app/models/typography/boldness_logistic_v1.json`.
 
----
+## Reviewer Queues
 
-## Repository Map
+The app keeps raw machine verdicts separate from workflow disposition.
+
+| Raw result | Policy setting | Queue |
+|---|---|---|
+| Pass | acceptance review off | Ready to accept |
+| Pass | acceptance review on | Acceptance review |
+| Fail | rejection review off | Ready to reject |
+| Fail | rejection review on | Rejection review |
+| Needs Review | any | Manual evidence review |
+| Unknown government-warning evidence | warning review off | Fail, then rejection policy |
+| Unknown government-warning evidence | warning review on | Manual evidence review |
+
+This gives the evaluator a clean control board without pretending the prototype
+has production authentication, roles, or final agency-action controls.
+
+## Measured Model Results
+
+These are the useful statistics to report. Raw data and large model artifacts
+live under gitignored `data/work/`.
+
+### Public COLA Corpus
+
+The evaluation corpus was built from COLA Cloud public data after direct
+TTBOnline image access became unreliable.
+
+| Split | Applications | Label images |
+|---|---:|---:|
+| Train | 2,000 | 3,564 |
+| Validation | 1,000 | 1,789 |
+| Locked holdout | 3,000 | 5,082 |
+| Total | 6,000 | 10,435 |
+
+The split is by TTB ID, with no overlap across train, validation, and holdout.
+Sampling is stratified by month, product type, origin/import status, and
+single-panel vs multi-panel applications where available.
+
+### DistilRoBERTa Field-Support Arbiter
+
+The DistilRoBERTa model is a text-pair classifier. It scores whether a candidate
+OCR/application text fragment supports a target field. It is not the OCR engine
+and it is not the compliance decision maker.
+
+Training data: weakly supervised clean text pairs from accepted public COLA
+application fields. Because this run used clean field-pair text rather than
+noisy OCR candidates, the numbers prove the bridge can learn field support; they
+do not prove final OCR extraction accuracy.
+
+| Split | Examples | F1 | False-clear rate |
+|---|---:|---:|---:|
+| Train | 31,008 | 1.000000 | 0.000000 |
+| Validation | 15,417 | 1.000000 | 0.000000 |
+| Locked holdout | 46,992 | 0.999904 | 0.000096 |
+
+Runtime settings:
 
 ```text
-app/
-  routes/               FastAPI UI, job, demo, and health routes
-  schemas/              Pydantic application, OCR, manifest, and result models
-  services/
-    ocr/                fixture and docTR OCR adapters
-    preflight/          upload name/signature/image-quality helpers
-    rules/              source-backed validation logic
-    job_store.py        filesystem job/result storage
-    csv_export.py       CSV output
-  templates/            Jinja2 pages and partials
-  static/               local CSS and vendored HTMX
-
-data/fixtures/demo/     generated synthetic demo labels and JSON payloads
-data/source-maps/       expected results and fixture provenance
-docs/                   focused supporting documentation
-research/legal-corpus/  source ledger, rule matrix, excerpts, reports
-scripts/                corpus/bootstrap/fixture scripts
-tests/                  unit and integration tests
+model_id: distilroberta-base
+threshold: 0.53
+CPU latency: mean 17.56 ms / text pair, p95 19.36 ms / text pair
 ```
 
-Important root docs:
+### Government-Warning Boldness Preflight
 
-- [DEMO_SCRIPT.md](DEMO_SCRIPT.md)
-- [TASKS.md](TASKS.md)
-- [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md)
-- [MODEL_LOG.md](MODEL_LOG.md)
-- [TRADEOFFS.md](TRADEOFFS.md)
-- [PRD.md](PRD.md)
-- [ARCHITECTURE.md](ARCHITECTURE.md)
+Jenny's interview note made the warning heading strict: `GOVERNMENT WARNING:`
+must be all caps and bold. The deployed typography preflight is intentionally
+narrow: it isolates the warning heading crop and classifies whether there is
+strong bold evidence.
 
----
+| Metric | Value |
+|---|---:|
+| Selected threshold | 0.9546 |
+| Validation false-clear rate | 0.000624 |
+| Synthetic holdout false-clear rate | 0.001800 |
+| Held-out approved-COLA clear rate | 92.19% |
+| Real COLA sanity latency | about 37 ms crop + classify |
 
-## Local Environment
+Safety posture: confident bold evidence can pass. Weak, blurry, missing, or
+uncertain crop evidence routes to `Needs Review`. The typography model does not
+hard-reject a label by itself.
 
-Use this path for local development without Docker.
+### Offline Model Experiments
 
-### 1. Clone
+Additional experiments are preserved under `experiments/` and summarized in
+`MODEL_LOG.md` and `docs/performance.md`.
+
+Useful conclusions:
+
+- PaddleOCR improved F1 in a 30-image smoke test but had a higher false-clear
+  rate than docTR, so it was not promoted directly.
+- OpenOCR/SVTRv2 was fast but did not beat docTR/PaddleOCR on field support in
+  the first smoke.
+- PARSeq, ASTER, FCENet, and ABINet were useful research checks but were not
+  promoted because crop dependence, recall loss, or CPU latency made them poor
+  fits for the submission runtime.
+- A graph-aware evidence scorer improved field-support F1 in a 100-application
+  proof of concept, but it is not wired into the deployed app because it still
+  needs artifact export, same-split comparison, CPU latency proof, and tests.
+- CNN-inclusive typography ensembles were tested offline. They remain promotion
+  candidates, but the deployed app keeps the smaller logistic model because it
+  is fast, explainable, serialized as JSON, and already wired with conservative
+  review routing.
+
+## Getting Started
+
+### Option A: Docker
 
 ```bash
 git clone https://github.com/AaronNHorvitz/Labels-On-Tap.git
 cd Labels-On-Tap
-```
-
-### 2. Create a virtual environment
-
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-```
-
-If `python3.11` is not available but your `python3` is Python 3.11+, use:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-`requirements.txt` is the install source of truth. `pyproject.toml` is used only for lightweight pytest configuration.
-
-The local docTR/PyTorch install can be large. The one-click demos and test suite use fixture OCR, so they can run even when real OCR setup is slower.
-
-### 4. Configure environment
-
-```bash
 cp .env.example .env
-```
-
-Runtime job files are written under `data/jobs/`, which is gitignored.
-
-### 5. Bootstrap data
-
-```bash
-python scripts/bootstrap_project.py --if-missing
-```
-
-This validates or creates:
-
-```text
-research/legal-corpus/
-data/fixtures/demo/
-data/source-maps/
-```
-
-### 6. Run locally
-
-```bash
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+docker compose build
+docker compose up -d
+curl http://localhost:8000/health
 ```
 
 Open:
@@ -1121,414 +193,174 @@ Open:
 http://localhost:8000
 ```
 
-### 7. Run tests
+If you are using Podman locally:
+
+```bash
+podman build -t labels-on-tap-app:local .
+podman run --rm -p 8000:8000 -v "$PWD/data/jobs:/app/data/jobs:Z" labels-on-tap-app:local
+```
+
+### Option B: Local Python
+
+Python 3.11 is recommended. The pinned requirements install CPU PyTorch wheels.
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python scripts/bootstrap_project.py --if-missing
+uvicorn app.main:app --reload
+```
+
+Run tests:
 
 ```bash
 pytest -q
 ```
 
----
+Last verified full container test run:
 
-## Docker
-
-```bash
-docker compose build
-docker compose up -d
-curl -H "Host: www.labelsontap.ai" http://localhost/health
+```text
+91 passed
 ```
 
-Stop:
+## Environment
 
-```bash
-docker compose down
+Key settings in `.env.example`:
+
+```text
+DATA_DIR=./data
+OCR_CONFIDENCE_THRESHOLD=0.70
+MAX_UPLOAD_BYTES=10485760
+MAX_MANIFEST_BYTES=1048576
+MAX_ARCHIVE_BYTES=262144000
+MAX_BATCH_ITEMS=400
+PUBLIC_BASE_URL=https://www.labelsontap.ai
+FIELD_SUPPORT_MODEL_ENABLED=true
+FIELD_SUPPORT_MODEL_DIR=/app/models/field_support/distilroberta
+FIELD_SUPPORT_THRESHOLD=0.53
+FIELD_SUPPORT_MAX_CANDIDATES=18
+COLACLOUD_API_KEY=
 ```
 
-Notes:
+`COLACLOUD_API_KEY` is for offline public-corpus pulls only. The deployed app
+does not call COLA Cloud at runtime.
 
-- Caddy listens on ports `80` and `443`.
-- The app service stays internal on port `8000`.
-- The Compose stack uses the production Caddy hostnames. For local Docker smoke tests, send the `www.labelsontap.ai` Host header as shown above.
-- Docker build may take time because docTR/PyTorch dependencies are large.
+## How To Demo
 
----
+From the home page:
+
+1. Run `Clean Label Demo`.
+2. Run `Warning Failure Demo`.
+3. Run `ABV Failure Demo`.
+4. Run `Malt Net Contents Failure Demo`.
+5. Run `Import Origin Demo`.
+6. Run `Batch Demo`.
+7. Open `/review` to show queue-level triage.
+8. Open a result detail page and save a reviewer decision.
+9. Export CSV from a job page.
+10. Upload a local phone photo through `Photo OCR Intake Demo`.
+
+Manual batch upload requires:
+
+- `manifest.csv` or `manifest.json`,
+- loose JPG/PNG files or a ZIP archive,
+- filenames in the manifest matching image basenames.
 
 ## Deployment
 
-### Live Deployment
-
-The public demo at `https://www.labelsontap.ai` is currently deployed on AWS using a simple VM-first stack:
+Production demo target:
 
 ```text
-AWS Lightsail
-Ubuntu VM
-Static IPv4
+https://www.labelsontap.ai
+```
+
+Deployment shape:
+
+```text
+AWS Lightsail / Linux VM
 Docker Compose
-Caddy
-Public DNS
+FastAPI app container
+Caddy reverse proxy with automatic HTTPS
+Filesystem job volume
 ```
 
-The live request path is:
-
-```text
-Browser
-  -> public DNS
-  -> AWS Lightsail static IP
-  -> Caddy on ports 80/443
-  -> FastAPI app container on port 8000
-```
-
-This deployment shape was chosen deliberately for the take-home:
-
-- it mirrors a practical Treasury/AWS hosting posture without adding managed-service sprawl,
-- it keeps the runtime local-first because OCR and rule evaluation happen on the VM,
-- it keeps the app inspectable and easy to reproduce from the repository,
-- it gives automatic HTTPS and apex-to-`www` redirect behavior through Caddy.
-
-The same container stack is portable to EC2 if a later environment needs more control over instance families, storage, or network layout.
-
-### Reference Host Shape
-
-For a VM deployment, the app is designed to run comfortably on:
-
-```text
-AWS Lightsail or EC2
-Ubuntu Linux
-Static IP / Elastic IP
-Docker Compose
-Caddy
-```
-
-DNS:
-
-```text
-www.labelsontap.ai  A  <public VM IP>
-labelsontap.ai      A  <public VM IP>
-```
-
-Caddy behavior:
-
-```text
-www.labelsontap.ai -> reverse proxy to app:8000
-labelsontap.ai     -> permanent redirect to https://www.labelsontap.ai
-```
-
-Server quick path:
+Refresh the deployed app:
 
 ```bash
-sudo apt update && sudo apt upgrade -y
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER
-sudo apt install -y git
-git clone https://github.com/AaronNHorvitz/Labels-On-Tap.git
-cd Labels-On-Tap
-cp .env.example .env
+cd ~/Labels-On-Tap
+git pull
 docker compose build
 docker compose up -d
-docker compose logs -f app
-```
-
-Public smoke:
-
-```bash
-curl -I https://www.labelsontap.ai
+docker compose logs --tail=100 app
 curl https://www.labelsontap.ai/health
-curl -I https://labelsontap.ai
 ```
 
----
+## File Structure
 
-## Data And Fixtures
+```text
+Labels-On-Tap/
+├── app/
+│   ├── main.py                         FastAPI application factory and routes mount
+│   ├── routes/                         Page, upload, demo, job, review, and export routes
+│   ├── schemas/                        Pydantic request/result contracts
+│   ├── services/
+│   │   ├── ocr/                        OCR protocol plus fixture/docTR adapters
+│   │   ├── rules/                      Source-backed compliance checks
+│   │   ├── typography/                 Government-warning heading crop/classifier
+│   │   ├── batch_queue.py              Filesystem-backed batch queue
+│   │   └── ...
+│   ├── templates/                      Jinja2/HTMX pages
+│   ├── static/                         Local CSS
+│   └── models/typography/              Small deployed typography model artifact
+├── data/
+│   ├── fixtures/demo/                  Committed deterministic demo fixtures
+│   ├── source-maps/                    Fixture provenance and expected outputs
+│   ├── jobs/                           Runtime job store, gitignored
+│   └── work/                           ETL/model/OCR work area, gitignored
+├── docs/                               Deployment, security, performance, ETL notes
+├── experiments/                        Offline OCR/model comparison experiments
+├── research/                           Source-backed legal and COLA research corpus
+├── scripts/                            Bootstrap, ETL, sampling, and evaluation scripts
+├── tests/                              Unit and integration tests
+├── Dockerfile
+├── docker-compose.yml
+├── Caddyfile
+├── requirements.txt
+└── pyproject.toml
+```
 
-The app does not depend on a hidden rejected-label corpus.
+Gitignored runtime data:
 
-Data sources:
+```text
+data/jobs/
+data/work/
+```
 
-| Source | Use |
+## Known Limits
+
+- The app is not an official TTB system and does not issue final agency action.
+- Authentication, roles, admin portal, audit-grade logs, and retention policy
+  are future production work.
+- Real uploads use local OCR and may require model warmup.
+- The field-support model's strongest statistics are from clean text-pair
+  supervision. A full noisy OCR holdout evaluation is the next measurement gate.
+- ZIP upload is guarded for the prototype but would need malware scanning and
+  quarantine handling in production.
+- The graph-aware scorer and CNN-inclusive typography ensembles are documented
+  but not deployed.
+
+## Supporting Documents
+
+| File | Purpose |
 |---|---|
-| Runtime user upload | Real label/application review |
-| Synthetic fixtures | Deterministic demos and tests |
-| Legal corpus | Source-backed rule definitions |
-| Public COLA ETL | Local-only official fixture curation |
-| Public approved COLA examples | OCR realism after curated export |
-
-Generated demo fixture set:
-
-```text
-clean_malt_pass
-warning_missing_comma_fail
-warning_title_case_fail
-abv_prohibited_fail
-malt_16_fl_oz_fail
-brand_case_difference_pass
-low_confidence_blur_review
-brand_mismatch_fail
-imported_missing_country_review
-conflicting_country_origin_fail
-warning_missing_block_review
-imported_country_origin_pass
-```
-
-Each fixture has:
-
-```text
-{fixture_id}.png
-{fixture_id}.application.json
-{fixture_id}.ocr_text.json
-{fixture_id}.expected.json
-```
-
-Official public COLA examples are collected separately through a local ETL workspace, not by live scraping in the web app:
-
-```bash
-python scripts/init_public_cola_workspace.py
-python scripts/import_public_cola_search_results.py path/to/search-results.csv --copy-raw
-python scripts/fetch_public_cola_forms.py --missing-only --limit 5 --delay 3 --jitter 1
-python scripts/parse_public_cola_forms.py --limit 5
-python scripts/download_public_cola_images.py --limit 10 --delay 2 --jitter 1
-python scripts/export_public_cola_fixtures.py --ttb-id 03235001000005
-python scripts/run_public_cola_sampling_job.py --seed 20260503 --target-total 500 --exclude-ttb-id-file data/work/public-cola/sampling/exclusions/seed-20260502-300.txt --resume
-```
-
-Bulk ETL data stays in gitignored `data/work/public-cola/`. Reviewed fixtures can be exported to `data/fixtures/public-cola/`. See [docs/public-cola-etl.md](docs/public-cola-etl.md).
-
-See [docs/fixture-generation.md](docs/fixture-generation.md).
-
----
-
-## Batch Manifest Format
-
-The generated batch demo uses a CSV manifest and a JSON manifest. These files are part of the deterministic fixture pipeline and use the same contract as the manual batch upload form.
-
-Current CSV columns:
-
-```csv
-filename,fixture_id,product_type,brand_name,class_type,alcohol_content,net_contents,country_of_origin,imported,expected_verdict
-clean_malt_pass.png,clean_malt_pass,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint,,false,pass
-imported_country_origin_pass.png,imported_country_origin_pass,wine,VALLEY RIDGE,Red Wine,13.5% ALC/VOL,750 mL,France,true,pass
-```
-
-Current JSON item shape:
-
-```json
-{
-  "fixture_id": "imported_country_origin_pass",
-  "filename": "imported_country_origin_pass.png",
-  "product_type": "wine",
-  "brand_name": "VALLEY RIDGE",
-  "class_type": "Red Wine",
-  "alcohol_content": "13.5% ALC/VOL",
-  "net_contents": "750 mL",
-  "country_of_origin": "France",
-  "imported": true,
-  "expected": {
-    "overall_verdict": "pass",
-    "checked_rule_ids": ["COUNTRY_OF_ORIGIN_MATCH"],
-    "triggered_rule_ids": []
-  }
-}
-```
-
-Manual manifest upload is wired into the home page batch form. The fixture generator, tests, and batch demo use the same schema so the data contract stays stable.
-
----
-
-## API / Routes
-
-| Route | Method | Purpose |
-|---|---|---|
-| `/` | GET | Home page, demo buttons, photo intake, single upload form |
-| `/health` | GET | Health check |
-| `/photo-intake` | POST | Create a demonstration-only photo OCR intake job |
-| `/photo-intake/{job_id}/{item_id}` | GET | Photo OCR intake candidate-field page |
-| `/cola-cloud-demo` | GET | Create a local public COLA side-by-side comparison demo if data/work is present |
-| `/cola-cloud-demo/{job_id}` | GET | Public COLA application-field/OCR evidence comparison |
-| `/cola-cloud-demo/{job_id}/images/{filename}` | GET | Copied label panel image for the comparison job |
-| `/jobs` | POST | Create a single-label job |
-| `/jobs/batch` | POST | Create a manifest-backed batch job |
-| `/jobs/{job_id}` | GET | Job result table |
-| `/jobs/{job_id}/status` | GET | HTMX status partial |
-| `/jobs/{job_id}/items/{item_id}` | GET | Result detail |
-| `/jobs/{job_id}/results.csv` | GET | CSV export |
-| `/demo/{scenario}` | GET | One-click fixture demo |
-
-Demo scenarios:
-
-```text
-clean
-warning
-abv
-net_contents
-country_origin
-batch
-```
-
----
-
-## Testing And Quality Gates
-
-Run:
-
-```bash
-python -m py_compile scripts/bootstrap_legal_corpus.py scripts/validate_legal_corpus.py scripts/bootstrap_project.py scripts/seed_demo_fixtures.py $(rg --files app -g '*.py')
-python scripts/bootstrap_project.py --if-missing
-python scripts/validate_legal_corpus.py
-pytest -q
-```
-
-Current test coverage includes:
-
-- warning rules,
-- ABV detection,
-- malt net-contents rule,
-- brand fuzzy matching,
-- country-of-origin behavior,
-- fixture/demo scenarios,
-- bootstrap validation,
-- app route smoke tests.
-
----
-
-## Performance Expectations
-
-The evaluator demos are intentionally fast and deterministic because they use fixture OCR ground truth. Real uploads use the local docTR adapter, so first-run behavior can include model download or warmup depending on the host environment.
-
-Performance goals for the deployed prototype:
-
-| Area | Target |
-|---|---|
-| Home page / demo route | Immediate response after app startup |
-| Fixture-backed demo processing | Fast enough for live interview walkthrough |
-| Real OCR upload | Approximately 5 seconds per label after OCR warmup, dependent on VM CPU/RAM and image complexity |
-| Batch UX | Show a job/results page immediately and let reviewers inspect completed results |
-| Review policy | Next layer: route pass/fail candidates and unknown government-warning cases through optional reviewer approval before final disposition |
-
-The repository does not claim measured production OCR latency yet. Final measured values should be recorded in [docs/performance.md](docs/performance.md) after local Docker and public VM smoke testing.
-
----
-
-## Security And Privacy
-
-Implemented upload controls:
-
-- extension allowlist for `.jpg`, `.jpeg`, `.png`,
-- double-extension rejection,
-- path component rejection,
-- image signature validation,
-- max upload size enforcement,
-- randomized server-side filenames,
-- original filename preserved as metadata only,
-- Pillow decode validation after signature check.
-
-Runtime privacy:
-
-- no hosted ML/OCR APIs,
-- no private COLAs Online access,
-- no confidential rejected-label data,
-- uploaded files/results stored only in local filesystem job folders for the prototype.
-
----
-
-## Known Limitations
-
-- Batch upload uses local FastAPI background tasks with filesystem progress
-  polling for the sprint prototype; a production version should use a durable
-  worker queue.
-- Government warning boldness routes to Needs Review instead of hard-failing from raster font-weight guesses.
-- docTR local OCR may require model download/warmup.
-- The active rule set is intentionally narrow.
-- Production use would require auth, audit logs, retention policy, formal security review, Section 508 review, and deeper legal validation.
-
-See [TRADEOFFS.md](TRADEOFFS.md) for the fuller rationale.
-
----
-
-## Troubleshooting
-
-### Dependency install is slow
-
-`python-doctr[torch]` can pull large CPU OCR dependencies. This is expected. The fixture demos and tests do not require hosted OCR or live external data.
-
-### First real OCR upload is slow
-
-The first docTR run may need model initialization or cached weights. Run a demo first to confirm the web app is healthy, then test a real upload.
-
-### Docker health check fails on localhost
-
-The Compose stack uses the production Caddy hostnames. Use:
-
-```bash
-curl -H "Host: www.labelsontap.ai" http://localhost/health
-```
-
-Do not use `curl http://localhost:8000/health` with the default Compose file because the FastAPI app service is internal to the Docker network.
-
-### Public domain does not resolve
-
-Check:
-
-```bash
-dig labelsontap.ai
-dig www.labelsontap.ai
-curl -I http://labelsontap.ai
-curl -I https://www.labelsontap.ai
-docker compose ps
-docker compose logs caddy
-docker compose logs app
-```
-
-Confirm that both A records point to the VM Elastic IP and that ports `80` and `443` are open.
-
-### Demos work but real uploads fail
-
-Check:
-
-- uploaded file extension is `.jpg`, `.jpeg`, or `.png`,
-- file signature matches the extension family,
-- Docker container has enough RAM for docTR/PyTorch,
-- app logs do not show OCR model import or weight-cache failures,
-- result detail page says whether OCR source was `fixture ground truth` or local docTR.
-
----
-
-## Future Production Hardening
-
-A production federal version would need additional work beyond the take-home prototype:
-
-- authentication and role-based access control,
-- audit logs and immutable review history,
-- formal records retention and cleanup policy,
-- Section 508 accessibility review,
-- vulnerability scanning and software bill of materials,
-- signed container images,
-- secrets management,
-- centralized logging and monitoring,
-- background worker queue for large batches,
-- PostgreSQL or an approved enterprise data store,
-- broader rule coverage across wine, spirits, malt beverages, formulas, appellations, claims, and prohibited statements,
-- formal legal review of rule interpretations,
-- performance benchmarking with representative image sets,
-- explicit integration plan for COLAs Online or internal workflows.
-
-For this sprint, those items stay outside the MVP so the deployed demo can remain focused, inspectable, and reliable.
-
----
-
-## Primary Public And Technical Sources
-
-- TTB Public COLA Registry: https://www.ttb.gov/regulated-commodities/labeling/cola-public-registry
-- TTB Form 5100.31: https://www.ttb.gov/system/files/images/pdfs/forms/f510031.pdf
-- 27 CFR Part 4 — Wine: https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-4
-- 27 CFR Part 5 — Distilled Spirits: https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-5
-- 27 CFR Part 7 — Malt Beverages: https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-7
-- 27 CFR Part 13 — Labeling Proceedings: https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-13
-- 27 CFR Part 16 — Government Health Warning: https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-16
-- docTR installation docs: https://mindee.github.io/doctr/getting_started/installing.html
-- FastAPI file upload docs: https://fastapi.tiangolo.com/tutorial/request-files/
-- Caddy automatic HTTPS docs: https://caddyserver.com/docs/automatic-https
-- Hastie, Trevor; Tibshirani, Robert; Friedman, Jerome. *The Elements of Statistical Learning: Data Mining, Inference, and Prediction*. 2nd ed., Springer, 2009.
-
----
-
-## License / Use
-
-This repository is a take-home prototype for evaluation. It is not an official TTB system, not an official Treasury product, and not legal advice.
+| `ARCHITECTURE.md` | Current runtime architecture and deployment shape |
+| `MODEL_ARCHITECTURE.md` | Current model stack and offline promotion candidates |
+| `MODEL_LOG.md` | Concise experiment ledger and measured statistics |
+| `TRADEOFFS.md` | Why the app uses this architecture for the submission |
+| `TASKS.md` | Final delivery checklist |
+| `DEMO_SCRIPT.md` | Suggested live demo flow |
+| `docs/performance.md` | Detailed performance and model measurements |
+| `docs/deployment.md` | Deployment notes |
+| `docs/security-and-privacy.md` | Prototype security posture |

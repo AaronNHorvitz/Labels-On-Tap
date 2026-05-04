@@ -22,6 +22,8 @@ SOURCE_MAP_DIR = DATA_DIR / "source-maps"
 OCR_CONFIDENCE_THRESHOLD = float(os.getenv("OCR_CONFIDENCE_THRESHOLD", "0.70"))
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
 MAX_MANIFEST_BYTES = int(os.getenv("MAX_MANIFEST_BYTES", str(1 * 1024 * 1024)))
+MAX_ARCHIVE_BYTES = int(os.getenv("MAX_ARCHIVE_BYTES", str(250 * 1024 * 1024)))
+MAX_BATCH_ITEMS = int(os.getenv("MAX_BATCH_ITEMS", "400"))
 FIELD_SUPPORT_MODEL_ENABLED = os.getenv("FIELD_SUPPORT_MODEL_ENABLED", "true").lower() in {
     "1",
     "true",

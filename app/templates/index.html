@@ -4,7 +4,7 @@
 <section class="workspace">
   <div class="intro">
     <h1>Alcohol Label Verification</h1>
-    <p>Run source-backed checks against demo labels, one label image, or a manifest-backed image batch.</p>
+    <p>Run source-backed checks against demo labels, one label image, free-form label photos, or manifest-backed batches.</p>
   </div>
 
   <section class="panel">
@@ -101,7 +101,11 @@
       </label>
       <label class="full">
         Label images
-        <input name="label_images" type="file" accept=".jpg,.jpeg,.png" multiple required>
+        <input name="label_images" type="file" accept=".jpg,.jpeg,.png" multiple>
+      </label>
+      <label class="full">
+        Or ZIP archive of label images
+        <input name="image_archive" type="file" accept=".zip">
       </label>
       <fieldset class="full">
         <legend>Review policy</legend>

@@ -9,6 +9,24 @@
 {% set rejection_review_count = results|selectattr("policy_queue", "equalto", "rejection_review")|list|length %}
 {% set ready_reject_count = results|selectattr("policy_queue", "equalto", "ready_to_reject")|list|length %}
 
+{% if queue_status %}
+<section class="panel queue-status-panel">
+  <div class="queue-status">
+    <div>
+      <strong>Queue status:</strong> {{ queue_status.status|replace("_", " ")|title }}
+      <span>· {{ queue_status.processed }} / {{ queue_status.total }} processed</span>
+    </div>
+    {% if queue_status.status in ["queued", "running"] %}
+    <span class="badge needs_review">Worker active</span>
+    {% elif queue_status.status == "completed" %}
+    <span class="badge pass">Completed</span>
+    {% elif queue_status.status == "failed" %}
+    <span class="badge fail">Failed</span>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
 <section class="summary-grid">
   <div class="metric"><span>{{ results|length }} / {{ total }}</span><small>Processed</small></div>
   <div class="metric pass"><span>{{ pass_count }}</span><small>Pass</small></div>

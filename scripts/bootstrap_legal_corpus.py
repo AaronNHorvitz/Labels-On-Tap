@@ -109,6 +109,21 @@ def mkdirs() -> None:
 
 
 def starter_sources() -> list[dict[str, object]]:
+    """Return the starter source ledger rows.
+
+    Returns
+    -------
+    list[dict[str, object]]
+        Machine-readable records for statutes, regulations, TTB guidance,
+        stakeholder notes, and internal research reports.
+
+    Notes
+    -----
+    This seed data is intentionally conservative: Tier 1 records are official
+    sources, while internal synthesis records support fixture design and
+    ``Needs Review`` heuristics rather than hard rejection rules.
+    """
+
     return [
         {
             "source_id": "SRC_27_USC_205",
@@ -279,6 +294,21 @@ def starter_sources() -> list[dict[str, object]]:
 
 
 def starter_criteria() -> list[dict[str, object]]:
+    """Return starter source-backed rule matrix rows.
+
+    Returns
+    -------
+    list[dict[str, object]]
+        Rule definitions with source references, intended verdict policy,
+        detection method, fixture references, and UI copy.
+
+    Notes
+    -----
+    The bootstrap matrix is a scaffold. Runtime rules can be narrower than this
+    research matrix, but every promoted rule should keep the same source-backed
+    evidence chain.
+    """
+
     return [
         {
             "rule_id": "GOV_WARNING_EXACT_TEXT",
@@ -518,6 +548,15 @@ def starter_criteria() -> list[dict[str, object]]:
 
 
 def starter_fixtures() -> list[dict[str, object]]:
+    """Return starter fixture provenance rows.
+
+    Returns
+    -------
+    list[dict[str, object]]
+        Fixture metadata connecting synthetic examples to rule IDs, source
+        references, expected verdicts, and mutation notes.
+    """
+
     return [
         {
             "fixture_id": "warning_missing_machinery_comma",
@@ -563,6 +602,19 @@ def starter_fixtures() -> list[dict[str, object]]:
 
 
 def render_source_ledger_md(sources: list[dict[str, object]]) -> str:
+    """Render the source ledger as Markdown.
+
+    Parameters
+    ----------
+    sources:
+        Source ledger records returned by :func:`starter_sources`.
+
+    Returns
+    -------
+    str
+        Human-readable Markdown table suitable for committed documentation.
+    """
+
     rows = []
     for s in sources:
         used_for = ", ".join(s.get("used_for", []))
@@ -588,6 +640,20 @@ def render_source_ledger_md(sources: list[dict[str, object]]) -> str:
 
 
 def render_criteria_md(criteria: list[dict[str, object]]) -> str:
+    """Render the rule matrix as Markdown.
+
+    Parameters
+    ----------
+    criteria:
+        Rule matrix records returned by :func:`starter_criteria`.
+
+    Returns
+    -------
+    str
+        Markdown table summarizing source references, verdict policy, status,
+        and fixture coverage.
+    """
+
     rows = []
     for r in criteria:
         sources = ", ".join(r.get("source_refs", []))
@@ -614,6 +680,19 @@ def render_criteria_md(criteria: list[dict[str, object]]) -> str:
 
 
 def render_fixture_md(fixtures: list[dict[str, object]]) -> str:
+    """Render fixture provenance as Markdown.
+
+    Parameters
+    ----------
+    fixtures:
+        Fixture records returned by :func:`starter_fixtures`.
+
+    Returns
+    -------
+    str
+        Markdown table mapping each fixture to expected rule outcomes.
+    """
+
     rows = []
     for f in fixtures:
         rows.append(
@@ -637,6 +716,19 @@ def render_fixture_md(fixtures: list[dict[str, object]]) -> str:
 
 
 def write_static_docs(force: bool) -> None:
+    """Write the static legal-corpus and security documentation files.
+
+    Parameters
+    ----------
+    force:
+        When ``True``, overwrite existing generated files.
+
+    Notes
+    -----
+    These files are intentionally plain Markdown so the repository stays useful
+    even without running the application.
+    """
+
     write_text(
         ROOT / "research/legal-corpus/README.md",
         f"""
@@ -965,6 +1057,14 @@ def write_static_docs(force: bool) -> None:
 
 
 def write_report_placeholders(force: bool) -> None:
+    """Create sanitized research report placeholders.
+
+    Parameters
+    ----------
+    force:
+        When ``True``, overwrite existing placeholder reports.
+    """
+
     reports = [
         "01-public-cola-data-strategy.md",
         "02-postmarket-anomaly-strategy.md",
@@ -1017,6 +1117,19 @@ def write_report_placeholders(force: bool) -> None:
 
 
 def write_validation_script(force: bool) -> None:
+    """Generate the legal-corpus validation helper script.
+
+    Parameters
+    ----------
+    force:
+        When ``True``, overwrite ``scripts/validate_legal_corpus.py``.
+
+    Notes
+    -----
+    The generated script validates source references, verdict policy, and
+    fixture provenance. It remains stdlib-only so it can run in a fresh checkout.
+    """
+
     content = r'''
 #!/usr/bin/env python3
 """
@@ -1104,6 +1217,14 @@ if __name__ == "__main__":
 
 
 def write_data_files(force: bool) -> None:
+    """Write machine-readable and Markdown legal-corpus data files.
+
+    Parameters
+    ----------
+    force:
+        When ``True``, overwrite generated JSON, CSV, and Markdown outputs.
+    """
+
     sources = starter_sources()
     criteria = starter_criteria()
     fixtures = starter_fixtures()
@@ -1160,6 +1281,8 @@ def write_data_files(force: bool) -> None:
 
 
 def main() -> None:
+    """Run the legal-corpus bootstrap command-line entrypoint."""
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="overwrite generated files if they already exist")
     args = parser.parse_args()

@@ -1,18 +1,25 @@
+# Web application
 fastapi
-httpx
-beautifulsoup4
 uvicorn[standard]
 jinja2
 python-multipart
+python-dotenv
+httpx
+beautifulsoup4
+pydantic
+
+# Local OCR / image processing
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.11.0+cpu
 torchvision==0.26.0+cpu
 python-doctr==1.0.1
 opencv-python-headless
 pillow
+
+# Matching and optional field-support model
 rapidfuzz
-pydantic
-python-dotenv
-pytest
 transformers==5.7.0
 safetensors
+
+# Test runner
+pytest

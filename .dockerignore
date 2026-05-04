@@ -1,8 +1,11 @@
 .git
+.claude
 .codex
 .venv
+.venv-gpu
 __pycache__
 .pytest_cache
 data/jobs
 data/work
+e2e_results
 *.pyc

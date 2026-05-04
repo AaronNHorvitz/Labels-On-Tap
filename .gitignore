@@ -27,6 +27,7 @@ htmlcov/
 *.key
 .codex
 .codex/
+.claude/
 
 # Editors / OS
 .vscode/
@@ -44,6 +45,7 @@ Thumbs.db
 
 # Runtime data
 data/jobs/
+e2e_results/
 
 # Local ETL / benchmark data
 data/work/

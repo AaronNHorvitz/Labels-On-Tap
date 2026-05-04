@@ -42,6 +42,18 @@ body {
   color: #d9e6dd;
 }
 
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.site-nav a {
+  color: #d9e6dd;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .workspace {
   width: min(1120px, calc(100% - 2rem));
   margin: 2rem auto;
@@ -195,6 +207,34 @@ textarea {
   color: var(--muted);
 }
 
+.dashboard-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dashboard-link.review small,
+.dashboard-link.fail small {
+  color: white;
+}
+
+.queue-status-panel {
+  padding: 0.85rem 1rem;
+}
+
+.queue-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-filter {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -339,6 +379,8 @@ pre {
 
 @media (max-width: 760px) {
   .site-header,
+  .queue-status,
+  .dashboard-filter,
   .intro,
   .page-title {
     display: block;

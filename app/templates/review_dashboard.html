@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Reviewer Dashboard{% endblock %}
+{% block content %}
+<section class="workspace">
+  <div class="page-title">
+    <div>
+      <h1>Reviewer Dashboard</h1>
+      <p>{{ total_items }} reviewed labels across {{ job_count }} jobs. Prototype view only; authentication and role controls are future production work.</p>
+    </div>
+    <a class="button secondary" href="/">New Upload</a>
+  </div>
+
+  <section class="summary-grid queue-grid">
+    <a class="metric dashboard-link" href="/review?queue=ready_to_accept"><span>{{ queue_counts.ready_to_accept }}</span><small>Ready to accept</small></a>
+    <a class="metric dashboard-link" href="/review?queue=acceptance_review"><span>{{ queue_counts.acceptance_review }}</span><small>Acceptance review</small></a>
+    <a class="metric review dashboard-link" href="/review?queue=manual_evidence_review"><span>{{ queue_counts.manual_evidence_review }}</span><small>Manual evidence review</small></a>
+    <a class="metric dashboard-link" href="/review?queue=rejection_review"><span>{{ queue_counts.rejection_review }}</span><small>Rejection review</small></a>
+    <a class="metric fail dashboard-link" href="/review?queue=ready_to_reject"><span>{{ queue_counts.ready_to_reject }}</span><small>Ready to reject</small></a>
+  </section>
+
+  <section class="panel">
+    <div class="dashboard-filter">
+      <strong>Showing:</strong> {{ selected_queue|replace("_", " ")|title }}
+      <a href="/review">Show all</a>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Verdict</th>
+          <th>Queue</th>
+          <th>Reason</th>
+          <th>Reviewer</th>
+          <th>Job</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.filename }}</td>
+          <td><span class="badge {{ row.overall_verdict }}">{{ row.overall_verdict|replace("_", " ")|title }}</span></td>
+          <td>{{ row.policy_queue|replace("_", " ")|title }}</td>
+          <td>{{ row.top_reason }}</td>
+          <td>
+            {% if row.reviewer_decision %}
+            {{ row.reviewer_decision|replace("_", " ")|title }}
+            {% else %}
+            Pending
+            {% endif %}
+          </td>
+          <td>
+            <a href="/jobs/{{ row.job_id }}">{{ row.job_label or row.job_id }}</a>
+            {% if row.queue_status %}<br><small>{{ row.queue_status|title }}</small>{% endif %}
+          </td>
+          <td><a href="/jobs/{{ row.job_id }}/items/{{ row.item_id }}">Review</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">No labels match this queue.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</section>
+{% endblock %}

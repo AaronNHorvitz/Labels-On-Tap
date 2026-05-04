@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import JOBS_DIR, ROOT
 from app.routes import demo, health, jobs, ui
+from app.services.batch_queue import start_worker
 
 
 def create_app() -> FastAPI:
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(ui.router)
     app.include_router(demo.router)
     app.include_router(jobs.router)
+    start_worker(jobs.process_queued_batch_job)
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):

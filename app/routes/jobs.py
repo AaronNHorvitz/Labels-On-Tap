@@ -3,8 +3,9 @@
 Notes
 -----
 The sprint prototype uses a filesystem job store. Single uploads process
-immediately; manifest-backed batch uploads schedule local background tasks so
-the browser can redirect to a polling progress page while results are written.
+immediately; manifest-backed batch uploads write a durable local queue record
+so the browser can redirect to a polling progress page while a local worker
+writes results.
 """
 
 from __future__ import annotations
@@ -15,17 +16,19 @@ from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
+from zipfile import BadZipFile, ZipFile
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from PIL import Image
 
-from app.config import JOBS_DIR, MAX_MANIFEST_BYTES, MAX_UPLOAD_BYTES, ROOT
+from app.config import JOBS_DIR, MAX_ARCHIVE_BYTES, MAX_BATCH_ITEMS, MAX_MANIFEST_BYTES, MAX_UPLOAD_BYTES, ROOT
 from app.schemas.application import ColaApplication
 from app.schemas.manifest import ManifestItem
 from app.schemas.ocr import OCRResult
 from app.services.csv_export import results_to_csv
+from app.services.batch_queue import enqueue_batch, load_queue_status
 from app.services.cola_cloud_demo import (
     build_comparison_payload,
     load_cached_conveyor_ocr,
@@ -51,6 +54,7 @@ from app.services.preflight.file_signature import (
     is_pillow_decodable_image,
 )
 from app.services.preflight.upload_policy import (
+    ALLOWED_IMAGE_EXTENSIONS,
     copy_upload_with_size_limit,
     random_upload_filename,
     read_upload_with_size_limit,
@@ -142,6 +146,78 @@ def _validate_image_upload(upload: UploadFile, temp_dir: Path) -> ValidatedUploa
         temp_path=temp_path,
         upload_size=upload_size,
     )
+
+
+def _validate_image_bytes(original_filename: str, content: bytes, temp_dir: Path) -> ValidatedUpload:
+    """Validate one in-memory image extracted from a ZIP archive."""
+
+    try:
+        validate_upload_name(original_filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"{original_filename}: {exc}") from exc
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"{original_filename}: upload exceeds maximum size of {MAX_UPLOAD_BYTES} bytes.")
+    stored_filename = random_upload_filename(original_filename)
+    temp_path = temp_dir / stored_filename
+    temp_path.write_bytes(content)
+    if not has_allowed_image_signature(temp_path):
+        raise HTTPException(status_code=400, detail=f"{original_filename}: upload does not match JPG/PNG signature")
+    if not is_pillow_decodable_image(temp_path):
+        raise HTTPException(status_code=400, detail=f"{original_filename}: upload is not a readable JPG/PNG image")
+    return ValidatedUpload(
+        original_filename=original_filename,
+        stored_filename=stored_filename,
+        temp_path=temp_path,
+        upload_size=len(content),
+    )
+
+
+def _validate_zip_upload(upload: UploadFile, temp_dir: Path) -> list[ValidatedUpload]:
+    """Extract and validate JPG/PNG label images from one ZIP archive.
+
+    The manifest still controls which images are used. ZIP paths are flattened
+    to their basename so ``labels/front.png`` matches ``front.png`` in the
+    manifest without trusting archive path components.
+    """
+
+    if not upload.filename:
+        return []
+    if Path(upload.filename).suffix.lower() != ".zip":
+        raise HTTPException(status_code=400, detail="Image archive must be a .zip file.")
+    try:
+        archive_content = read_upload_with_size_limit(upload.file, MAX_ARCHIVE_BYTES)
+    except ValueError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+
+    try:
+        archive = ZipFile(BytesIO(archive_content))
+    except BadZipFile as exc:
+        raise HTTPException(status_code=400, detail="Image archive is not a valid ZIP file.") from exc
+
+    uploads: list[ValidatedUpload] = []
+    total_uncompressed = 0
+    with archive:
+        for member in archive.infolist():
+            if member.is_dir():
+                continue
+            original_filename = Path(member.filename).name
+            if not original_filename:
+                continue
+            if Path(original_filename).suffix.lower() not in ALLOWED_IMAGE_EXTENSIONS:
+                continue
+            total_uncompressed += member.file_size
+            if total_uncompressed > MAX_ARCHIVE_BYTES:
+                raise HTTPException(status_code=413, detail=f"ZIP contents exceed maximum size of {MAX_ARCHIVE_BYTES} bytes.")
+            if len(uploads) >= MAX_BATCH_ITEMS:
+                raise HTTPException(status_code=400, detail=f"ZIP contains more than the maximum {MAX_BATCH_ITEMS} label images.")
+            try:
+                content = archive.read(member)
+            except RuntimeError as exc:
+                raise HTTPException(status_code=400, detail=f"{original_filename}: could not read ZIP member.") from exc
+            uploads.append(_validate_image_bytes(original_filename, content, temp_dir))
+    if not uploads:
+        raise HTTPException(status_code=400, detail="ZIP archive did not contain JPG or PNG label images.")
+    return uploads
 
 
 def _move_validated_upload(job_id: str, upload: ValidatedUpload) -> Path:
@@ -709,11 +785,68 @@ def cola_cloud_demo_image(job_id: str, filename: str) -> FileResponse:
     return FileResponse(image_path)
 
 
+@router.get("/review", response_class=HTMLResponse)
+def review_dashboard(request: Request, queue: str = "all") -> HTMLResponse:
+    """Render a lightweight reviewer dashboard across all filesystem jobs."""
+
+    rows: list[dict[str, Any]] = []
+    queue_counts = {
+        "ready_to_accept": 0,
+        "acceptance_review": 0,
+        "manual_evidence_review": 0,
+        "rejection_review": 0,
+        "ready_to_reject": 0,
+    }
+    job_count = 0
+    if JOBS_DIR.exists():
+        for path in sorted(JOBS_DIR.iterdir(), key=lambda candidate: candidate.stat().st_mtime, reverse=True):
+            if not path.is_dir() or not (path / "manifest.json").exists():
+                continue
+            job_id = path.name
+            try:
+                manifest = load_manifest(job_id)
+                results = list_results(job_id)
+            except Exception:
+                continue
+            job_count += 1
+            queue_status = load_queue_status(job_id)
+            for result in results:
+                queue_counts[result.policy_queue] = queue_counts.get(result.policy_queue, 0) + 1
+                if queue != "all" and result.policy_queue != queue:
+                    continue
+                rows.append(
+                    {
+                        "job_id": job_id,
+                        "job_label": manifest.get("label", ""),
+                        "item_id": result.item_id,
+                        "filename": result.filename,
+                        "overall_verdict": result.overall_verdict,
+                        "policy_queue": result.policy_queue,
+                        "top_reason": result.top_reason,
+                        "reviewer_decision": result.reviewer_decision,
+                        "reviewed_at": result.reviewed_at,
+                        "queue_status": queue_status.get("status") if queue_status else "",
+                    }
+                )
+    return templates.TemplateResponse(
+        request,
+        "review_dashboard.html",
+        {
+            "rows": rows,
+            "selected_queue": queue,
+            "queue_counts": queue_counts,
+            "job_count": job_count,
+            "total_items": sum(queue_counts.values()),
+        },
+    )
+
+
 @router.post("/jobs/batch")
 def create_batch_job(
     background_tasks: BackgroundTasks,
     manifest_file: UploadFile = File(...),
-    label_images: list[UploadFile] = File(...),
+    label_images: list[UploadFile] | None = File(None),
+    image_archive: UploadFile | None = File(None),
     review_unknown_government_warning: bool = Form(False),
     require_review_before_rejection: bool = Form(False),
     require_review_before_acceptance: bool = Form(False),
@@ -724,8 +857,9 @@ def create_batch_job(
     ----------
     manifest_file:
         CSV or JSON manifest with one row/item per label image.
-    label_images:
-        Uploaded label images referenced by the manifest.
+    label_images, image_archive:
+        Uploaded label images referenced by the manifest. Reviewers can upload
+        loose image files, one ZIP archive, or both.
 
     Returns
     -------
@@ -741,11 +875,12 @@ def create_batch_job(
 
     Notes
     -----
-    The sprint implementation uses FastAPI background tasks and filesystem
-    results. A production implementation should move this to a durable worker
-    queue.
+    The route writes a durable queue record and returns immediately. A local
+    filesystem-backed worker processes pending jobs and recovers interrupted
+    running jobs on application startup.
     """
 
+    del background_tasks
     if not manifest_file.filename:
         raise HTTPException(status_code=400, detail="Missing manifest filename")
     try:
@@ -756,7 +891,13 @@ def create_batch_job(
 
     JOBS_DIR.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="_upload-", dir=JOBS_DIR) as temp_dir:
-        uploads = [_validate_image_upload(upload, Path(temp_dir)) for upload in label_images]
+        uploads = [_validate_image_upload(upload, Path(temp_dir)) for upload in (label_images or []) if upload.filename]
+        if image_archive is not None and image_archive.filename:
+            uploads.extend(_validate_zip_upload(image_archive, Path(temp_dir)))
+        if not uploads:
+            raise HTTPException(status_code=400, detail="Upload label images as loose JPG/PNG files or a ZIP archive.")
+        if len(uploads) > MAX_BATCH_ITEMS:
+            raise HTTPException(status_code=400, detail=f"Batch contains more than the maximum {MAX_BATCH_ITEMS} label images.")
         by_filename: dict[str, ValidatedUpload] = {}
         for upload in uploads:
             if upload.original_filename in by_filename:
@@ -798,13 +939,14 @@ def create_batch_job(
                 }
             )
 
-    background_tasks.add_task(
-        _process_batch_items,
+    enqueue_batch(
         job_id,
-        queued_items,
-        review_unknown_government_warning,
-        require_review_before_rejection,
-        require_review_before_acceptance,
+        {
+            "items": queued_items,
+            "review_unknown_government_warning": review_unknown_government_warning,
+            "require_review_before_rejection": require_review_before_rejection,
+            "require_review_before_acceptance": require_review_before_acceptance,
+        },
     )
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
 
@@ -815,12 +957,18 @@ def _process_batch_items(
     review_unknown_government_warning: bool,
     require_review_before_rejection: bool,
     require_review_before_acceptance: bool,
+    progress_callback: Any | None = None,
 ) -> None:
-    """Process batch items after the response redirects to the progress page."""
+    """Process queued batch items and write one result file per item."""
 
-    for queued in queued_items:
+    total = len(queued_items)
+    for index, queued in enumerate(queued_items, start=1):
         item = ManifestItem(**queued["item"])
         item_id = queued["item_id"]
+        if (job_dir(job_id) / "results" / f"{item_id}.json").exists():
+            if progress_callback:
+                progress_callback(index, total)
+            continue
         dest = job_dir(job_id) / "uploads" / queued["stored_filename"]
         application = _manifest_item_to_application(item)
         fixture_id = item.fixture_id or Path(item.filename).stem
@@ -837,6 +985,21 @@ def _process_batch_items(
             require_review_before_acceptance=require_review_before_acceptance,
         )
         write_result(result)
+        if progress_callback:
+            progress_callback(index, total)
+
+
+def process_queued_batch_job(job_id: str, payload: dict[str, Any], progress_callback: Any | None = None) -> None:
+    """Queue-worker entry point used by the app startup worker."""
+
+    _process_batch_items(
+        job_id,
+        payload.get("items", []),
+        bool(payload.get("review_unknown_government_warning")),
+        bool(payload.get("require_review_before_rejection")),
+        bool(payload.get("require_review_before_acceptance")),
+        progress_callback=progress_callback,
+    )
 
 
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
@@ -850,6 +1013,7 @@ def job_page(request: Request, job_id: str):
             "job_id": job_id,
             "manifest": load_manifest(job_id),
             "results": list_results(job_id),
+            "queue_status": load_queue_status(job_id),
         },
     )
 
@@ -862,7 +1026,7 @@ def job_status(request: Request, job_id: str):
     return templates.TemplateResponse(
         request,
         "partials/job_status.html",
-        {"job_id": job_id, "results": results, "manifest": load_manifest(job_id)},
+        {"job_id": job_id, "results": results, "manifest": load_manifest(job_id), "queue_status": load_queue_status(job_id)},
     )
 
 
