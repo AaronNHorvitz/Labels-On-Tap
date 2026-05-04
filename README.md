@@ -253,40 +253,40 @@ does not call COLA Cloud at runtime.
 
 From the home page:
 
-1. Run `Clean Label Demo`.
-2. Run `Warning Failure Demo`.
-3. Run `ABV Failure Demo`.
-4. Run `Malt Net Contents Failure Demo`.
-5. Run `Import Origin Demo`.
-6. Run `Batch Demo`.
-7. Open `/review` to show queue-level triage.
-8. Open a result detail page and save a reviewer decision.
-9. Export CSV from a job page.
-10. Upload a local phone photo through `Photo OCR Intake Demo`.
+1. Select one application directory containing a `manifest.csv` or
+   `manifest.json` plus nested application image folders.
+2. Browse the selected panels in the right-side preview before submitting.
+3. Click `Upload Directory And Run Demo`.
+4. Watch the durable queue finish on the job page.
+5. Open a result detail page to compare `Actual COLA Application Data` against
+   `Real Label Images And OCR Evidence`.
+6. Export CSV from the job page.
+7. Open `/review` to show queue-level triage and save reviewer decisions.
 
-Manual batch upload requires:
+Application directory upload requires:
 
-- `manifest.csv` or `manifest.json`,
-- loose JPG/PNG files or a ZIP archive,
-- filenames in the manifest matching image basenames,
+- one `manifest.csv` or `manifest.json` at the selected directory root,
+- JPG/PNG panels in nested application folders,
+- filenames in the manifest matching image paths after the selected root folder
+  is stripped,
 - optional multi-panel rows with `panel_filenames` separated by semicolons.
 
-Example multi-panel row:
+Example application row:
 
 ```csv
 filename,panel_filenames,product_type,brand_name,class_type,alcohol_content,net_contents,imported,country_of_origin
-APP-001,front.png;back.png;neck.png,wine,Example Winery,Sauvignon Blanc,12% BY VOL,750 mL,true,France
+25079001000835,images/25079001000835/front.png;images/25079001000835/back.png,wine,Example Winery,Sauvignon Blanc,12% BY VOL,750 mL,true,France
 ```
 
 When local COLA Cloud-derived working data is present, create a 300-application
-upload pack for the batch form:
+upload pack for the home-page directory picker:
 
 ```bash
 python scripts/create_public_cola_demo_upload_pack.py --limit 300 --zip --force
 ```
 
 Output is written to `data/work/demo-upload/public-cola-300/` and is intentionally
-gitignored.
+gitignored. In the browser, select the `public-cola-300` directory itself.
 
 ## Deployment
 

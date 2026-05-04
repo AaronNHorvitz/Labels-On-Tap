@@ -131,6 +131,55 @@ def test_batch_upload_accepts_multi_panel_application_rows():
     assert "APP-001" in page.text
 
 
+def test_application_directory_upload_discovers_manifest_and_nested_images():
+    client = TestClient(app)
+    manifest = (
+        "filename,panel_filenames,fixture_id,product_type,brand_name,class_type,alcohol_content,net_contents\n"
+        "APP-001,images/APP-001/clean_malt_pass.png;images/APP-001/warning_missing_comma_fail.png,app_001,malt_beverage,OLD RIVER BREWING,Ale,5% ALC/VOL,1 Pint\n"
+    ).encode()
+    response = client.post(
+        "/jobs/application-directory",
+        files=[
+            ("application_directory", ("public-cola-300/manifest.csv", manifest, "text/csv")),
+            ("application_directory", ("public-cola-300/README.md", b"ignored helper file", "text/markdown")),
+            ("application_directory", ("public-cola-300/public-cola-demo-pack.zip", b"ignored helper file", "application/zip")),
+            (
+                "application_directory",
+                (
+                    "public-cola-300/images/APP-001/clean_malt_pass.png",
+                    (DEMO_DIR / "clean_malt_pass.png").read_bytes(),
+                    "image/png",
+                ),
+            ),
+            (
+                "application_directory",
+                (
+                    "public-cola-300/images/APP-001/warning_missing_comma_fail.png",
+                    (DEMO_DIR / "warning_missing_comma_fail.png").read_bytes(),
+                    "image/png",
+                ),
+            ),
+        ],
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    job_id = response.headers["location"].rstrip("/").split("/")[-1]
+    status = wait_for_completion(job_id, timeout_seconds=5)
+    assert status and status["status"] == "completed"
+
+    manifest_doc = load_manifest(job_id)
+    assert manifest_doc["label"] == "directory demo upload (1 applications)"
+    assert manifest_doc["items"][0]["original_filenames"] == [
+        "images/APP-001/clean_malt_pass.png",
+        "images/APP-001/warning_missing_comma_fail.png",
+    ]
+    page = client.get(f"/jobs/{job_id}/items/app_001")
+    assert page.status_code == 200
+    assert "Actual COLA Application Data" in page.text
+    assert "Real Label Images And OCR Evidence" in page.text
+
+
 def test_batch_upload_rejects_malformed_csv():
     client = TestClient(app)
     files = [

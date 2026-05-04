@@ -173,6 +173,24 @@ def _validate_image_upload_with_policy(upload: UploadFile, temp_dir: Path, *, al
     )
 
 
+def _safe_directory_key(filename: str) -> str:
+    """Return a safe relative key for a directory-upload member."""
+
+    normalized = filename.replace("\\", "/").strip("/")
+    path = PurePosixPath(normalized)
+    if path.is_absolute() or not path.name or any(part in {"", ".", ".."} for part in path.parts):
+        raise ValueError("Directory upload contains an unsafe path.")
+    return path.as_posix()
+
+
+def _strip_directory_root(filename: str, root_prefix: str) -> str:
+    """Strip the selected browser directory prefix from an uploaded file key."""
+
+    if root_prefix and filename.startswith(f"{root_prefix}/"):
+        return filename[len(root_prefix) + 1 :]
+    return filename
+
+
 def _validate_image_bytes(original_filename: str, content: bytes, temp_dir: Path) -> ValidatedUpload:
     """Validate one in-memory image extracted from a ZIP archive."""
 
@@ -372,6 +390,104 @@ def _upload_filenames_for_item(job_id: str, item_id: str, result_filename: str) 
         return [Path(filename).name for filename in item["stored_filenames"]]
     filename = _upload_filename_for_item(job_id, item_id, result_filename)
     return [filename] if filename else []
+
+
+def _queue_manifest_batch(
+    *,
+    manifest_items: list[ManifestItem],
+    uploads: list[ValidatedUpload],
+    job_label: str,
+    review_unknown_government_warning: bool,
+    require_review_before_rejection: bool,
+    require_review_before_acceptance: bool,
+) -> str:
+    """Validate image/application matching, persist uploads, and enqueue a batch."""
+
+    if len(manifest_items) > MAX_BATCH_ITEMS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Batch contains more than the maximum {MAX_BATCH_ITEMS} applications.",
+        )
+    if not uploads:
+        raise HTTPException(status_code=400, detail="Upload label images as JPG/PNG files, a directory, or a ZIP archive.")
+
+    by_filename: dict[str, ValidatedUpload] = {}
+    by_basename: dict[str, ValidatedUpload | None] = {}
+    for upload in uploads:
+        if upload.original_filename in by_filename:
+            raise HTTPException(status_code=400, detail=f"Duplicate uploaded image: {upload.original_filename}")
+        by_filename[upload.original_filename] = upload
+        basename = PurePosixPath(upload.original_filename).name
+        if basename in by_basename:
+            by_basename[basename] = None
+        else:
+            by_basename[basename] = upload
+
+    def upload_for_manifest_filename(filename: str) -> ValidatedUpload | None:
+        """Return an uploaded image by exact relative key or unique basename."""
+
+        return by_filename.get(filename) or by_basename.get(PurePosixPath(filename).name)
+
+    expected_filenames = {filename for item in manifest_items for filename in _manifest_item_filenames(item)}
+    used_uploads: set[str] = set()
+    missing = []
+    for filename in sorted(expected_filenames):
+        upload = upload_for_manifest_filename(filename)
+        if upload is None:
+            missing.append(filename)
+        else:
+            used_uploads.add(upload.original_filename)
+    extra = sorted(set(by_filename) - used_uploads)
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Manifest references missing images: {', '.join(missing)}")
+    if extra:
+        raise HTTPException(status_code=400, detail=f"Uploaded images not referenced by manifest: {', '.join(extra)}")
+
+    job_id = create_job(label=job_label)
+    queued_items = []
+    for item in manifest_items:
+        item_uploads = [upload_for_manifest_filename(filename) for filename in _manifest_item_filenames(item)]
+        if any(upload is None for upload in item_uploads):
+            raise HTTPException(status_code=400, detail=f"Manifest references missing images for {item.filename}")
+        item_uploads = [upload for upload in item_uploads if upload is not None]
+        destinations = [_move_validated_upload(job_id, upload) for upload in item_uploads]
+        item_id = item.fixture_id or Path(item.filename).stem
+        add_manifest_item(
+            job_id,
+            {
+                "item_id": item_id,
+                "filename": item.filename,
+                "fixture_id": item.fixture_id,
+                "original_filename": item_uploads[0].original_filename,
+                "stored_filename": item_uploads[0].stored_filename,
+                "upload_size": sum(upload.upload_size for upload in item_uploads),
+                "original_filenames": [upload.original_filename for upload in item_uploads],
+                "stored_filenames": [upload.stored_filename for upload in item_uploads],
+                "upload_sizes": [upload.upload_size for upload in item_uploads],
+                "workflow": "batch_multi_panel_application" if len(item_uploads) > 1 else "batch_single_panel_application",
+            },
+        )
+        item_payload = item.model_dump() if hasattr(item, "model_dump") else item.dict()
+        queued_items.append(
+            {
+                "item": item_payload,
+                "item_id": item_id,
+                "stored_filename": item_uploads[0].stored_filename,
+                "stored_filenames": [dest.name for dest in destinations],
+                "original_filenames": [upload.original_filename for upload in item_uploads],
+            }
+        )
+
+    enqueue_batch(
+        job_id,
+        {
+            "items": queued_items,
+            "review_unknown_government_warning": review_unknown_government_warning,
+            "require_review_before_rejection": require_review_before_rejection,
+            "require_review_before_acceptance": require_review_before_acceptance,
+        },
+    )
+    return job_id
 
 
 def _normalize_letters(text: str) -> str:
@@ -992,86 +1108,77 @@ def create_batch_job(
         ]
         if image_archive is not None and image_archive.filename:
             uploads.extend(_validate_zip_upload(image_archive, Path(temp_dir)))
-        if not uploads:
-            raise HTTPException(status_code=400, detail="Upload label images as loose JPG/PNG files or a ZIP archive.")
-        if len(uploads) > MAX_BATCH_ITEMS:
-            raise HTTPException(status_code=400, detail=f"Batch contains more than the maximum {MAX_BATCH_ITEMS} label images.")
-        by_filename: dict[str, ValidatedUpload] = {}
-        by_basename: dict[str, ValidatedUpload | None] = {}
-        for upload in uploads:
-            if upload.original_filename in by_filename:
-                raise HTTPException(status_code=400, detail=f"Duplicate uploaded image: {upload.original_filename}")
-            by_filename[upload.original_filename] = upload
-            basename = PurePosixPath(upload.original_filename).name
-            if basename in by_basename:
-                by_basename[basename] = None
-            else:
-                by_basename[basename] = upload
+        job_id = _queue_manifest_batch(
+            manifest_items=manifest_items,
+            uploads=uploads,
+            job_label=f"batch upload ({len(manifest_items)} applications)",
+            review_unknown_government_warning=review_unknown_government_warning,
+            require_review_before_rejection=require_review_before_rejection,
+            require_review_before_acceptance=require_review_before_acceptance,
+        )
+    return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
 
-        def upload_for_manifest_filename(filename: str) -> ValidatedUpload | None:
-            """Return an uploaded image by exact relative key or unique basename."""
 
-            return by_filename.get(filename) or by_basename.get(PurePosixPath(filename).name)
+@router.post("/jobs/application-directory")
+def create_application_directory_job(
+    application_directory: list[UploadFile] = File(...),
+    review_unknown_government_warning: bool = Form(False),
+    require_review_before_rejection: bool = Form(False),
+    require_review_before_acceptance: bool = Form(False),
+) -> RedirectResponse:
+    """Create a durable demo job from one uploaded application directory.
 
-        expected_filenames = {filename for item in manifest_items for filename in _manifest_item_filenames(item)}
-        used_uploads: set[str] = set()
-        missing = []
-        for filename in sorted(expected_filenames):
-            upload = upload_for_manifest_filename(filename)
-            if upload is None:
-                missing.append(filename)
-            else:
-                used_uploads.add(upload.original_filename)
-        extra = sorted(set(by_filename) - used_uploads)
-        if missing:
-            raise HTTPException(status_code=400, detail=f"Manifest references missing images: {', '.join(missing)}")
-        if extra:
-            raise HTTPException(status_code=400, detail=f"Uploaded images not referenced by manifest: {', '.join(extra)}")
+    The selected directory must contain ``manifest.csv`` or ``manifest.json``
+    plus the image paths referenced by the manifest. Browser directory uploads
+    include the selected root folder name, so this route strips that common root
+    before matching manifest panel paths such as ``images/TTB/front.png``.
+    """
 
-        job_id = create_job(label=f"batch upload ({len(manifest_items)} labels)")
-        queued_items = []
-        for item in manifest_items:
-            item_uploads = [upload_for_manifest_filename(filename) for filename in _manifest_item_filenames(item)]
-            if any(upload is None for upload in item_uploads):
-                raise HTTPException(status_code=400, detail=f"Manifest references missing images for {item.filename}")
-            item_uploads = [upload for upload in item_uploads if upload is not None]
-            destinations = [_move_validated_upload(job_id, upload) for upload in item_uploads]
-            item_id = item.fixture_id or Path(item.filename).stem
-            add_manifest_item(
-                job_id,
-                {
-                    "item_id": item_id,
-                    "filename": item.filename,
-                    "fixture_id": item.fixture_id,
-                    "original_filename": item_uploads[0].original_filename,
-                    "stored_filename": item_uploads[0].stored_filename,
-                    "upload_size": sum(upload.upload_size for upload in item_uploads),
-                    "original_filenames": [upload.original_filename for upload in item_uploads],
-                    "stored_filenames": [upload.stored_filename for upload in item_uploads],
-                    "upload_sizes": [upload.upload_size for upload in item_uploads],
-                    "workflow": "batch_multi_panel_application" if len(item_uploads) > 1 else "batch_single_panel_application",
-                },
-            )
-            item_payload = item.model_dump() if hasattr(item, "model_dump") else item.dict()
-            queued_items.append(
-                {
-                    "item": item_payload,
-                    "item_id": item_id,
-                    "stored_filename": item_uploads[0].stored_filename,
-                    "stored_filenames": [dest.name for dest in destinations],
-                    "original_filenames": [upload.original_filename for upload in item_uploads],
-                }
-            )
+    files = [upload for upload in application_directory if upload.filename]
+    if not files:
+        raise HTTPException(status_code=400, detail="Select a directory containing manifest.csv and label images.")
 
-    enqueue_batch(
-        job_id,
-        {
-            "items": queued_items,
-            "review_unknown_government_warning": review_unknown_government_warning,
-            "require_review_before_rejection": require_review_before_rejection,
-            "require_review_before_acceptance": require_review_before_acceptance,
-        },
-    )
+    manifest_uploads = []
+    for upload in files:
+        try:
+            key = _safe_directory_key(upload.filename or "")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if PurePosixPath(key).name.lower() in {"manifest.csv", "manifest.json"}:
+            manifest_uploads.append((key, upload))
+    if len(manifest_uploads) != 1:
+        raise HTTPException(status_code=400, detail="Directory upload must contain exactly one manifest.csv or manifest.json file.")
+
+    manifest_key, manifest_upload = manifest_uploads[0]
+    root_prefix = PurePosixPath(manifest_key).parent.as_posix()
+    if root_prefix == ".":
+        root_prefix = ""
+    try:
+        manifest_content = read_upload_with_size_limit(manifest_upload.file, MAX_MANIFEST_BYTES)
+        manifest_items = parse_manifest(PurePosixPath(manifest_key).name, manifest_content)
+    except (ValueError, ManifestParseError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="_upload-", dir=JOBS_DIR) as temp_dir:
+        uploads: list[ValidatedUpload] = []
+        for upload in files:
+            key = _safe_directory_key(upload.filename or "")
+            if key == manifest_key:
+                continue
+            if PurePosixPath(key).suffix.lower() not in ALLOWED_IMAGE_EXTENSIONS:
+                continue
+            staged = _validate_image_upload_with_policy(upload, Path(temp_dir), allow_relative_name=True)
+            staged.original_filename = _strip_directory_root(staged.original_filename, root_prefix)
+            uploads.append(staged)
+        job_id = _queue_manifest_batch(
+            manifest_items=manifest_items,
+            uploads=uploads,
+            job_label=f"directory demo upload ({len(manifest_items)} applications)",
+            review_unknown_government_warning=review_unknown_government_warning,
+            require_review_before_rejection=require_review_before_rejection,
+            require_review_before_acceptance=require_review_before_acceptance,
+        )
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
 
 
