@@ -13,6 +13,28 @@ story: no label images leave the VM at runtime.
 
 **Cost:** Local OCR increases container size and model warmup time.
 
+## 1.1 Curated Public Demo Pack
+
+**Decision:** Use a curated, server-hosted public-COLA demo pack for the live
+walkthrough at `/public-cola-demo`.
+
+**Why:** The raw public COLA corpus contains many hard OCR edge cases: vertical
+warning text, curved panels, low-resolution panels, and multi-panel layouts
+where strict warning extraction can fail even for approved labels. For the live
+interview demo, the app needs a stable green path that shows the intended
+workflow: application truth fields, parsed label evidence, queue progress,
+review-policy controls, and reviewer action buttons.
+
+**Implementation:** `scripts/create_curated_public_cola_demo_pack.py` exports
+300 new public-COLA applications into
+`data/work/demo-upload/public-cola-curated-300/`. The pack includes valid image
+panels plus curated OCR/typography sidecars. The server demo route uses those
+sidecars first, then falls back to local OCR if a sidecar is missing.
+
+**Boundary:** This pack is not an accuracy metric. It is a walkthrough artifact.
+Model-performance claims must come from the evaluation corpus and holdout
+statistics, not this curated demo cache.
+
 ## 2. Deterministic Rules Decide Compliance
 
 **Decision:** Compliance outcomes come from source-backed deterministic rules,

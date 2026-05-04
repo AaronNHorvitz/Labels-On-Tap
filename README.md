@@ -44,8 +44,8 @@ engineering trade-offs.
 - Exports reviewer-ready CSV files.
 - Includes a photo OCR intake demo for bottle/can/shelf photos without
   application fields.
-- Includes a local public-COLA side-by-side demo when gitignored COLA Cloud data
-  is present.
+- Includes a server-hosted public-COLA demo page when the curated, gitignored
+  demo pack is present on the deployment host.
 
 ## Runtime Architecture
 
@@ -278,17 +278,19 @@ filename,panel_filenames,product_type,brand_name,class_type,alcohol_content,net_
 25079001000835,images/25079001000835/front.png;images/25079001000835/back.png,wine,Example Winery,Sauvignon Blanc,12% BY VOL,750 mL,true,France
 ```
 
-When local COLA Cloud-derived working data is present, create a 300-application
-upload pack for the home-page directory picker:
+When local COLA Cloud-derived working data is present, create the curated
+300-application green-path demo pack used by `/public-cola-demo`:
 
 ```bash
-python scripts/create_public_cola_demo_upload_pack.py --limit 300 --zip --force
+python scripts/create_curated_public_cola_demo_pack.py --limit 300 --zip --force
 ```
 
-Output is written to `data/work/demo-upload/public-cola-300/` and is intentionally
-gitignored. The exporter filters out registry artifacts that are named like
-images but fail JPG/PNG signature or Pillow decode checks. In the browser,
-select the `public-cola-300` directory itself.
+Output is written to `data/work/demo-upload/public-cola-curated-300/` and is
+intentionally gitignored. The exporter filters out registry artifacts that are
+named like images but fail JPG/PNG signature or Pillow decode checks. It also
+writes curated OCR/typography sidecars for a stable interview walkthrough. Do
+not use this pack as an accuracy metric; use the evaluation corpus and holdout
+metrics for performance claims.
 
 ## Deployment
 

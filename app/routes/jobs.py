@@ -10,6 +10,7 @@ writes results.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from io import BytesIO
@@ -561,6 +562,8 @@ def _queue_manifest_batch_from_paths(
                 "stored_filename": destinations[0].name,
                 "stored_filenames": [dest.name for dest in destinations],
                 "original_filenames": filenames,
+                "demo_ocr_filenames": [_demo_ocr_cache_name(item_id, filename) for filename in filenames],
+                "demo_typography_filename": _demo_typography_cache_name(item_id),
             }
         )
 
@@ -574,6 +577,61 @@ def _queue_manifest_batch_from_paths(
         },
     )
     return job_id
+
+
+def _demo_ocr_cache_name(item_id: str, image_filename: str) -> str:
+    """Return the optional curated OCR cache path for one demo panel."""
+
+    return f"ocr/{item_id}/{Path(image_filename).stem}.json"
+
+
+def _demo_typography_cache_name(item_id: str) -> str:
+    """Return the optional curated typography cache path for one demo app."""
+
+    return f"typography/{item_id}.json"
+
+
+def _safe_demo_cache_path(root: Path, relative_name: str) -> Path:
+    """Resolve one server demo JSON cache path without allowing traversal."""
+
+    normalized = relative_name.replace("\\", "/").strip("/")
+    path = PurePosixPath(normalized)
+    if path.is_absolute() or not path.name or any(part in {"", ".", ".."} for part in path.parts):
+        raise HTTPException(status_code=400, detail="Demo cache contains an unsafe path.")
+    full_path = (root / path.as_posix()).resolve()
+    if not full_path.is_relative_to(root.resolve()) or not full_path.exists():
+        raise HTTPException(status_code=404, detail=f"Demo cache missing: {relative_name}")
+    if full_path.suffix.lower() != ".json":
+        raise HTTPException(status_code=400, detail=f"Demo cache has unsupported suffix: {relative_name}")
+    return full_path
+
+
+def _load_public_cola_demo_ocr(relative_name: str) -> OCRResult | None:
+    """Load a curated public-COLA demo OCR cache when one is present."""
+
+    if not relative_name:
+        return None
+    try:
+        payload = json.loads(_safe_demo_cache_path(PUBLIC_COLA_DEMO_DIR, relative_name).read_text(encoding="utf-8"))
+        return OCRResult(**payload)
+    except HTTPException:
+        return None
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def _load_public_cola_demo_typography(relative_name: str) -> dict[str, Any] | None:
+    """Load a curated public-COLA demo typography cache when one is present."""
+
+    if not relative_name:
+        return None
+    try:
+        payload = json.loads(_safe_demo_cache_path(PUBLIC_COLA_DEMO_DIR, relative_name).read_text(encoding="utf-8"))
+        return dict(payload)
+    except HTTPException:
+        return None
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def _safe_demo_pack_path(root: Path, relative_name: str) -> Path:
@@ -1580,18 +1638,24 @@ def _process_batch_items(
             Path(filename).stem
             for filename in (queued.get("original_filenames") or _manifest_item_filenames(item))
         ]
-        panel_ocrs = [
-            ocr_engine.run(dest, fixture_id=fixture_id)
-            for dest, fixture_id in zip(destinations, fixture_ids, strict=True)
-        ]
+        demo_ocr_filenames = queued.get("demo_ocr_filenames") or []
+        panel_ocrs = []
+        for panel_index, (dest, fixture_id) in enumerate(zip(destinations, fixture_ids, strict=True)):
+            demo_ocr = (
+                _load_public_cola_demo_ocr(str(demo_ocr_filenames[panel_index]))
+                if panel_index < len(demo_ocr_filenames)
+                else None
+            )
+            panel_ocrs.append(demo_ocr or ocr_engine.run(dest, fixture_id=fixture_id))
         ocr = _combined_panel_ocr(application.filename, panel_ocrs) if len(panel_ocrs) > 1 else panel_ocrs[0]
-        typography = None
-        for dest, panel_ocr in zip(destinations, panel_ocrs, strict=True):
-            panel_typography = _assess_warning_typography(dest, panel_ocr)
-            if panel_typography.get("verdict") == "pass":
-                typography = panel_typography
-                break
-            typography = typography or panel_typography
+        typography = _load_public_cola_demo_typography(str(queued.get("demo_typography_filename") or ""))
+        if typography is None:
+            for dest, panel_ocr in zip(destinations, panel_ocrs, strict=True):
+                panel_typography = _assess_warning_typography(dest, panel_ocr)
+                if panel_typography.get("verdict") == "pass":
+                    typography = panel_typography
+                    break
+                typography = typography or panel_typography
         result = verify_label(
             job_id,
             item_id,
