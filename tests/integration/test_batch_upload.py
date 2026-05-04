@@ -255,6 +255,9 @@ def test_public_cola_demo_uses_server_side_pack_and_selected_application(monkeyp
     assert page.status_code == 200
     assert "Parse This Application" in page.text
     assert "Parse This Directory of Applications" in page.text
+    assert "Current Application Field Comparison" in page.text
+    assert "Actual" in page.text
+    assert "Scraped" in page.text
     assert "Application directory" not in page.text
 
     response = client.post(
@@ -274,6 +277,12 @@ def test_public_cola_demo_uses_server_side_pack_and_selected_application(monkeyp
     result_page = client.get(f"/public-cola-demo?job_id={job_id}")
     assert "Total parse time:" in result_page.text
     assert "Time per application:" in result_page.text
+    comparison = client.get(f"/public-cola-demo/comparison-data/{job_id}")
+    assert comparison.status_code == 200
+    payload = comparison.json()
+    assert payload["queue_status"]["status"] == "completed"
+    assert "app_002" in payload["comparison_rows"]
+    assert payload["comparison_rows"]["app_002"][0]["label"] == "Brand name"
 
     reset = client.post("/public-cola-demo/reset", data={"job_id": job_id}, follow_redirects=False)
     assert reset.status_code == 303

@@ -72,6 +72,7 @@ from app.services.preflight.upload_policy import (
     validate_upload_name,
 )
 from app.services.rules.registry import verify_label
+from app.services.rules.strict_warning import CANONICAL_WARNING
 from app.services.typography.boldness import assess_warning_heading_boldness
 from app.services.typography.warning_heading import detect_warning_heading_crop
 
@@ -673,8 +674,34 @@ def _public_cola_demo_applications(items: list[ManifestItem]) -> list[dict[str, 
                 continue
             images.append({"url": f"/public-cola-demo/images/{filename}"})
         if images:
-            applications.append({"id": item.filename, "images": images})
+            applications.append(
+                {
+                    "id": item.filename,
+                    "result_id": item.fixture_id or Path(item.filename).stem,
+                    "images": images,
+                    "actual_rows": _manifest_item_truth_rows(item),
+                }
+            )
     return applications
+
+
+def _manifest_item_truth_rows(item: ManifestItem) -> list[dict[str, str]]:
+    """Return application truth fields shown before parsing starts."""
+
+    return [
+        {"label": "Brand name", "actual": item.brand_name or "Not provided"},
+        {"label": "Fanciful name", "actual": item.fanciful_name or "Not provided"},
+        {"label": "Product type", "actual": item.product_type.replace("_", " ").title() if item.product_type else "Not provided"},
+        {"label": "Class/type", "actual": item.class_type or "Not provided"},
+        {"label": "Alcohol content", "actual": item.alcohol_content or "Not provided"},
+        {"label": "Net contents", "actual": item.net_contents or "Not provided"},
+        {"label": "Bottler / producer", "actual": item.bottler_producer_name_address or "Not provided"},
+        {"label": "Imported", "actual": "Yes" if item.imported else "No"},
+        {"label": "Country of origin", "actual": item.country_of_origin or "Not provided"},
+        {"label": "Government warning text", "actual": CANONICAL_WARNING},
+        {"label": "Government warning heading", "actual": "GOVERNMENT WARNING:"},
+        {"label": "Government warning boldness", "actual": "Bold heading required"},
+    ]
 
 
 def _normalize_letters(text: str) -> str:
@@ -845,7 +872,7 @@ def _result_comparison_rows(result: Any) -> list[dict[str, Any]]:
         ("Imported", "imported", None),
         ("Country of origin", "country_of_origin", "COUNTRY_OF_ORIGIN_MATCH"),
         ("Government warning text", None, "GOV_WARNING_EXACT_TEXT"),
-        ("Government warning heading", None, "GOV_WARNING_CAPS"),
+        ("Government warning heading", None, "GOV_WARNING_HEADER_CAPS"),
         ("Government warning boldness", None, "GOV_WARNING_HEADER_BOLD_REVIEW"),
     ]
     rows: list[dict[str, Any]] = []
@@ -1450,6 +1477,18 @@ def reset_public_cola_demo(job_id: str = Form("")) -> RedirectResponse:
     if job_id:
         delete_job(job_id)
     return RedirectResponse(url="/public-cola-demo", status_code=303)
+
+
+@router.get("/public-cola-demo/comparison-data/{job_id}")
+def public_cola_demo_comparison_data(job_id: str) -> dict[str, Any]:
+    """Return current demo parse rows for the application browser table."""
+
+    queue_status = load_queue_status(job_id)
+    results = list_results(job_id)
+    return {
+        "queue_status": queue_status,
+        "comparison_rows": _job_comparison_payload(results),
+    }
 
 
 @router.get("/public-cola-demo/images/{image_path:path}")

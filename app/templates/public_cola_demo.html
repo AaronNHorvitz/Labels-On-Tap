@@ -52,6 +52,27 @@
     </div>
   </section>
 
+  <section class="panel live-comparison-panel">
+    <div class="live-comparison-heading">
+      <h2>Current Application Field Comparison</h2>
+      <p id="live-comparison-status">Actual values come from the COLA application data. Scraped values populate after parsing.</p>
+    </div>
+    <table class="compact-table live-comparison-table">
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Actual</th>
+          <th>Scraped</th>
+        </tr>
+      </thead>
+      <tbody id="live-comparison-body">
+        <tr>
+          <td colspan="3">No application selected.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
   {% if missing_pack %}
   <section class="panel notice">
     <h2>Demo Data Missing</h2>
@@ -73,6 +94,8 @@
 <script>
   (() => {
     const applications = {{ applications|tojson }};
+    let comparisonRows = {{ comparison_rows|tojson }};
+    const jobId = {{ job_id|tojson }};
     const viewport = document.getElementById("batch-preview-viewport");
     const preview = document.getElementById("batch-preview");
     const empty = document.getElementById("batch-preview-empty");
@@ -83,6 +106,8 @@
     const appNext = document.getElementById("batch-app-next");
     const photoPrev = document.getElementById("batch-photo-prev");
     const photoNext = document.getElementById("batch-photo-next");
+    const comparisonBody = document.getElementById("live-comparison-body");
+    const comparisonStatus = document.getElementById("live-comparison-status");
     if (!viewport || !preview || !empty || !selectedApplicationInput || !appCounter || !photoCounter || !appPrev || !appNext || !photoPrev || !photoNext) {
       return;
     }
@@ -108,6 +133,41 @@
       applyTransform();
     };
     const selectedApplication = () => applications[applicationIndex] || null;
+    const escapeHtml = (value) => String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+    const renderComparison = () => {
+      if (!comparisonBody) return;
+      const application = selectedApplication();
+      if (!application) {
+        comparisonBody.innerHTML = '<tr><td colspan="3">No application selected.</td></tr>';
+        return;
+      }
+      const parsedRows = comparisonRows[application.result_id] || comparisonRows[application.id] || [];
+      const parsedByLabel = new Map(parsedRows.map((row) => [row.label, row]));
+      const actualRows = application.actual_rows || [];
+      comparisonBody.innerHTML = actualRows.map((row) => {
+        const parsed = parsedByLabel.get(row.label);
+        const scraped = parsed ? parsed.parsed || parsed.evidence || "" : "";
+        const verdict = parsed ? `<span class="badge ${escapeHtml(parsed.verdict)}">${escapeHtml(String(parsed.verdict || "").replaceAll("_", " "))}</span>` : "";
+        const evidence = parsed && parsed.evidence ? `<small>${escapeHtml(parsed.evidence)}</small>` : "";
+        return `
+          <tr>
+            <td>${escapeHtml(row.label)}</td>
+            <td>${escapeHtml(row.actual)}</td>
+            <td>${scraped ? `<p>${escapeHtml(scraped)}</p>${evidence}${verdict}` : '<span class="muted-cell">Waiting for parse</span>'}</td>
+          </tr>
+        `;
+      }).join("");
+      if (comparisonStatus) {
+        comparisonStatus.textContent = parsedRows.length
+          ? "Scraped values are populated from the latest parse result for this application."
+          : "Actual values come from the COLA application data. Scraped values populate after parsing.";
+      }
+    };
 
     const render = () => {
       const application = selectedApplication();
@@ -123,6 +183,7 @@
         photoPrev.hidden = true;
         photoNext.hidden = true;
         resetTransform();
+        renderComparison();
         return;
       }
       photoIndex = Math.min(Math.max(photoIndex, 0), application.images.length - 1);
@@ -138,6 +199,23 @@
       photoPrev.hidden = photoIndex <= 0;
       photoNext.hidden = photoIndex >= application.images.length - 1;
       resetTransform();
+      renderComparison();
+    };
+
+    const refreshComparisonRows = async () => {
+      if (!jobId) return;
+      try {
+        const response = await fetch(`/public-cola-demo/comparison-data/${jobId}`, { headers: { "Accept": "application/json" } });
+        if (!response.ok) return;
+        const payload = await response.json();
+        comparisonRows = payload.comparison_rows || {};
+        renderComparison();
+        if (payload.queue_status && ["completed", "failed"].includes(payload.queue_status.status)) {
+          window.clearInterval(refreshTimer);
+        }
+      } catch (_error) {
+        // Keep the visible table stable if a polling request fails.
+      }
     };
 
     appPrev.addEventListener("click", () => {
@@ -203,6 +281,10 @@
     viewport.addEventListener("pointercancel", endDrag);
     viewport.addEventListener("dblclick", resetTransform);
     render();
+    const refreshTimer = jobId ? window.setInterval(refreshComparisonRows, 2000) : null;
+    if (jobId) {
+      refreshComparisonRows();
+    }
   })();
 </script>
 {% endblock %}
