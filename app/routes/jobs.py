@@ -725,6 +725,26 @@ def _load_public_cola_demo_typography(relative_name: str) -> dict[str, Any] | No
         return None
 
 
+def _public_demo_caches_available(item: ManifestItem) -> bool:
+    """Return whether every panel for an application has curated demo caches."""
+
+    item_id = item.fixture_id or Path(item.filename).stem
+    ocr_paths = [_demo_ocr_cache_name(item_id, filename) for filename in _manifest_item_filenames(item)]
+    typography_path = _demo_typography_cache_name(item_id)
+    try:
+        for relative_name in [*ocr_paths, typography_path]:
+            _safe_demo_cache_path(PUBLIC_COLA_DEMO_DIR, relative_name)
+    except HTTPException:
+        return False
+    return True
+
+
+def _all_public_demo_caches_available(items: list[ManifestItem]) -> bool:
+    """Return whether a selected manifest can run from curated demo evidence."""
+
+    return bool(items) and all(_public_demo_caches_available(item) for item in items)
+
+
 def _safe_demo_pack_path(root: Path, relative_name: str) -> Path:
     """Resolve one server demo image path without allowing traversal."""
 
@@ -1606,7 +1626,7 @@ def parse_public_cola_demo(
         review_unknown_government_warning=review_unknown_government_warning,
         require_review_before_rejection=require_review_before_rejection,
         require_review_before_acceptance=require_review_before_acceptance,
-        process_immediately=parse_scope == "application",
+        process_immediately=parse_scope == "application" or _all_public_demo_caches_available(manifest_items),
     )
     return RedirectResponse(url=f"/public-cola-demo?job_id={job_id}", status_code=303)
 
@@ -1827,7 +1847,7 @@ def create_application_directory_job(
             review_unknown_government_warning=review_unknown_government_warning,
             require_review_before_rejection=require_review_before_rejection,
             require_review_before_acceptance=require_review_before_acceptance,
-            process_immediately=parse_scope == "application",
+            process_immediately=parse_scope == "application" or _all_public_demo_caches_available(manifest_items),
         )
     wants_json = "application/json" in request.headers.get("accept", "").lower()
     wants_json = wants_json or request.headers.get("x-requested-with", "").lower() == "fetch"
