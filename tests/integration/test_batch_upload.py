@@ -216,13 +216,14 @@ def test_application_directory_upload_can_parse_selected_application_only():
 
     assert response.status_code == 303
     job_id = response.headers["location"].rstrip("/").split("/")[-1]
-    status = wait_for_completion(job_id, timeout_seconds=5)
+    status = wait_for_completion(job_id, timeout_seconds=1)
     assert status and status["status"] == "completed"
 
     manifest_doc = load_manifest(job_id)
     assert manifest_doc["label"] == "single application demo upload (APP-002)"
     assert len(manifest_doc["items"]) == 1
     assert manifest_doc["items"][0]["filename"] == "APP-002"
+    assert len(list((JOBS_DIR / job_id / "uploads").iterdir())) == 1
     page = client.get(f"/jobs/{job_id}")
     assert "1 / 1" in page.text
     assert "Total parse time:" in page.text

@@ -345,6 +345,7 @@
       const parseScope = submitter.value;
       const selectedApplication = selectedApplicationInput.value;
       const manifest = manifestFile();
+      let resultWindow = null;
       if (submitStatus) {
         submitStatus.hidden = false;
         submitStatus.textContent = parseScope === "application"
@@ -359,6 +360,10 @@
         if (submitStatus) submitStatus.textContent = "Choose an application directory before parsing.";
         return;
       }
+      resultWindow = window.open("about:blank", "_blank");
+      if (resultWindow) {
+        resultWindow.document.write("<p>Starting Labels On Tap parse...</p>");
+      }
       const { applicationFiles } = browserState();
       const payload = new FormData();
       payload.append("parse_scope", "application");
@@ -372,17 +377,28 @@
       try {
         const response = await fetch(form.action, { method: "POST", body: payload });
         if (response.redirected) {
-          window.location.href = response.url;
+          if (resultWindow) {
+            resultWindow.location.href = response.url;
+            if (submitStatus) submitStatus.textContent = "Parse opened in a new tab. This upload page is still ready for the next application.";
+          } else {
+            window.location.href = response.url;
+          }
           return;
         }
         if (response.ok) {
-          window.location.href = response.url || "/app";
+          if (resultWindow) {
+            resultWindow.location.href = response.url || "/app";
+          } else {
+            window.location.href = response.url || "/app";
+          }
           return;
         }
+        if (resultWindow) resultWindow.close();
         if (submitStatus) {
           submitStatus.textContent = `Upload problem: ${response.status}`;
         }
       } catch (_error) {
+        if (resultWindow) resultWindow.close();
         if (submitStatus) {
           submitStatus.textContent = "Upload problem. Please try again.";
         }

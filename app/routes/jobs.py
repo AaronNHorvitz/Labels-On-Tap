@@ -38,7 +38,16 @@ from app.schemas.application import ColaApplication
 from app.schemas.manifest import ManifestItem
 from app.schemas.ocr import OCRResult
 from app.services.csv_export import results_to_csv
-from app.services.batch_queue import QueueCancelled, enqueue_batch, is_cancel_requested, load_queue_status, request_cancel
+from app.services.batch_queue import (
+    QueueCancelled,
+    enqueue_batch,
+    is_cancel_requested,
+    load_queue_status,
+    mark_progress,
+    request_cancel,
+    utc_now,
+    write_queue_status,
+)
 from app.services.cola_cloud_demo import (
     build_comparison_payload,
     load_cached_conveyor_ocr,
@@ -411,8 +420,9 @@ def _queue_manifest_batch(
     review_unknown_government_warning: bool,
     require_review_before_rejection: bool,
     require_review_before_acceptance: bool,
+    process_immediately: bool = False,
 ) -> str:
-    """Validate image/application matching, persist uploads, and enqueue a batch."""
+    """Validate image/application matching, persist uploads, and process or enqueue a batch."""
 
     if len(manifest_items) > MAX_BATCH_ITEMS:
         raise HTTPException(
@@ -489,15 +499,60 @@ def _queue_manifest_batch(
             }
         )
 
-    enqueue_batch(
-        job_id,
-        {
-            "items": queued_items,
-            "review_unknown_government_warning": review_unknown_government_warning,
-            "require_review_before_rejection": require_review_before_rejection,
-            "require_review_before_acceptance": require_review_before_acceptance,
-        },
-    )
+    payload = {
+        "items": queued_items,
+        "review_unknown_government_warning": review_unknown_government_warning,
+        "require_review_before_rejection": require_review_before_rejection,
+        "require_review_before_acceptance": require_review_before_acceptance,
+    }
+    if process_immediately:
+        now = utc_now()
+        write_queue_status(
+            job_id,
+            {
+                "job_id": job_id,
+                "kind": "batch",
+                "status": "running",
+                "created_at": now,
+                "started_at": now,
+                "finished_at": "",
+                "total": len(queued_items),
+                "processed": 0,
+                "failures": [],
+                "payload": payload,
+            },
+        )
+        try:
+            _process_batch_items(
+                job_id,
+                queued_items,
+                review_unknown_government_warning,
+                require_review_before_rejection,
+                require_review_before_acceptance,
+                progress_callback=lambda processed, total: mark_progress(job_id, processed, total),
+            )
+        except QueueCancelled as exc:
+            status = load_queue_status(job_id) or {}
+            status["status"] = "cancelled"
+            status["finished_at"] = utc_now()
+            status.setdefault("failures", []).append({"error": str(exc), "at": utc_now()})
+            write_queue_status(job_id, status)
+        except Exception as exc:
+            status = load_queue_status(job_id) or {}
+            status["status"] = "failed"
+            status["finished_at"] = utc_now()
+            status.setdefault("failures", []).append({"error": str(exc), "at": utc_now()})
+            write_queue_status(job_id, status)
+            raise
+        else:
+            status = load_queue_status(job_id) or {}
+            status["status"] = "completed"
+            status["processed"] = len(queued_items)
+            status["total"] = len(queued_items)
+            status["finished_at"] = utc_now()
+            write_queue_status(job_id, status)
+    else:
+        enqueue_batch(job_id, payload)
     return job_id
 
 
@@ -1723,6 +1778,7 @@ def create_application_directory_job(
             review_unknown_government_warning=review_unknown_government_warning,
             require_review_before_rejection=require_review_before_rejection,
             require_review_before_acceptance=require_review_before_acceptance,
+            process_immediately=parse_scope == "application",
         )
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)
 
