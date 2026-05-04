@@ -47,6 +47,11 @@ def test_batch_demo_route_renders_counts_and_csv():
     assert response.status_code == 200
     assert "12 / 12" in response.text
     assert "Needs Review" in response.text
+    assert "Application Truth vs Parsed Label Evidence" in response.text
+    assert "Actual COLA Application Data" in response.text
+    assert "Parsed Label Data" in response.text
+    assert "OLD RIVER BREWING" in response.text
+    assert "Open full evidence and reviewer actions" in response.text
 
     job_id = str(response.url).rstrip("/").split("/")[-1]
     csv_response = client.get(f"/jobs/{job_id}/results.csv")

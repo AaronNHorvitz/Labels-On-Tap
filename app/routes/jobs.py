@@ -623,6 +623,95 @@ def _warning_evidence_context(job_id: str, item_id: str, result: Any) -> dict[st
     }
 
 
+def _job_comparison_payload(results: list[Any]) -> dict[str, list[dict[str, Any]]]:
+    """Build side-by-side application truth and parsed evidence rows for a job.
+
+    Parameters
+    ----------
+    results:
+        Completed verification results for one durable job.
+
+    Returns
+    -------
+    dict[str, list[dict[str, Any]]]
+        Mapping from item ID to comparison rows. Each row contains the
+        application value, the parsed/OCR-supported value, verdict, and a short
+        evidence snippet for display on the job page.
+    """
+
+    return {result.item_id: _result_comparison_rows(result) for result in results}
+
+
+def _result_comparison_rows(result: Any) -> list[dict[str, Any]]:
+    """Return reviewer-facing truth-vs-parsed rows for one application."""
+
+    checks_by_rule = {check.rule_id: check for check in result.checks}
+    application = result.application if isinstance(result.application, dict) else {}
+    field_specs = [
+        ("Brand name", "brand_name", "FORM_BRAND_MATCHES_LABEL"),
+        ("Fanciful name", "fanciful_name", "FORM_FANCIFUL_NAME_MATCHES_LABEL"),
+        ("Product type", "product_type", None),
+        ("Class/type", "class_type", "FORM_CLASS_TYPE_MATCHES_LABEL"),
+        ("Alcohol content", "alcohol_content", "FORM_ALCOHOL_CONTENT_MATCHES_LABEL"),
+        ("Net contents", "net_contents", "FORM_NET_CONTENTS_MATCHES_LABEL"),
+        ("Bottler / producer", "bottler_producer_name_address", "FORM_BOTTLER_NAME_ADDRESS_MATCHES_LABEL"),
+        ("Imported", "imported", None),
+        ("Country of origin", "country_of_origin", "COUNTRY_OF_ORIGIN_MATCH"),
+        ("Government warning text", None, "GOV_WARNING_EXACT_TEXT"),
+        ("Government warning heading", None, "GOV_WARNING_CAPS"),
+        ("Government warning boldness", None, "GOV_WARNING_HEADER_BOLD_REVIEW"),
+    ]
+    rows: list[dict[str, Any]] = []
+    for label, app_key, rule_id in field_specs:
+        check_obj = checks_by_rule.get(rule_id) if rule_id else None
+        actual = _application_display_value(application, app_key) if app_key else (check_obj.expected if check_obj else "")
+        parsed = check_obj.observed if check_obj else _unverified_parsed_value(label, actual)
+        evidence = (check_obj.evidence_text or "") if check_obj else ""
+        rows.append(
+            {
+                "label": label,
+                "actual": actual or "Not provided",
+                "parsed": parsed or "No parsed comparison",
+                "verdict": check_obj.verdict if check_obj else "needs_review",
+                "message": check_obj.message if check_obj else "Application context field; no direct OCR comparison rule.",
+                "evidence": _compact_evidence(evidence),
+            }
+        )
+    return rows
+
+
+def _application_display_value(application: dict[str, Any], key: str | None) -> str:
+    """Return a readable application-field value for the comparison table."""
+
+    if not key:
+        return ""
+    value = application.get(key)
+    if key == "imported":
+        return "Yes" if bool(value) else "No"
+    if key == "product_type" and value:
+        return str(value).replace("_", " ").title()
+    return str(value or "")
+
+
+def _unverified_parsed_value(label: str, actual: str) -> str:
+    """Render non-OCR context rows without implying a label match."""
+
+    if label == "Product type":
+        return "Used to select beverage-specific rules"
+    if label == "Imported":
+        return "Controls country-of-origin rule"
+    return actual
+
+
+def _compact_evidence(text: str, limit: int = 240) -> str:
+    """Return a one-line evidence snippet for dense job-level tables."""
+
+    compact = " ".join(str(text or "").split())
+    if len(compact) <= limit:
+        return compact
+    return f"{compact[: limit - 1]}..."
+
+
 @router.post("/jobs")
 def create_single_job(
     brand_name: str = Form(...),
@@ -1251,14 +1340,16 @@ def process_queued_batch_job(job_id: str, payload: dict[str, Any], progress_call
 def job_page(request: Request, job_id: str):
     """Render a job's result table."""
 
+    results = list_results(job_id)
     return templates.TemplateResponse(
         request,
         "job.html",
         {
             "job_id": job_id,
             "manifest": load_manifest(job_id),
-            "results": list_results(job_id),
+            "results": results,
             "queue_status": load_queue_status(job_id),
+            "comparison_rows": _job_comparison_payload(results),
         },
     )
 
@@ -1271,7 +1362,13 @@ def job_status(request: Request, job_id: str):
     return templates.TemplateResponse(
         request,
         "partials/job_status.html",
-        {"job_id": job_id, "results": results, "manifest": load_manifest(job_id), "queue_status": load_queue_status(job_id)},
+        {
+            "job_id": job_id,
+            "results": results,
+            "manifest": load_manifest(job_id),
+            "queue_status": load_queue_status(job_id),
+            "comparison_rows": _job_comparison_payload(results),
+        },
     )
 
 

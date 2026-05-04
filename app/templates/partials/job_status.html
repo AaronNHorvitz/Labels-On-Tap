@@ -42,4 +42,66 @@
   <div class="metric fail"><span>{{ ready_reject_count }}</span><small>Ready to reject</small></div>
 </section>
 
+<section class="panel application-comparison-panel">
+  <h2>Application Truth vs Parsed Label Evidence</h2>
+  <p>The uploaded directory is stored as this durable demo job. As parsing finishes, each application below shows the COLA/application fields on the left and the OCR-supported label evidence on the right.</p>
+  {% for result in results %}
+  <details class="application-comparison-card" {% if loop.first %}open{% endif %}>
+    <summary>
+      <span>{{ result.filename }}</span>
+      <span class="badge {{ result.overall_verdict }}">{{ result.overall_verdict|replace("_", " ")|title }}</span>
+      <span>{{ result.policy_queue|replace("_", " ")|title }}</span>
+    </summary>
+    <div class="application-comparison-grid">
+      <div>
+        <h3>Actual COLA Application Data</h3>
+        <table class="compact-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Truth value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in comparison_rows.get(result.item_id, []) %}
+            <tr>
+              <td>{{ row.label }}</td>
+              <td>{{ row.actual }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3>Parsed Label Data</h3>
+        <table class="compact-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Parsed / evidence value</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in comparison_rows.get(result.item_id, []) %}
+            <tr>
+              <td>{{ row.label }}</td>
+              <td>
+                <p>{{ row.parsed }}</p>
+                {% if row.evidence %}<small>{{ row.evidence }}</small>{% endif %}
+              </td>
+              <td><span class="badge {{ row.verdict }}">{{ row.verdict|replace("_", " ")|title }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p><a href="/jobs/{{ job_id }}/items/{{ result.item_id }}">Open full evidence and reviewer actions</a></p>
+  </details>
+  {% else %}
+  <p>No parsed application results yet. The table will populate as soon as the worker writes results.</p>
+  {% endfor %}
+</section>
+
 {% include "partials/result_table.html" %}
