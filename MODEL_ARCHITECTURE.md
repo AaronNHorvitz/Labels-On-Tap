@@ -119,6 +119,23 @@ flowchart TD
 
 ### Graph-Aware Evidence Scorer
 
+The graph scorer is the smallest practical version of the larger curved-text
+idea. It does not read pixels. It consumes OCR fragments, geometry, and expected
+field values, then decides whether the fragments support the field.
+
+```mermaid
+flowchart LR
+    A[OCR text boxes] --> B[Geometry features]
+    A --> C[Text similarity features]
+    A --> D[Panel summary features]
+    B --> E[KNN graph over OCR fragments]
+    C --> E
+    D --> E
+    E --> F[Graph evidence scorer]
+    F --> G[Field-support score]
+    G --> H[Deterministic validator]
+```
+
 Proof of concept:
 
 | Model | F1 | False-clear rate |
@@ -137,6 +154,32 @@ Promotion requirements:
 
 ### CNN-Inclusive Typography Ensembles
 
+The typography ensemble path is a future replacement candidate for the current
+logistic warning-heading preflight. The current runtime uses the smaller
+logistic model; the ensemble requires one more promotion pass before it should
+ship.
+
+```mermaid
+flowchart TD
+    A[Warning-heading crop] --> B[Engineered visual features]
+    A --> C[MobileNetV3 CNN crop model]
+    B --> D[SVM]
+    B --> E[XGBoost]
+    B --> F[LightGBM]
+    B --> G[Logistic Regression]
+    B --> H[MLP]
+    B --> I[CatBoost]
+    C --> J[Base probabilities]
+    D --> J
+    E --> J
+    F --> J
+    G --> J
+    H --> J
+    I --> J
+    J --> K[Stacker or strict-veto policy]
+    K --> L[Bold, not bold, or review]
+```
+
 Best offline candidates:
 
 | Model / Policy | Test macro F1 | Test false-clear |
@@ -153,3 +196,34 @@ Promotion requirements:
 - compare against current logistic preflight on same locked split,
 - confirm CPU latency inside the deployment container,
 - keep conservative review routing for uncertain cases.
+
+### Future Tri-Engine OCR and Layout Arbiter
+
+The most ambitious future path treats OCR engines as noisy sensors and uses a
+spatial arbiter only after proper labels, clustering, and locked-holdout testing
+exist.
+
+```mermaid
+flowchart LR
+    A[Raw label image] --> B[docTR]
+    A --> C[PaddleOCR]
+    A --> D[OpenOCR SVTRv2]
+    B --> E[Text and boxes]
+    C --> E
+    D --> E
+    A --> F[Image patches]
+    E --> G[Box clustering and normalization]
+    G --> H[Future LayoutLMv3 or graph arbiter]
+    F --> H
+    H --> I[Clean field evidence]
+    I --> J[Deterministic compliance rules]
+```
+
+Promotion requirements:
+
+- token-level or weak labels that have been manually audited,
+- overlap/IoU clustering for conflicting OCR boxes,
+- validation tuning for low false-clear rate,
+- locked noisy-OCR holdout benchmark,
+- CPU latency proof on the deployment class,
+- feature flag and rollback path.

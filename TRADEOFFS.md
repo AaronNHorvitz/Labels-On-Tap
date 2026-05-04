@@ -94,6 +94,24 @@ app routes to `Needs Review`. It does not auto-reject based on typography alone.
 complexity and more artifact management. The smaller logistic model is already
 wired and conservative.
 
+The ensemble experiment was intentionally built as a fair same-dataset
+comparison. Classical models and the CNN were trained on the same audit-v6 split,
+then stackers and reject policies were evaluated on the same test split.
+
+```mermaid
+flowchart TD
+    A[Audit-v6 warning-heading crops] --> B[Shared train validation test split]
+    B --> C[Classical base models]
+    B --> D[MobileNetV3 CNN]
+    C --> E[Out-of-fold probabilities]
+    D --> E
+    E --> F[Stacker or strict-veto ensemble]
+    F --> G[Test F1 and false-clear rate]
+    G --> H{Promote now?}
+    H -->|no| I[Keep logistic runtime]
+    H -->|later| J[Export and benchmark in container]
+```
+
 Best useful offline results:
 
 | Model / Policy | Test macro F1 | Test false-clear |
@@ -156,6 +174,20 @@ retention controls.
 **Why:** The proof of concept is promising, especially for curved or fragmented
 label text, but it needs a saved runtime artifact, same-split comparison against
 DistilRoBERTa, CPU latency proof, tests, and locked-holdout evaluation.
+
+The graph scorer is the practical future version of the curved-text idea. It
+uses OCR fragments as graph nodes instead of trying to train a new pixel-to-text
+OCR model during the submission window.
+
+```mermaid
+flowchart LR
+    A[OCR fragments] --> B[Geometry and text features]
+    B --> C[KNN graph]
+    C --> D[Graph scorer]
+    D --> E[Field-support score]
+    E --> F[Deterministic rules]
+    F --> G[Pass, Needs Review, or Fail]
+```
 
 Useful POC result:
 

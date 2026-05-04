@@ -23,6 +23,23 @@ all base models and ensembles use the same `audit-v6` train/validation/test
 split, and the ensembles are trained on five-fold out-of-fold probabilities
 from every base learner, including MobileNetV3 CNN.
 
+```mermaid
+flowchart TD
+    A[Audit-v6 crops] --> B[Shared split]
+    B --> C[Classical models]
+    B --> D[MobileNetV3 CNN]
+    C --> E[Base probabilities]
+    D --> E
+    E --> F[Soft voting]
+    E --> G[Strict veto]
+    E --> H[Stackers]
+    E --> I[Reject-threshold policies]
+    F --> J[Same test metrics]
+    G --> J
+    H --> J
+    I --> J
+```
+
 | Type | Model / Policy | Train/OOF F1 | Train/OOF false-clear | Test accuracy | Test F1 | Test false-clear |
 |---|---|---:|---:|---:|---:|---:|
 | Base model | SVM | 0.9453 | 0.0346 | 0.9473 | 0.9467 | 0.0363 |
@@ -436,6 +453,22 @@ field-support metric.
 This is not BERT, LayoutLMv3, or an LLM. It is a deterministic bridge that tests
 whether multi-engine evidence can be useful before adding a learned arbiter.
 
+```mermaid
+flowchart LR
+    A[Public COLA label image] --> B[docTR]
+    A --> C[PaddleOCR]
+    A --> D[OpenOCR]
+    B --> E[Support score by field]
+    C --> E
+    D --> E
+    E --> F[Any, majority, unanimous]
+    E --> G[Safety-weighted]
+    E --> H[Government-safe]
+    F --> I[Compare metrics]
+    G --> I
+    H --> I
+```
+
 | Policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate |
 |---|---:|---:|---:|---:|---:|---:|
 | docTR single engine | 0.7455 | 0.9825 | 0.5000 | 0.9911 | 0.6627 | 0.0089 |
@@ -772,6 +805,18 @@ Interpretation:
 
 The latest typography run multiplied the corrected dataset by five and applied
 rotation plus sinusoidal bending to half of the crops.
+
+```mermaid
+flowchart TD
+    A[Corrected typography crops] --> B[5x augmentation]
+    B --> C[Rotation]
+    B --> D[Sinusoidal bending]
+    C --> E[Geometry-stress train set]
+    D --> E
+    E --> F[Base models]
+    F --> G[Strict-veto and stacker ensembles]
+    G --> H[False-clear and latency comparison]
+```
 
 ```text
 run output: data/work/typography-preflight/model-comparison-large-geometry-v1/

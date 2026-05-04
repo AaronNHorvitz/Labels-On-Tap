@@ -328,6 +328,29 @@ Policies tested:
 - safety-weighted support,
 - government-safe support.
 
+Process:
+
+```mermaid
+flowchart LR
+    A[Label panel image] --> B[docTR OCR]
+    A --> C[PaddleOCR]
+    A --> D[OpenOCR SVTRv2]
+    B --> E[Field-support score]
+    C --> F[Field-support score]
+    D --> G[Field-support score]
+    E --> H{Arbitration policy}
+    F --> H
+    G --> H
+    H --> I[Any engine]
+    H --> J[Majority vote]
+    H --> K[Unanimous vote]
+    H --> L[Government-safe policy]
+    I --> M[Compare F1 and false-clear rate]
+    J --> M
+    K --> M
+    L --> M
+```
+
 Key result from `doctr-paddle-openocr-ensemble-smoke-30-govsafe`:
 
 | Policy | Accuracy | Precision | Recall | Specificity | F1 | False-clear rate |
@@ -386,6 +409,22 @@ Model:
 KNN graph over OCR fragments
 -> lightweight PyTorch message passing
 -> field-support score
+```
+
+Process:
+
+```mermaid
+flowchart LR
+    A[OCR boxes and text] --> B[Normalize geometry]
+    A --> C[Text similarity features]
+    A --> D[Field type features]
+    B --> E[KNN graph]
+    C --> E
+    D --> E
+    E --> F[Message passing scorer]
+    F --> G[Field-support probability]
+    G --> H[Threshold tuned for false-clear safety]
+    H --> I[Deterministic compliance rules]
 ```
 
 Best GPU safety run:
@@ -763,6 +802,33 @@ reject thresholds: tuned on validation
 final metrics: test-only
 ```
 
+Training and test process:
+
+```mermaid
+flowchart TD
+    A[Audit-v6 crops] --> B[Train split]
+    A --> C[Validation split]
+    A --> D[Test split]
+    B --> E[Five-fold out-of-fold base predictions]
+    E --> F[SVM]
+    E --> G[XGBoost]
+    E --> H[LightGBM]
+    E --> I[Logistic Regression]
+    E --> J[MLP]
+    E --> K[CatBoost]
+    B --> L[MobileNetV3 CNN]
+    F --> M[Stacker or voting policy]
+    G --> M
+    H --> M
+    I --> M
+    J --> M
+    K --> M
+    L --> M
+    C --> N[Tune reject thresholds]
+    N --> M
+    M --> O[Test-only metrics]
+```
+
 Base learners:
 
 | Model | Train OOF F1 | Train OOF FC | Test Acc | Test F1 | Test FC |
@@ -838,6 +904,21 @@ does not include real rejected/non-bold public applications.
 
 Decision: the ensemble path deserves a future promotion branch, but it was too
 risky to wire into the Monday deployment without final negative-domain proof.
+
+Future promotion plan:
+
+```mermaid
+flowchart TD
+    A[Keep Monday runtime stable] --> B[Freeze current logistic preflight]
+    B --> C[Run CNN-inclusive ensembles on locked typography split]
+    C --> D[Run real negative or manually audited failure set]
+    D --> E{False-clear safer than current runtime?}
+    E -->|no| F[Keep ensemble offline]
+    E -->|yes| G[Export runtime artifact]
+    G --> H[Measure CPU latency in deployment container]
+    H --> I[Add runtime tests and rollback path]
+    I --> J[Promote behind feature flag]
+```
 
 ### 2026-05-03: Deployed Warning-Heading Boldness Model
 
@@ -985,3 +1066,18 @@ The next serious measurement should be:
 
 That is the point where the project can claim noisy OCR evaluation accuracy.
 Everything before that is engineering evidence, calibration, or model selection.
+
+Future model path:
+
+```mermaid
+flowchart TD
+    A[Train and validation OCR caches] --> B[Attach noisy OCR evidence]
+    B --> C[Retune field-support thresholds]
+    C --> D[Freeze OCR engines and thresholds]
+    D --> E[Locked 3000-application holdout]
+    E --> F[Field and application metrics]
+    F --> G{Promotion decision}
+    G -->|stable and safe| H[Promote stronger evidence layer]
+    G -->|too many false clears| I[Route more cases to review]
+    G -->|too slow| J[Optimize or keep offline]
+```
