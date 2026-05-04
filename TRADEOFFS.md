@@ -1071,6 +1071,53 @@ thresholded CNN's safety posture.
 not four-class argmax macro F1, because the threshold policy answers a narrower
 runtime question: "is this crop safe to clear as bold?"
 
+**CNN-inclusive ensemble correction:** The earlier table compared the CNN as a
+separate challenger. Aaron correctly called out that the ensemble comparison
+must also include the CNN as a base learner. We therefore reran the statistically
+controlled comparison on the same `audit-v6` image set with five-fold
+out-of-fold predictions for every base model:
+
+```text
+base learners:
+  SVM, XGBoost, LightGBM, Logistic Regression, MLP, CatBoost,
+  MobileNetV3 CNN
+
+stackers:
+  trained only on out-of-fold train probabilities
+
+thresholds:
+  tuned on validation only
+
+final metrics:
+  untouched audit-v6 test split
+```
+
+| Audit-v6 CNN-inclusive model / policy | Train F1 | Train false-clear | Test macro F1 | Test false-clear |
+|---|---:|---:|---:|---:|
+| SVM base | 0.9453 | 0.0346 | 0.9467 | 0.0363 |
+| XGBoost base | 0.9705 | 0.0302 | 0.9633 | 0.0297 |
+| LightGBM base | 0.9737 | 0.0252 | 0.9753 | 0.0198 |
+| Logistic Regression base | 0.9614 | 0.0274 | 0.9546 | 0.0242 |
+| MLP base | 0.9656 | 0.0288 | 0.9656 | 0.0275 |
+| CatBoost base | 0.9505 | 0.0476 | 0.9472 | 0.0452 |
+| MobileNetV3 CNN base | 0.9523 | 0.0022 | 0.9686 | 0.0055 |
+| Soft voting, all bases + CNN | 0.9784 | 0.0160 | 0.9742 | 0.0198 |
+| Strict veto, all bases + CNN | 0.8400 | 0.0006 | 0.8530 | 0.0022 |
+| Logistic stacker, all bases + CNN | 0.9932 | 0.0064 | 0.9908 | 0.0099 |
+| LightGBM stacker, all bases + CNN | 1.0000 | 0.0000 | 0.9900 | 0.0143 |
+| XGBoost stacker, all bases + CNN | 0.9985 | 0.0025 | 0.9874 | 0.0165 |
+| CatBoost stacker, all bases + CNN | 0.9933 | 0.0072 | 0.9895 | 0.0154 |
+| LightGBM reject, all bases + CNN | 0.9683 | 0.0000 | 0.9552 | 0.0033 |
+| XGBoost reject, all bases + CNN | 0.9784 | 0.0000 | 0.9656 | 0.0044 |
+
+Interpretation: the CNN is the strongest false-clear base learner. Logistic and
+tree stackers maximize raw F1, but their false-clear rates are not government
+safe enough for automatic typography clearance. The LightGBM/XGBoost reject
+ensembles are the best next promotion candidates because they preserve a much
+lower false-clear posture while keeping useful F1. The deployed MVP still uses
+the simpler real-adapted JSON logistic preflight because it is already wired,
+auditable, and conservative.
+
 Reference:
 
 ```text

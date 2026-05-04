@@ -686,6 +686,11 @@ Tasks:
 - [x] Retrain SVM, XGBoost, LightGBM, Logistic Regression, MLP, CatBoost, and stacker/veto baselines on the same `audit-v6` split for a proper side-by-side comparison.
 - [x] Record that the best classical baselines still have materially higher audit-v6 false-clear rates than thresholded CNN clearance.
 - [x] Rerun `audit-v6` baseline/ensemble comparison with a statistically cleaner protocol: base-train, meta-train, validation threshold tuning, and untouched test scoring.
+- [x] Rerun the valid `audit-v6` comparison with MobileNetV3 CNN included as a base learner in every ensemble.
+- [x] Use 5-fold out-of-fold train predictions for SVM, XGBoost, LightGBM, Logistic Regression, MLP, CatBoost, and MobileNetV3 CNN.
+- [x] Train CNN-inclusive soft voting, strict veto, logistic stacker, LightGBM stacker, XGBoost stacker, CatBoost stacker, LightGBM reject, and XGBoost reject ensembles.
+- [x] Record train/test statistics for all CNN-inclusive base learners and ensembles in `MODEL_LOG.md`.
+- [x] Preserve the current decision: CNN-inclusive ensembles are offline promotion candidates, while the MVP runtime keeps the real-adapted JSON logistic typography bridge.
 
 Documentation framing:
 

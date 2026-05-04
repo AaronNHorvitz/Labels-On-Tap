@@ -1704,6 +1704,119 @@ Ensemble test results:
 | XGBoost reject-threshold stacker | 0.9387 | 0.9208 | 0.0033 | 12.7176 |
 | CatBoost stacker | 0.9687 | 0.9677 | 0.0209 | 11.2089 |
 
+### E024 - Audit-v6 CNN-Inclusive Ensemble Comparison
+
+**Date:** 2026-05-03
+**Status:** Offline statistically controlled comparison completed; not promoted to runtime
+**Code path:**
+
+```text
+experiments/typography_preflight/compare_audit_v6_cnn_ensemble.py
+```
+
+**Local output:**
+
+```text
+data/work/typography-preflight/model-comparison-audit-v6-cnn-ensemble-v1/
+```
+
+Purpose:
+
+Run the corrected comparison Aaron asked for: every base learner and every
+ensemble policy trained/evaluated on the same `audit-v6` dataset, with the
+MobileNetV3 CNN included as one of the ensemble base learners.
+
+Protocol:
+
+```text
+audit-v6 manifest SHA-256:
+  81d8155b457f519b9885fd3826d7ade0ffcd52c0230d36209b0f89f768717e46
+
+target:
+  boldness_label
+
+classes:
+  bold / not_bold / unreadable_review / not_applicable
+
+positive class:
+  bold
+
+false clear:
+  actual != bold, predicted/cleared as bold
+
+base learners:
+  SVM, XGBoost, LightGBM, Logistic Regression, MLP, CatBoost,
+  MobileNetV3 CNN
+
+base training:
+  5-fold out-of-fold predictions on audit-v6 train
+
+CNN training:
+  5 MobileNetV3 fold models trained on the local RTX 4090
+
+stacker training:
+  out-of-fold train probabilities from all base learners, including CNN
+
+threshold tuning:
+  audit-v6 validation only
+
+final scoring:
+  untouched audit-v6 test
+```
+
+Dataset:
+
+| Split | Images | Bold | Not Bold | Unreadable Review | Not Applicable |
+|---|---:|---:|---:|---:|---:|
+| Train | 6,000 | 2,385 | 2,415 | 600 | 600 |
+| Validation | 1,500 | 607 | 593 | 150 | 150 |
+| Test | 1,500 | 592 | 608 | 150 | 150 |
+
+Base learners:
+
+| Model | Train OOF F1 | Train OOF false-clear | Test accuracy | Test macro F1 | Test false-clear |
+|---|---:|---:|---:|---:|---:|
+| SVM | 0.9453 | 0.0346 | 0.9473 | 0.9467 | 0.0363 |
+| XGBoost | 0.9705 | 0.0302 | 0.9647 | 0.9633 | 0.0297 |
+| LightGBM | 0.9737 | 0.0252 | 0.9747 | 0.9753 | 0.0198 |
+| Logistic Regression | 0.9614 | 0.0274 | 0.9600 | 0.9546 | 0.0242 |
+| MLP | 0.9656 | 0.0288 | 0.9653 | 0.9656 | 0.0275 |
+| CatBoost | 0.9505 | 0.0476 | 0.9507 | 0.9472 | 0.0452 |
+| MobileNetV3 CNN | 0.9523 | 0.0022 | 0.9560 | 0.9686 | 0.0055 |
+
+CNN-inclusive ensembles:
+
+| Model | Train F1 | Train false-clear | Test accuracy | Test macro F1 | Test false-clear | Aggregator p95 ms |
+|---|---:|---:|---:|---:|---:|---:|
+| Soft voting, all bases + CNN | 0.9784 | 0.0160 | 0.9740 | 0.9742 | 0.0198 | 0.00 |
+| Strict veto, all bases + CNN | 0.8400 | 0.0006 | 0.8833 | 0.8530 | 0.0022 | 0.01 |
+| Logistic stacker, all bases + CNN | 0.9932 | 0.0064 | 0.9893 | 0.9908 | 0.0099 | 0.08 |
+| LightGBM stacker, all bases + CNN | 1.0000 | 0.0000 | 0.9880 | 0.9900 | 0.0143 | 0.35 |
+| XGBoost stacker, all bases + CNN | 0.9985 | 0.0025 | 0.9860 | 0.9874 | 0.0165 | 0.15 |
+| CatBoost stacker, all bases + CNN | 0.9933 | 0.0072 | 0.9873 | 0.9895 | 0.0154 | 0.12 |
+| LightGBM reject, all bases + CNN | 0.9683 | 0.0000 | 0.9673 | 0.9552 | 0.0033 | 0.25 |
+| XGBoost reject, all bases + CNN | 0.9784 | 0.0000 | 0.9753 | 0.9656 | 0.0044 | 0.14 |
+
+Important latency note:
+
+The ensemble p95 values above are aggregator-only because the base probability
+arrays are already computed. They do not include OCR, crop isolation, OpenCV
+feature extraction, or CNN image inference. The CNN's separate CPU single-crop
+p95 from `E022` remains the relevant CNN inference reference: about `5.21`
+ms/crop.
+
+Decision:
+
+- The CNN is the safest individual base learner on false-clear rate.
+- The best raw F1 ensemble is the logistic stacker, but its test false-clear
+  rate is still too high for a government-safe automatic clearance setting.
+- The LightGBM and XGBoost reject ensembles are the best balanced safety
+  candidates among CNN-inclusive ensembles.
+- The strict-veto ensemble is safer but loses too much useful clearance.
+- Keep the deployed real-adapted logistic JSON preflight for the MVP. Treat the
+  CNN-inclusive ensemble as the next offline promotion candidate, not a
+  last-minute runtime swap.
+
 Comparison against E022 CNN:
 
 | Model / Policy | Test Macro F1 | Test False-Clear | Notes |

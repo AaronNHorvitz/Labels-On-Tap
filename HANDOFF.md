@@ -608,35 +608,14 @@ strong bold evidence. It still sends weak/noisy/no-crop evidence to Needs
 Review, which preserves the low false-clear posture.
 ```
 
-Important statistical caveat:
+Important statistical update:
 
 ```text
-This is a bridge model, not the final clean typography model. It mixed real
-approved COLA positive heading crops with synthetic negative/review examples,
-which is reasonable for emergency MVP evidence but still leaves a synthetic-
-negative domain gap. The next task is to build a v6 dataset that seeds the
-synthetic typography pipeline with real COLA image context and trains/tests both
-classical models and a small CNN baseline.
-```
-
-## Immediate Next Task - v6 Typography Dataset And CNN Baseline
-
-Use GPT-5.4 High for this task. It is mostly structured engineering: build the
-dataset, generate contact sheets, train models, compare metrics, and document
-the result. Save GPT-5.5 Extra High for architectural judgment, weird failures,
-and final synthesis.
-
-The v6 correction is based on Aaron's concern that the model should not lean on
-positive-only real data or synthetic-only negatives. The correct design is a
-mixed, application-split dataset:
-
-```text
-real COLA positive warning-heading crops
-+ v5/v6 synthetic bold positives
-+ v5/v6 synthetic non-bold negatives
-+ real-COLA-background mutated non-bold crops
-+ degraded/unreadable review crops
-+ no-warning panel negatives
+The bridge model is still the deployed MVP runtime path, but the v6 correction
+has now been built and tested offline. The clean audit-v6 image set mixes real
+approved COLA warning-heading crops, real-COLA-background synthetic mutations,
+no-warning panels, synthetic bold positives, synthetic non-bold negatives,
+synthetic incorrect headings, and unreadable/review crops.
 ```
 
 Separate the problem into layers:
@@ -658,18 +637,18 @@ If no panel contains valid warning evidence, route to Needs Review or Fail
 depending the configured policy.
 ```
 
-Hard requirements for v6:
+Completed v6 requirements:
 
 - Split by TTB ID/application ID, never by crop.
 - Keep all generated crops, contact sheets, metrics, and trained checkpoints
-  under gitignored `data/work/typography-preflight/v6/`.
+  under gitignored `data/work/typography-preflight/audit-v6/` and related
+  `data/work/typography-preflight/*audit-v6*` experiment directories.
 - Commit code/docs/manifests only, not raw public images or model checkpoints,
   unless a tiny explicit runtime export is intentionally promoted.
 - Generate HTML contact sheets for human inspection before trusting labels.
-- Train classical models first: Logistic Regression, SVM, LightGBM, CatBoost if
-  available.
-- Train a small CNN baseline as a challenger only: ResNet18/MobileNet-style
-  crop classifier for `bold`, `not_bold`, `unreadable_review`.
+- Train classical models first: Logistic Regression, SVM, LightGBM, CatBoost.
+- Train a small CNN baseline as a challenger: MobileNetV3-Small crop classifier
+  for `bold`, `not_bold`, `unreadable_review`, and `not_applicable`.
 - Compare false-clear rate, macro F1, real approved bold clear rate,
   review-routing rate, and CPU latency.
 - Promote only if the v6 model beats or materially clarifies the current
@@ -684,6 +663,48 @@ Hastie, Tibshirani, and Friedman, The Elements of Statistical Learning,
 
 Use this as a classical statistical-learning preflight, not as a replacement
 for OCR or as final compliance authority until validated.
+
+## Current Typography Offline Result - Audit-v6 CNN-Inclusive Ensemble
+
+The latest defensible comparison is:
+
+```text
+code:
+  experiments/typography_preflight/compare_audit_v6_cnn_ensemble.py
+
+output:
+  data/work/typography-preflight/model-comparison-audit-v6-cnn-ensemble-v1/
+
+dataset:
+  audit-v6
+  train / validation / test = 6,000 / 1,500 / 1,500
+
+methodology:
+  SVM, XGBoost, LightGBM, Logistic Regression, MLP, CatBoost, and MobileNetV3
+  CNN all use the same audit-v6 target and split.
+  Base learners produce 5-fold out-of-fold train probabilities.
+  Stackers train on OOF probabilities from all bases, including CNN.
+  Reject thresholds tune on validation only.
+  Final metrics score once on untouched test.
+```
+
+Headline results:
+
+| Model / policy | Train F1 | Train false-clear | Test F1 | Test false-clear |
+|---|---:|---:|---:|---:|
+| MobileNetV3 CNN base | 0.9523 | 0.0022 | 0.9686 | 0.0055 |
+| Logistic stacker, all bases + CNN | 0.9932 | 0.0064 | 0.9908 | 0.0099 |
+| LightGBM reject, all bases + CNN | 0.9683 | 0.0000 | 0.9552 | 0.0033 |
+| XGBoost reject, all bases + CNN | 0.9784 | 0.0000 | 0.9656 | 0.0044 |
+
+Decision:
+
+```text
+The CNN is the safest base learner. CNN-inclusive reject ensembles are the next
+offline promotion candidates. Do not swap them into runtime yet. The MVP should
+keep the real-adapted JSON logistic bridge unless/until a full app-level
+promotion test is frozen and passed.
+```
 
 ## GPU Setup
 

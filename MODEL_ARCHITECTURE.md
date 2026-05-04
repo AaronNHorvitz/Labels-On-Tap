@@ -827,6 +827,76 @@ improve safety but lose too much useful clearance. The CNN remains the stronger
 future challenger; the deployed logistic JSON bridge remains the simpler MVP
 runtime model until a same-split promotion gate is completed.
 
+CNN-inclusive ensemble promotion test:
+
+```text
+code:
+  experiments/typography_preflight/compare_audit_v6_cnn_ensemble.py
+
+output:
+  data/work/typography-preflight/model-comparison-audit-v6-cnn-ensemble-v1/
+
+methodology:
+  all models use audit-v6
+  train / validation / test = 6,000 / 1,500 / 1,500
+  classical base learners use 5-fold out-of-fold train probabilities
+  CNN base learner uses 5 MobileNetV3 fold models for out-of-fold train probabilities
+  final base models score validation/test
+  stackers train on out-of-fold train probabilities from all bases, including CNN
+  reject thresholds tune on validation
+  final metrics score once on test
+
+base learners:
+  SVM, XGBoost, LightGBM, Logistic Regression, MLP, CatBoost,
+  MobileNetV3 CNN
+```
+
+```mermaid
+flowchart LR
+    A["audit-v6 warning-heading crop"] --> B["OpenCV feature extractors"]
+    A --> C["MobileNetV3 CNN image path"]
+    B --> D["SVM"]
+    B --> E["XGBoost"]
+    B --> F["LightGBM"]
+    B --> G["Logistic Regression"]
+    B --> H["MLP"]
+    B --> I["CatBoost"]
+    C --> J["CNN probability vector"]
+    D --> K["OOF/base probability stack"]
+    E --> K
+    F --> K
+    G --> K
+    H --> K
+    I --> K
+    J --> K
+    K --> L["Soft voting / strict veto / stackers / reject policies"]
+    L --> M["bold / not bold / unreadable review / not applicable"]
+```
+
+| Audit-v6 CNN-inclusive model / policy | Train F1 | Train false-clear | Test macro F1 | Test false-clear |
+|---|---:|---:|---:|---:|
+| SVM base | 0.9453 | 0.0346 | 0.9467 | 0.0363 |
+| XGBoost base | 0.9705 | 0.0302 | 0.9633 | 0.0297 |
+| LightGBM base | 0.9737 | 0.0252 | 0.9753 | 0.0198 |
+| Logistic Regression base | 0.9614 | 0.0274 | 0.9546 | 0.0242 |
+| MLP base | 0.9656 | 0.0288 | 0.9656 | 0.0275 |
+| CatBoost base | 0.9505 | 0.0476 | 0.9472 | 0.0452 |
+| MobileNetV3 CNN base | 0.9523 | 0.0022 | 0.9686 | 0.0055 |
+| Soft voting, all bases + CNN | 0.9784 | 0.0160 | 0.9742 | 0.0198 |
+| Strict veto, all bases + CNN | 0.8400 | 0.0006 | 0.8530 | 0.0022 |
+| Logistic stacker, all bases + CNN | 0.9932 | 0.0064 | 0.9908 | 0.0099 |
+| LightGBM stacker, all bases + CNN | 1.0000 | 0.0000 | 0.9900 | 0.0143 |
+| XGBoost stacker, all bases + CNN | 0.9985 | 0.0025 | 0.9874 | 0.0165 |
+| CatBoost stacker, all bases + CNN | 0.9933 | 0.0072 | 0.9895 | 0.0154 |
+| LightGBM reject, all bases + CNN | 0.9683 | 0.0000 | 0.9552 | 0.0033 |
+| XGBoost reject, all bases + CNN | 0.9784 | 0.0000 | 0.9656 | 0.0044 |
+
+Decision update: the CNN-inclusive ensemble test replaces the earlier
+CNN-as-separate-challenger interpretation. The CNN is now proven as an ensemble
+base input. The best next candidate is a reject-threshold ensemble with CNN
+included, but the MVP runtime should still keep the simpler real-adapted JSON
+logistic preflight until a full app-level promotion test is frozen.
+
 ---
 
 ## 9. Domain-NER / BERT Arbiter Experiments

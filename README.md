@@ -124,16 +124,16 @@ threshold still routes to `Needs Review`; the model is not allowed to reject a
 label by itself from one raster crop.
 
 Offline challengers are tracked separately. On the `audit-v6` image set, the
-defensible baseline retrain keeps base-model fitting, stacker fitting,
-threshold tuning, and final testing separate. The best retrained classical
-baseline reached `0.9703` test macro F1 but still false-cleared `0.0242` of
-non-bold/non-clear crops. The safer reject-threshold stackers lowered
-false-clear to `0.0033` but fell to about `0.92` macro F1. A MobileNetV3 CNN
-challenger produced safer thresholded policies, including `0.0000` test
-false-clear with binary policy macro F1 `0.7755` at the most conservative
-threshold and `0.0022` test false-clear with binary policy macro F1 `0.8864` at
-the practical threshold. It is not promoted to runtime until the same-split
-promotion gate is complete.
+corrected comparison now trains every base learner on the same split and
+includes MobileNetV3 CNN probabilities inside the ensemble layer. Base learners
+use five-fold out-of-fold train predictions; stackers train on those OOF
+probabilities; reject thresholds tune on validation only; final statistics are
+reported on the untouched test split. The CNN is the safest single base learner
+so far: test macro F1 `0.9686` with false-clear `0.0055`. Among CNN-inclusive
+ensembles, the logistic stacker has the strongest raw test macro F1 (`0.9908`)
+but false-clear `0.0099`, while the LightGBM reject ensemble is safer with test
+macro F1 `0.9552` and false-clear `0.0033`. These remain offline promotion
+candidates, not MVP runtime replacements.
 
 A production-grade evaluation would use a larger random or stratified holdout set across product types, statuses, dates, form versions, and known regulatory/form-change boundaries. For this take-home, the practical goal is narrower: prove that public COLA application data and label images can be parsed, OCR'd, compared, and evaluated with conservative human-review routing.
 
@@ -423,6 +423,22 @@ The experiments live under `experiments/typography_preflight/` with generated
 artifacts under gitignored `data/work/typography-preflight/`. The deployed
 runtime uses only the exported JSON coefficients and OpenCV/numpy feature
 extractor, not scikit-learn/joblib.
+
+The canonical offline challenger comparison is now
+`data/work/typography-preflight/model-comparison-audit-v6-cnn-ensemble-v1/`.
+It uses the same `audit-v6` train/validation/test split for all base learners
+and includes the CNN as a base model in every ensemble. The current headline is:
+
+| Model / Policy | Test macro F1 | Test false-clear |
+|---|---:|---:|
+| MobileNetV3 CNN base | `0.9686` | `0.0055` |
+| Logistic stacker, all bases + CNN | `0.9908` | `0.0099` |
+| LightGBM reject, all bases + CNN | `0.9552` | `0.0033` |
+| XGBoost reject, all bases + CNN | `0.9656` | `0.0044` |
+
+The CNN-inclusive reject ensembles are promising, but the deployed MVP keeps the
+lower-risk JSON logistic bridge until a promotion decision is frozen and tested
+end to end.
 
 Before any OCR engine becomes the default runtime path, it must pass the same checklist:
 
