@@ -178,14 +178,22 @@ Useful conclusions:
 
 ## Getting Started
 
-### Option A: Docker
+### Option A: Docker Direct Local Run
 
 ```bash
 git clone https://github.com/AaronNHorvitz/Labels-On-Tap.git
 cd Labels-On-Tap
 cp .env.example .env
-docker compose build
-docker compose up -d
+docker build -t labels-on-tap-app:local .
+docker run --rm -p 8000:8000 \
+  -v "$PWD/data/jobs:/app/data/jobs" \
+  -v "$PWD/data/work/demo-upload:/app/data/work/demo-upload:ro" \
+  labels-on-tap-app:local
+```
+
+In another terminal:
+
+```bash
 curl http://localhost:8000/health
 ```
 
@@ -199,10 +207,32 @@ If you are using Podman locally:
 
 ```bash
 podman build -t labels-on-tap-app:local .
-podman run --rm -p 8000:8000 -v "$PWD/data/jobs:/app/data/jobs:Z" labels-on-tap-app:local
+podman run --rm -p 8000:8000 \
+  -v "$PWD/data/jobs:/app/data/jobs:Z" \
+  -v "$PWD/data/work/demo-upload:/app/data/work/demo-upload:ro,Z" \
+  labels-on-tap-app:local
 ```
 
-### Option B: Local Python
+### Option B: Docker Compose
+
+Docker Compose is the production-shaped setup used on AWS Lightsail. It runs the
+FastAPI app behind Caddy. The checked-in `Caddyfile` is configured for the
+public domain, so the simplest local Compose health check runs inside the app
+container.
+
+```bash
+git clone https://github.com/AaronNHorvitz/Labels-On-Tap.git
+cd Labels-On-Tap
+cp .env.example .env
+docker compose build
+docker compose up -d
+docker compose exec app curl -s http://localhost:8000/health
+```
+
+For local browser testing, the direct Docker or local Python options are simpler
+because they expose the app directly at `http://localhost:8000`.
+
+### Option C: Local Python
 
 Python 3.11 is recommended. The pinned requirements install CPU PyTorch wheels.
 
@@ -357,6 +387,7 @@ Labels-On-Tap/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── Caddyfile
+├── APP_USE_INSTRUCTIONS.md
 ├── requirements.txt
 └── pyproject.toml
 ```
@@ -395,6 +426,7 @@ data/work/
 | `TRADEOFFS.md` | Why the app uses this architecture for the submission |
 | `TASKS.md` | Final delivery checklist |
 | `DEMO_SCRIPT.md` | Suggested live demo flow |
+| `APP_USE_INSTRUCTIONS.md` | Plain-English guide for using LOT Demo and LOT Actual |
 | `docs/performance.md` | Detailed performance and model measurements |
 | `docs/deployment.md` | Deployment notes |
 | `docs/security-and-privacy.md` | Prototype security posture |
