@@ -291,6 +291,22 @@ def test_public_cola_demo_uses_server_side_pack_and_selected_application(monkeyp
     assert not (JOBS_DIR / job_id).exists()
 
 
+def test_example_data_download_serves_demo_pack(monkeypatch, tmp_path):
+    demo_root = tmp_path / "public-cola-demo"
+    demo_root.mkdir()
+    archive = demo_root / "public-cola-demo-pack.zip"
+    archive.write_bytes(b"example zip")
+    monkeypatch.setattr(jobs, "PUBLIC_COLA_DEMO_DIR", demo_root)
+    client = TestClient(app)
+
+    response = client.get("/example-data")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert "labels-on-tap-example-data.zip" in response.headers["content-disposition"]
+    assert response.content == b"example zip"
+
+
 def test_batch_upload_rejects_malformed_csv():
     client = TestClient(app)
     files = [

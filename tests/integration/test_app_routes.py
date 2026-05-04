@@ -50,10 +50,22 @@ def test_actual_app_workspace_keeps_upload_controls():
 
     assert response.status_code == 200
     assert "LOT Actual" in response.text
+    assert "Data Format" in response.text
+    assert "Example Data" in response.text
     assert "Human Review Required" in response.text
     assert "Auto-Route Clear Decisions" in response.text
     assert "Current Application Field Comparison" in response.text
     assert 'name="application_directory"' in response.text
+
+
+def test_data_format_page_renders_upload_instructions():
+    client = TestClient(app)
+    response = client.get("/data-format")
+
+    assert response.status_code == 200
+    assert "Data Format" in response.text
+    assert "manifest.csv" in response.text
+    assert "panel_filenames" in response.text
 
 
 def test_clean_demo_route_renders_pass_result():

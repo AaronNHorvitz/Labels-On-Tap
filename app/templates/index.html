@@ -3,20 +3,15 @@
 {% block content %}
 <section class="workspace">
   <div class="intro">
-    <h1>LOT Actual</h1>
-    <h2>Instructions</h2>
-    <p>Upload one application folder, or a folder containing many application folders. The app reads the label images, extracts the likely label text, and compares the scraped results against the application data you provide.</p>
-    <p>If you want to test one label image, put that image in a one-application folder with one manifest row. That gives the app the actual fields it needs for comparison.</p>
-    <p>For verification, each application needs its own row in <code>manifest.csv</code>. The manifest row contains the actual application fields, and the folder contains the label images the app should read.</p>
-    <p>A simple one-application folder can look like this:</p>
-    <pre class="folder-example">my-label-test/
-  manifest.csv
-  images/
-    application-001/
-      front-label.png
-      back-label.png
-      neck-label.png</pre>
-    <p>The manifest should point to the image files and include fields such as brand name, class/type, alcohol content, net contents, bottler or producer, and country of origin.</p>
+    <div>
+      <h1>LOT Actual</h1>
+      <h2>Instructions</h2>
+      <p>Upload one label image, one application folder, or a folder of applications. The app will read the label images, extract the likely label text, and compare the scraped results against the application data you provide.</p>
+      <div class="intro-actions">
+        <a class="button secondary" href="/data-format">Data Format</a>
+        <a class="button secondary" href="/example-data">Example Data</a>
+      </div>
+    </div>
   </div>
 
   <section class="panel demo-control-panel">

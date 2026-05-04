@@ -1509,6 +1509,20 @@ def public_cola_demo_image(image_path: str) -> FileResponse:
     return FileResponse(_safe_demo_pack_path(PUBLIC_COLA_DEMO_DIR, image_path))
 
 
+@router.get("/example-data")
+def download_example_data() -> FileResponse:
+    """Download the server-hosted example application folder as a ZIP file."""
+
+    archive_path = PUBLIC_COLA_DEMO_DIR / "public-cola-demo-pack.zip"
+    if not archive_path.exists() or not archive_path.is_file():
+        raise HTTPException(status_code=404, detail="Example data is not available on this server yet.")
+    return FileResponse(
+        archive_path,
+        media_type="application/zip",
+        filename="labels-on-tap-example-data.zip",
+    )
+
+
 @router.post("/jobs/batch")
 def create_batch_job(
     background_tasks: BackgroundTasks,

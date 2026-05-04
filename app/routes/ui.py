@@ -25,3 +25,10 @@ def app_workspace(request: Request):
     """Render the application workspace with upload and parse controls."""
 
     return templates.TemplateResponse(request, "index.html", {"max_batch_items": MAX_BATCH_ITEMS})
+
+
+@router.get("/data-format", response_class=HTMLResponse)
+def data_format(request: Request):
+    """Render application folder and manifest setup instructions."""
+
+    return templates.TemplateResponse(request, "data_format.html")

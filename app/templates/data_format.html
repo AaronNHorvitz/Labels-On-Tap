@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Data Format · Labels On Tap{% endblock %}
+{% block content %}
+<section class="workspace">
+  <div class="intro">
+    <div>
+      <h1>Data Format</h1>
+      <p>Labels On Tap needs two things for each application: the application data and the label images. The application data is the truth source. The label images are what the app reads. The app compares the scraped label text against the application data.</p>
+    </div>
+  </div>
+
+  <section class="panel format-guide">
+    <h2>One Application</h2>
+    <p>Use this shape when you want to test one application with one or more label images.</p>
+    <pre>my-label-test/
+  manifest.csv
+  images/
+    application-001/
+      front-label.png
+      back-label.png
+      neck-label.png</pre>
+  </section>
+
+  <section class="panel format-guide">
+    <h2>Many Applications</h2>
+    <p>Use this shape when you want to upload a full test set. Each application gets one row in <code>manifest.csv</code>. Each application can have one image or many images.</p>
+    <pre>my-upload/
+  manifest.csv
+  images/
+    application-001/
+      front-label.png
+      back-label.png
+    application-002/
+      front-label.jpg
+      back-label.jpg
+      side-label.jpg</pre>
+  </section>
+
+  <section class="panel format-guide">
+    <h2>manifest.csv</h2>
+    <p>The manifest tells the app what the application says. The image paths tell the app which label images belong to each application.</p>
+    <pre>filename,panel_filenames,product_type,brand_name,class_type,alcohol_content,net_contents,imported,country_of_origin
+application-001,images/application-001/front-label.png;images/application-001/back-label.png,wine,Example Winery,Sauvignon Blanc,12% BY VOL,750 mL,true,France
+application-002,images/application-002/front-label.jpg;images/application-002/back-label.jpg,malt_beverage,Old River Brewing,Ale,5% ALC/VOL,1 Pint,false,</pre>
+  </section>
+
+  <section class="panel format-guide">
+    <h2>Required Fields</h2>
+    <div class="field-guide-grid">
+      <div>
+        <h3>filename</h3>
+        <p>A unique name for the application. This should match the folder name you use under <code>images/</code>.</p>
+      </div>
+      <div>
+        <h3>panel_filenames</h3>
+        <p>One or more label image paths. Separate multiple images with semicolons.</p>
+      </div>
+      <div>
+        <h3>brand_name</h3>
+        <p>The brand name entered on the application.</p>
+      </div>
+      <div>
+        <h3>class_type</h3>
+        <p>The class or type entered on the application.</p>
+      </div>
+      <div>
+        <h3>alcohol_content</h3>
+        <p>The alcohol content entered on the application.</p>
+      </div>
+      <div>
+        <h3>net_contents</h3>
+        <p>The net contents entered on the application.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel format-guide">
+    <h2>Optional Fields</h2>
+    <div class="field-guide-grid">
+      <div>
+        <h3>fanciful_name</h3>
+        <p>The fanciful name, if one exists.</p>
+      </div>
+      <div>
+        <h3>bottler_producer_name_address</h3>
+        <p>The bottler, producer, importer, or address text.</p>
+      </div>
+      <div>
+        <h3>imported</h3>
+        <p>Use <code>true</code> or <code>false</code>.</p>
+      </div>
+      <div>
+        <h3>country_of_origin</h3>
+        <p>Use this for imported products.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel format-guide">
+    <h2>Image Rules</h2>
+    <ul class="plain-list">
+      <li>Use JPG or PNG files.</li>
+      <li>Keep photos clear and readable.</li>
+      <li>Include every label panel tied to the application.</li>
+      <li>If the government warning is on the back label, include the back label.</li>
+      <li>If net contents, alcohol content, or origin text appears on a side or neck label, include that image too.</li>
+    </ul>
+  </section>
+</section>
+{% endblock %}
