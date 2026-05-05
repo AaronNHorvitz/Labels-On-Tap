@@ -31,7 +31,8 @@ engineering trade-offs.
   - bottler/producer name and address when supplied,
   - country of origin for imports,
   - government health warning text, capitalization, and warning-heading boldness.
-- Supports single-label uploads.
+- Supports single-image verification through the backend and fixture routes.
+  The primary user-facing upload path is now COLA-style application folders.
 - Supports one application with multiple label panels.
 - Supports manifest-backed batch uploads using loose images or a ZIP archive.
 - Supports COLA-style batch rows where one application has multiple label
@@ -39,8 +40,9 @@ engineering trade-offs.
 - Uses a local filesystem-backed queue so batch jobs do not run inside the
   browser request.
 - Provides a reviewer dashboard at `/review`.
-- Persists reviewer decisions: `Accept`, `Reject`, `Request correction / better
-  image`, `Override with note`, and `Escalate`.
+- Persists reviewer decisions. Job cards expose the fast `Accept` / `Reject`
+  actions; item detail pages also support `Request correction / better image`,
+  `Override with note`, and `Escalate`.
 - Exports reviewer-ready CSV files.
 - Includes a photo OCR intake demo for bottle/can/shelf photos without
   application fields.
@@ -63,12 +65,12 @@ Browser
 
 The deployed app does not use hosted OCR or hosted ML APIs at runtime.
 
-Current OCR path:
+Current evidence path:
 
 - fixture OCR for deterministic demos and tests,
 - local docTR for real uploads,
-- optional DistilRoBERTa field-support scoring when the model artifact is
-  mounted,
+- optional DistilRoBERTa field-support scoring after OCR when the model artifact
+  is mounted,
 - exported logistic warning-heading boldness model in
   `app/models/typography/boldness_logistic_v1.json`.
 
@@ -92,12 +94,14 @@ has production authentication, roles, or final agency-action controls.
 ## Measured Model Results
 
 These are the useful statistics to report. Raw data and large model artifacts
-live under gitignored `data/work/`.
+live under gitignored `data/work/` and are not committed to the repository.
 
 ### Public COLA Corpus
 
 The evaluation corpus was built from COLA Cloud public data after direct
-TTBOnline image access became unreliable.
+TTBOnline image access became unreliable. These records were used for local
+evaluation and demo-pack generation; the full corpus is not included in the
+repository.
 
 | Split | Applications | Label images |
 |---|---:|---:|
@@ -183,7 +187,6 @@ Useful conclusions:
 ```bash
 git clone https://github.com/AaronNHorvitz/Labels-On-Tap.git
 cd Labels-On-Tap
-cp .env.example .env
 docker build -t labels-on-tap-app:local .
 docker run --rm -p 8000:8000 \
   -v "$PWD/data/jobs:/app/data/jobs" \
@@ -218,16 +221,19 @@ podman run --rm -p 8000:8000 \
 Docker Compose is the production-shaped setup used on AWS Lightsail. It runs the
 FastAPI app behind Caddy. The checked-in `Caddyfile` is configured for the
 public domain, so the simplest local Compose health check runs inside the app
-container.
+container. Compose also mounts optional gitignored runtime data when present,
+including the curated demo pack and DistilRoBERTa field-support artifact.
 
 ```bash
 git clone https://github.com/AaronNHorvitz/Labels-On-Tap.git
 cd Labels-On-Tap
-cp .env.example .env
 docker compose build
 docker compose up -d
 docker compose exec app curl -s http://localhost:8000/health
 ```
+
+If the optional field-support model artifact is absent, the app still runs and
+falls back to deterministic OCR/text matching.
 
 For local browser testing, the direct Docker or local Python options are simpler
 because they expose the app directly at `http://localhost:8000`.
@@ -235,6 +241,9 @@ because they expose the app directly at `http://localhost:8000`.
 ### Option C: Local Python
 
 Python 3.11 is recommended. The pinned requirements install CPU PyTorch wheels.
+The application reads configuration from environment variables. `.env.example`
+documents the expected values, but local Python does not automatically load
+`.env`; export variables in your shell only when you need to override defaults.
 
 ```bash
 python3.11 -m venv .venv
@@ -314,8 +323,9 @@ filename,panel_filenames,product_type,brand_name,class_type,alcohol_content,net_
 25079001000835,images/25079001000835/front.png;images/25079001000835/back.png,wine,Example Winery,Sauvignon Blanc,12% BY VOL,750 mL,true,France
 ```
 
-When local COLA Cloud-derived working data is present, create the curated
-300-application green-path demo pack used by `/public-cola-demo`:
+Evaluators do not need to build the public demo pack to use the deployed app.
+When local COLA Cloud-derived working data is present, developers can recreate
+the curated 300-application walkthrough pack used by `/public-cola-demo`:
 
 ```bash
 python scripts/create_curated_public_cola_demo_pack.py --limit 300 --zip --force
@@ -350,7 +360,7 @@ Refresh the deployed app:
 
 ```bash
 cd ~/Labels-On-Tap
-git pull
+git pull origin main
 docker compose build
 docker compose up -d
 docker compose logs --tail=100 app
