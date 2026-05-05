@@ -1,14 +1,20 @@
 # Labels On Tap
 
-Labels On Tap turns alcohol label review into a fast, evidence-backed triage
-queue: upload the application, read the label artwork, and show the reviewer
-exactly what matched, what failed, and what needs human judgment.
+Labels On Tap helps reviewers triage COLA-style alcohol label applications by
+reading every submitted label image, comparing the scraped evidence against the
+application fields, and routing each case to `Pass`, `Needs Review`, or `Fail`.
+It focuses on the problems stakeholders called out directly: routine field
+matching, exact government-warning checks, multi-panel applications, batch
+review, fast local processing, and clear human-review controls when the evidence
+is uncertain.
 
-Labels On Tap is a local-first FastAPI prototype that triages COLAs Online-style
-alcohol label applications and identifies labels that appear out of compliance.
-It compares application fields against OCR evidence from submitted label artwork,
-then routes each item to `Pass`, `Needs Review`, or `Fail` with source-backed
-reasons and reviewer actions.
+The prototype is intentionally local-first. It does not rely on hosted OCR APIs
+or LLM-based compliance decisions at runtime because compliance workflows need
+inspectable evidence, low false-clear risk, and predictable behavior without
+hallucinations. This also aligns with the stakeholder constraints around blocked
+outbound traffic, federal security posture, and future FedRAMP/Azure deployment
+concerns. Models are used only as local evidence tools; deterministic rules and
+reviewer policy controls make the final triage decision.
 
 Public demo URL:
 
