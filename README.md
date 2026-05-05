@@ -10,11 +10,12 @@ is uncertain.
 
 The prototype is intentionally local-first. It does not rely on hosted OCR APIs
 or LLM-based compliance decisions at runtime because compliance workflows need
-inspectable evidence, low false-clear risk, and predictable behavior without
-hallucinations. This also aligns with the stakeholder constraints around blocked
-outbound traffic, federal security posture, and future FedRAMP/Azure deployment
-concerns. Models are used only as local evidence tools; deterministic rules and
-reviewer policy controls make the final triage decision.
+inspectable evidence, predictable behavior without hallucinations, and low
+false-clear risk: the risk that an application passes when it should have been
+flagged for review. This also aligns with the stakeholder constraints around
+blocked outbound traffic, federal security posture, and future FedRAMP/Azure
+deployment concerns. Models are used only as local evidence tools;
+deterministic rules and reviewer policy controls make the final triage decision.
 
 Public demo URL:
 
@@ -24,7 +25,7 @@ https://www.labelsontap.ai
 
 ## Evaluator Quick Start
 
-30-second test path:
+Quick test path:
 
 ```bash
 curl https://www.labelsontap.ai/health
@@ -40,10 +41,12 @@ The app is built for the take-home prompt: a working source repository, a
 deployed URL, clear setup instructions, documented assumptions, and defensible
 engineering trade-offs.
 
-Headline measurements are included below: the DistilRoBERTa text-pair arbiter
-reached `F1=0.999904` on a locked clean-text holdout, and the deployed
-government-warning boldness preflight uses a conservative threshold with a
-`0.000624` validation false-clear rate.
+Headline measurements are summarized below in Measured Model Results: the
+DistilRoBERTa text-pair arbiter reached `F1=0.999904` on a locked, unseen
+clean-text holdout set, and the deployed government-warning boldness preflight
+uses a conservative threshold with a `0.000624` validation false-clear rate,
+minimizing the risk that an application incorrectly passes the checking
+process.
 
 Why this architecture: Marcus's infrastructure notes pushed the app away from
 hosted OCR or LLM APIs; Jenny's checklist pushed strict warning text,
@@ -120,7 +123,7 @@ is inside that boundary for ordinary COLA-style labels after model warmup:
 | `/health` local smoke | about 30 ms |
 | `/demo/clean` fixture path | about 12 ms |
 | docTR cached OCR smoke | mean 800.53 ms/image, worst 1,592 ms/image |
-| Recent public-COLA local docTR run | mean 1,413 ms/application, max 3,620 ms/application |
+| Public-COLA local docTR sample | mean 1,413 ms/application, max 3,620 ms/application |
 | DistilRoBERTa field support | mean 17.56 ms/text pair, p95 19.36 ms/text pair |
 | Warning-heading boldness preflight | about 37 ms crop + classify |
 
