@@ -191,7 +191,36 @@ and an admin portal on deadline would be security theater.
 Production path: SSO, RBAC, audit logs, immutable reviewer actions, and
 retention controls.
 
-## 9. Graph Scorer Deferred
+## 9. Production Hardening Freeze
+
+**Decision:** Document the remaining production-hardening work instead of
+changing the live runtime after the app was verified.
+
+**Why:** The deployed prototype already demonstrates the assignment's core
+requirements: local OCR, deterministic rule checks, batch review, reviewer
+queues, CSV export, public-COLA examples, and measured model experiments. The
+remaining security and operations items are important, but they touch container
+permissions, proxy behavior, request handling, persistence, and deployment
+health checks. Changing those after the demo path is working would create more
+submission risk than value.
+
+Deferred hardening items:
+
+- run the container as a non-root user after validating mounted volume
+  ownership on the host,
+- add Dockerfile and Docker Compose healthchecks against `/health`,
+- add Caddy security headers and rate limiting,
+- schedule `data/jobs/` cleanup,
+- add authentication and role-based reviewer access,
+- move reviewer decisions to an append-only audit log,
+- validate every job, item, and upload path through one shared path-safety
+  module,
+- promote the local queue to a broker-backed worker service before horizontal
+  scaling.
+
+This is a scope-discipline choice, not a dismissal of those controls.
+
+## 10. Graph Scorer Deferred
 
 **Decision:** Do not deploy the graph-aware evidence scorer.
 
@@ -222,7 +251,7 @@ Useful POC result:
 
 This is a good post-submission branch, not a Monday runtime feature.
 
-## 10. Remaining Limits
+## 11. Remaining Limits
 
 - The app is a prototype, not an official TTB system.
 - Auth/admin/roles are intentionally not implemented.

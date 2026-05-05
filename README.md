@@ -520,6 +520,13 @@ shape is designed to absorb that work without rewriting the core: the rule
 layer is deterministic and citation-backed, model artifacts are local, and the
 queue already separates browser requests from batch processing.
 
+The working submission was intentionally frozen before deeper production
+hardening changes such as non-root container execution, Docker/Compose
+healthchecks, strict security headers, rate limiting, scheduled upload cleanup,
+and append-only reviewer audit logs. Those are the right next steps for a
+production deployment, but they touch deployment behavior and were not rushed
+into the live prototype after the demo path was verified.
+
 ## Deliberately Deferred
 
 These items were tested or designed, then held out of the deployed runtime to

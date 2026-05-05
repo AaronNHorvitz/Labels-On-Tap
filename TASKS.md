@@ -108,9 +108,14 @@ Important smoke checks before submission:
 
 - [ ] Authentication, roles, and admin portal.
 - [ ] Audit-grade review history and retention policy.
+- [ ] Non-root container runtime after validating host volume ownership.
+- [ ] Dockerfile and Docker Compose healthchecks wired to `/health`.
+- [ ] Caddy security headers, upload-aware limits, and rate limiting.
+- [ ] Scheduled cleanup for retained upload and job artifacts.
 - [ ] Broker-backed queue and separate worker container.
 - [ ] PostgreSQL or equivalent durable review database.
 - [ ] Malware scanning and quarantine for uploads/ZIPs.
+- [ ] Shared path-safety module for job IDs, item IDs, upload names, and result files.
 - [ ] Full noisy-OCR locked holdout benchmark.
 - [ ] Runtime promotion study for graph-aware scorer.
 - [ ] Runtime promotion study for CNN-inclusive typography ensemble.
