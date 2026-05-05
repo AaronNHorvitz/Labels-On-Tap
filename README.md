@@ -22,9 +22,38 @@ Public demo URL:
 https://www.labelsontap.ai
 ```
 
+## Evaluator Quick Start
+
+30-second test path:
+
+```bash
+curl https://www.labelsontap.ai/health
+```
+
+Then open `https://www.labelsontap.ai`, click `LOT Demo`, click
+`Parse This Application` on one public COLA example, use `Accept` or `Reject`
+on the result card, and export CSV from the job page. That path shows the
+working app, reviewer action capture, and reviewer-ready output without
+requiring any local setup.
+
 The app is built for the take-home prompt: a working source repository, a
 deployed URL, clear setup instructions, documented assumptions, and defensible
 engineering trade-offs.
+
+Headline measurements are included below: the DistilRoBERTa text-pair arbiter
+reached `F1=0.999904` on a locked clean-text holdout, and the deployed
+government-warning boldness preflight uses a conservative threshold with a
+`0.000624` validation false-clear rate.
+
+Why this architecture: Marcus's infrastructure notes pushed the app away from
+hosted OCR or LLM APIs; Jenny's checklist pushed strict warning text,
+capitalization, and bold-heading checks; Dave's review experience pushed fuzzy
+field evidence with human review when the label is ambiguous; and Sarah's team
+needs batch handling and fast local triage before a reviewer spends time on the
+case.
+
+See also: `MODEL_ARCHITECTURE.md`, `MODEL_LOG.md`, and `TRADEOFFS.md` for the
+deeper model and scope decisions.
 
 ## What It Does
 
@@ -38,7 +67,7 @@ engineering trade-offs.
   - country of origin for imports,
   - government health warning text, capitalization, and warning-heading boldness.
 - Supports single-image verification through the backend and fixture routes.
-  The primary user-facing upload path is now COLA-style application folders.
+  The primary user-facing upload path is COLA-style application folders.
 - Supports one application with multiple label panels.
 - Supports manifest-backed batch uploads using loose images or a ZIP archive.
 - Supports COLA-style batch rows where one application has multiple label
@@ -80,6 +109,25 @@ Current evidence path:
 - exported logistic warning-heading boldness model in
   `app/models/typography/boldness_logistic_v1.json`.
 
+## Measured Runtime
+
+The runtime target from the interviews was roughly five seconds per label for a
+usable reviewer workflow. Current measurements are evidence that the prototype
+is inside that boundary for ordinary COLA-style labels after model warmup:
+
+| Path | Measurement |
+|---|---:|
+| `/health` local smoke | about 30 ms |
+| `/demo/clean` fixture path | about 12 ms |
+| docTR cached OCR smoke | mean 800.53 ms/image, worst 1,592 ms/image |
+| Recent public-COLA local docTR run | mean 1,413 ms/application, max 3,620 ms/application |
+| DistilRoBERTa field support | mean 17.56 ms/text pair, p95 19.36 ms/text pair |
+| Warning-heading boldness preflight | about 37 ms crop + classify |
+
+These are not universal production guarantees. They are bounded prototype
+measurements from the local/container test paths and are documented more fully
+in `docs/performance.md`.
+
 ## Reviewer Queues
 
 The app keeps raw machine verdicts separate from workflow disposition.
@@ -91,7 +139,8 @@ The app keeps raw machine verdicts separate from workflow disposition.
 | Fail | rejection review off | Ready to reject |
 | Fail | rejection review on | Rejection review |
 | Needs Review | any | Manual evidence review |
-| Unknown government-warning evidence | warning review off | Fail, then rejection policy |
+| Unknown government-warning evidence | warning review off, rejection review off | Ready to reject |
+| Unknown government-warning evidence | warning review off, rejection review on | Rejection review |
 | Unknown government-warning evidence | warning review on | Manual evidence review |
 
 This gives the evaluator a clean control board without pretending the prototype
@@ -99,8 +148,8 @@ has production authentication, roles, or final agency-action controls.
 
 ## Measured Model Results
 
-These are the useful statistics to report. Raw data and large model artifacts
-live under gitignored `data/work/` and are not committed to the repository.
+Headline metrics are below. Raw data and large model artifacts live under
+gitignored `data/work/` and are not committed to the repository.
 
 ### Public COLA Corpus
 
@@ -120,6 +169,16 @@ The split is by TTB ID, with no overlap across train, validation, and holdout.
 Sampling is stratified by month, product type, origin/import status, and
 single-panel vs multi-panel applications where available.
 
+```mermaid
+flowchart LR
+    A[Public COLA records] --> B[Application fields]
+    A --> C[Label images]
+    B --> D[Ground-truth fields]
+    C --> E[OCR and parsing inputs]
+    D --> F[Field comparison]
+    E --> F
+```
+
 ### DistilRoBERTa Field-Support Arbiter
 
 The DistilRoBERTa model is a text-pair classifier. It scores whether a candidate
@@ -137,12 +196,18 @@ do not prove final OCR extraction accuracy.
 | Validation | 15,417 | 1.000000 | 0.000000 |
 | Locked holdout | 46,992 | 0.999904 | 0.000096 |
 
-Runtime settings:
+| Runtime setting | Value |
+|---|---|
+| Model ID | `distilroberta-base` |
+| Threshold | `0.53` |
+| CPU latency | mean 17.56 ms / text pair, p95 19.36 ms / text pair |
 
-```text
-model_id: distilroberta-base
-threshold: 0.53
-CPU latency: mean 17.56 ms / text pair, p95 19.36 ms / text pair
+```mermaid
+flowchart LR
+    A[Expected application field] --> C[Field-support arbiter]
+    B[OCR text candidates] --> C
+    C --> D[Evidence support score]
+    D --> E[Deterministic rule layer]
 ```
 
 ### Government-Warning Boldness Preflight
@@ -163,6 +228,15 @@ strong bold evidence.
 Safety posture: confident bold evidence can pass. Weak, blurry, missing, or
 uncertain crop evidence routes to `Needs Review`. The typography model does not
 hard-reject a label by itself.
+
+```mermaid
+flowchart LR
+    A[Label image] --> B[Find GOVERNMENT WARNING heading]
+    B --> C[Crop heading region]
+    C --> D[OpenCV feature extraction]
+    D --> E[Local boldness model]
+    E --> F[Pass or Needs Review]
+```
 
 ### Offline Model Experiments
 
@@ -246,10 +320,12 @@ because they expose the app directly at `http://localhost:8000`.
 
 ### Option C: Local Python
 
-Python 3.11 is recommended. The pinned requirements install CPU PyTorch wheels.
+Python 3.11 is required. The pinned requirements install CPU PyTorch wheels.
 The application reads configuration from environment variables. `.env.example`
 documents the expected values, but local Python does not automatically load
 `.env`; export variables in your shell only when you need to override defaults.
+The `python-dotenv` dependency is retained for offline COLA Cloud corpus scripts
+that explicitly load `.env`.
 
 ```bash
 python3.11 -m venv .venv
@@ -266,7 +342,7 @@ Run tests:
 pytest -q
 ```
 
-Last verified full container test run:
+Last verified full container test run on 2026-05-05:
 
 ```text
 105 passed
@@ -283,7 +359,6 @@ MAX_UPLOAD_BYTES=10485760
 MAX_MANIFEST_BYTES=1048576
 MAX_ARCHIVE_BYTES=262144000
 MAX_BATCH_ITEMS=400
-PUBLIC_BASE_URL=https://www.labelsontap.ai
 FIELD_SUPPORT_MODEL_ENABLED=true
 FIELD_SUPPORT_MODEL_DIR=/app/models/field_support/distilroberta
 FIELD_SUPPORT_THRESHOLD=0.53
@@ -299,7 +374,9 @@ does not call COLA Cloud at runtime.
 From the home page:
 
 1. Click `LOT Demo` to open the server-hosted 300-application public COLA
-   walkthrough. No upload is required.
+   walkthrough. No upload is required. This requires the curated demo pack on
+   the deployment host; see the developer note below if you are recreating it
+   locally.
 2. Browse applications and their label panels with the previous/next controls.
 3. Click `Parse This Application` to populate the `Scraped` column beside the
    `Actual` application data for one application.
@@ -314,6 +391,8 @@ From the home page:
    you want a ready-made upload pack and the expected folder layout.
 9. Open `/review` to show queue-level triage across jobs.
 
+For a live-demo narration with talking points, see `DEMO_SCRIPT.md`.
+
 Application directory upload requires:
 
 - one `manifest.csv` or `manifest.json` at the selected directory root,
@@ -326,7 +405,7 @@ Example application row:
 
 ```csv
 filename,panel_filenames,product_type,brand_name,class_type,alcohol_content,net_contents,imported,country_of_origin
-25079001000835,images/25079001000835/front.png;images/25079001000835/back.png,wine,Example Winery,Sauvignon Blanc,12% BY VOL,750 mL,true,France
+25079001000835,images/25079001000835/front.png;images/25079001000835/back.png,wine,Example Winery,Sauvignon Blanc,12% ALC/VOL,750 mL,true,France
 ```
 
 Evaluators do not need to build the public demo pack to use the deployed app.
@@ -378,6 +457,7 @@ curl https://www.labelsontap.ai/health
 ```text
 Labels-On-Tap/
 ├── app/
+│   ├── config.py                       Environment-driven runtime settings
 │   ├── main.py                         FastAPI application factory and routes mount
 │   ├── routes/                         Page, upload, demo, job, review, and export routes
 │   ├── schemas/                        Pydantic request/result contracts
@@ -432,6 +512,26 @@ data/work/
 - The graph-aware scorer and CNN-inclusive typography ensembles are documented
   but not deployed.
 
+To take this from prototype to production in a federal environment, the next
+layer would be authentication and roles, a broker-backed worker queue, durable
+audit logs with retention policy, malware scanning and quarantine for uploads,
+a locked noisy-OCR holdout evaluation, and a Section 508 review. The current
+shape is designed to absorb that work without rewriting the core: the rule
+layer is deterministic and citation-backed, model artifacts are local, and the
+queue already separates browser requests from batch processing.
+
+## Deliberately Deferred
+
+These items were tested or designed, then held out of the deployed runtime to
+keep the submission stable and honest:
+
+| Candidate | Why deferred |
+|---|---|
+| Graph-aware evidence scorer | Promising POC, but still needed artifact export, same-split comparison, CPU latency proof, and route-level tests. |
+| CNN-inclusive typography ensemble | Strong offline candidate, but the JSON logistic model was already wired, fast, conservative, and easier to explain. |
+| Tri-engine OCR runtime | docTR, PaddleOCR, and OpenOCR/SVTRv2 were compared offline; running all three in the web app would add latency and deployment risk. |
+| LayoutLMv3 / BERT ensemble aggregator | Good future architecture, but requires box clustering, token-level labels, and a held-out noisy OCR evaluation before government use. |
+
 ## Supporting Documents
 
 | File | Purpose |
@@ -443,6 +543,7 @@ data/work/
 | `TASKS.md` | Final delivery checklist |
 | `DEMO_SCRIPT.md` | Suggested live demo flow |
 | `APP_USE_INSTRUCTIONS.md` | Plain-English guide for using LOT Demo and LOT Actual |
+| `PERSONALITIES.md` | Stakeholder interview context used to shape product behavior |
 | `docs/performance.md` | Detailed performance and model measurements |
 | `docs/deployment.md` | Deployment notes |
 | `docs/security-and-privacy.md` | Prototype security posture |

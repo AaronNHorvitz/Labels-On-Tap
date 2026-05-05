@@ -2,7 +2,6 @@ services:
   app:
     build: .
     environment:
-      - APP_ENV=production
       - DATA_DIR=/app/data
       - OCR_CONFIDENCE_THRESHOLD=0.70
       - FIELD_SUPPORT_MODEL_ENABLED=true
